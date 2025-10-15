@@ -25,3 +25,22 @@ GWS Project is a Constellab brick (library) developed by Gencovery that provides
 ### Dependencies
 - `gws_core` (v0.17.0) - Core Constellab functionality including BaseModelDTO, credentials, external API services
 - `reflex` (v0.8.14.post1) - Web framework for the RAG application
+
+## Development best Practices
+- Follow the existing code style and conventions used in the project.
+- Import from `gws_core` must use the main module imports (e.g., `from gws_core import BaseModelDTO`) rather than sub-imports (avoid `from gws_core.model.base import BaseModelDTO`)
+
+## Development Commands
+
+### Server Management
+- Start server: `gws server run`
+- Start server with debug logging: `gws server run --log-level=DEBUG`
+
+### Testing
+- Run all tests: `gws server test all`
+- Run specific test: `gws server test [TEST_FILE_NAME]` (without `.py` extension, to run from the project directory)
+- Tests are located in `tests/test_gws_core/` directory
+
+### Development Apps
+- Run Streamlit app in dev mode: `gws streamlit run [CONFIG_FILE_PATH]`
+- Run Reflex app in dev mode: `gws reflex run [CONFIG_FILE_PATH]`

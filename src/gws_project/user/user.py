@@ -17,7 +17,7 @@ class User(Model):
     photo: str = CharField(null=True)
 
     class Meta:
-        table_name = 'user'
+        table_name = 'gws_project_user'
         database = ProjectDbManager.get_instance().db
         is_table = True
         db_manager = ProjectDbManager.get_instance()

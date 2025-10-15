@@ -11,7 +11,7 @@ from gws_project.user.user import User
 class UserService():
 
     @classmethod
-    def sync_users(cls) -> None:
+    def sync_gws_core_users(cls) -> None:
         """
         Synchronize users from gws_core to gws_project database.
         Retrieves all users from gws_core UserService and creates or updates them in gws_project.
@@ -64,7 +64,6 @@ class UserService():
         project_user.photo = gws_core_user.photo
 
         return project_user.save(force_insert=force_insert)
-
 
     @classmethod
     def get_all_users(cls) -> List[User]:

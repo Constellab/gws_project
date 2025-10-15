@@ -2,10 +2,9 @@
 
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.user.user import User
-from peewee import (CharField, DateField, DecimalField, ForeignKeyField,
-                    TextField)
+from peewee import CharField, DateField, ForeignKeyField, TextField
 
-from .model_with_user import ModelWithUser
+from ..core.model_with_user import ModelWithUser
 
 
 class Project(ModelWithUser):
@@ -20,11 +19,10 @@ class Project(ModelWithUser):
     start_date = DateField(null=False, index=True)
     end_date = DateField(null=False, index=True)
     project_manager = ForeignKeyField(User, null=False)
-    amount = DecimalField(max_digits=12, decimal_places=2, null=True)
-    collaborative_folder_id = CharField(max_length=255, unique=True, null=True)
+    space_folder_id = CharField(max_length=36, unique=True, null=True)
 
     class Meta:
-        table_name = 'projects'
+        table_name = 'gws_project_projects'
         database = ProjectDbManager.get_instance().db
         is_table = True
         db_manager = ProjectDbManager.get_instance()
