@@ -1,37 +1,10 @@
-from typing import Optional
-
 import reflex as rx
-from gws_reflex_main import (ReflexMainState, add_unauthorized_page, get_theme,
-                             main_component)
+from gws_reflex_main import add_unauthorized_page, get_theme
 
-
-class State(ReflexMainState):
-    value = 0
-
-    @rx.var
-    async def get_resource_name(self) -> str:
-        """Return the name of the resource."""
-
-        # Secure the method to ensure it checks authentication
-        # before accessing resources.
-        if not await self.check_authentication():
-            return 'Unauthorized'
-        resources = await self.get_resources()
-        return resources[0].name if resources else 'No resource'
-
-    @rx.var
-    async def get_param_name(self) -> Optional[str]:
-        """
-        Get a parameter from the app configuration.
-        This route is not secured, so it can be accessed without authentication.
-        """
-        return await self.get_param('param_name', 'default_value')
-
-    @rx.event
-    def increment(self):
-        """Increment the value."""
-        self.value += 1
-
+from .project_detail.project_detail_component import project_detail_page
+from .project_detail.project_detail_state import ProjectDetailState
+from .project_list.project_list_component import project_list_page
+from .project_list.project_list_state import ProjectListState
 
 app = rx.App(
     theme=get_theme(),
@@ -39,23 +12,24 @@ app = rx.App(
 )
 
 
-# Declare the page and init the main state
-@rx.page()
+# Declare the project list page as the index page
+@rx.page(route="/", on_load=ProjectListState.on_load)
 def index():
-    # Render the main container with the app content.
-    # The content will be displayed once the state is initialized.
-    # If the state is not initialized, a loading spinner will be shown.
-    return main_component(
-        rx.heading("Reflex app", font_size="2em"),
-        rx.text("Input resource name: " + State.get_resource_name),
-        rx.text("Param name: " + State.get_param_name),
-        rx.text(f"Value: {State.value}"),
-        rx.button(
-            "Click me",
-            on_click=State.increment,
-            style={"margin-top": "20px"}
-        )
-    )
+    """Main page displaying the list of projects.
+
+    This is the default landing page of the application.
+    """
+    return project_list_page()
+
+
+# Declare the project detail page with URL parameter
+@rx.page(route="/project/[project_id]", on_load=ProjectDetailState.on_load)
+def project_detail():
+    """Project detail page displaying all information about a specific project.
+
+    The project_id is extracted from the URL path.
+    """
+    return project_detail_page()
 
 
 # Add the unauthorized page to the app.

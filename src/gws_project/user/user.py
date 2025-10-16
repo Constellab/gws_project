@@ -1,6 +1,6 @@
 
 
-from gws_core import EnumField, Model, UserGroup
+from gws_core import EnumField, Model, UserDTO, UserGroup
 from gws_project.core.project_db_manager import ProjectDbManager
 from peewee import BooleanField, CharField
 
@@ -15,6 +15,15 @@ class User(Model):
     is_active = BooleanField(default=True)
 
     photo: str = CharField(null=True)
+
+    def to_dto(self) -> UserDTO:
+        return UserDTO(
+            id=self.id,
+            email=self.email,
+            first_name=self.first_name,
+            last_name=self.last_name,
+            photo=self.photo
+        )
 
     class Meta:
         table_name = 'gws_project_user'

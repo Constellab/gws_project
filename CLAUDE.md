@@ -9,16 +9,33 @@ GWS Project is a Constellab brick (library) developed by Gencovery that provides
 ## Architecture
 
 ### Directory Structure
-- `src/gws_ai_toolkit/` - src of the brick
-  - `models/` - Folder containings the database peewee models
-  - `project_app/` - Python reflex application to manage projects
+- `src/gws_project/` - Source code of the brick
+  - `user/` - User management module
+    - `user.py` - User database model
+    - `user_service.py` - User business logic and operations
+  - `project/` - Project management module
+    - `project.py` - Project database model
+    - `project_dto.py` - Project data transfer objects
+    - `project_user.py` - Project-user relationship model
+    - `project_service.py` - Project business logic and operations
+    - `project_security_service.py` - Project security and permissions
+  - `task/` - Task management module
+    - `task.py` - Task database model
+    - `task_dto.py` - Task data transfer objects
+    - `task_service.py` - Task business logic and operations
+    - `task_search_builder.py` - Task search functionality
+  - `project_app/` - Reflex web application to manage projects
+    - `generate_project_app.py` - Script to generate/configure the Reflex app
     - `_project_app/` - Reflex application root directory
-      - `dev_config.json` - Development configuration file. Use to run the app in dev mode.
+      - `dev_config.json` - Development configuration file (use to run the app in dev mode)
+      - `rxconfig.py` - Reflex configuration
       - `project_app/` - Main application package
-        - `main_state.py` - Root state class for the application
-        - `app.py` - Main app entry point with rx.App() definition
-        - `...` - (additional states and components)
+        - `project_app.py` - Main app entry point with rx.App() definition
+      - `assets/` - Static assets (CSS, favicon, etc.)
   - `core/` - Core utilities and helpers
+    - `model_with_user.py` - Base model with user tracking
+    - `project_db_manager.py` - Database manager for project models
+    - `gws_core_event_listener.py` - Event listeners for gws_core events
 - `tests/test_gws_project/` - Test files
 
 
