@@ -145,6 +145,36 @@ class ProjectUser(ModelWithUser):
             (cls.project == project_id) & (cls.role == ProjectUserRole.OWNER.value)
         ).count()
 
+    @classmethod
+    def create_or_update(cls,
+                         project: Project,
+                         user: User,
+                         role: ProjectUserRole) -> 'ProjectUser':
+        """Create or update a ProjectUser entity.
+
+        :param project: The project
+        :type project: Project
+        :param user: The user
+        :type user: User
+        :param role: The role to assign
+        :type role: ProjectUserRole
+        :param assigned_by: The user assigning the role
+        :type assigned_by: User, optional
+        :return: The created or updated ProjectUser entity
+        :rtype: ProjectUser
+        """
+        project_user = cls.get_by_project_and_user(project.id, user.id)
+
+        if not project_user:
+            project_user = cls()
+            project_user.project = project
+            project_user.user = user
+
+        project_user.role = role
+        project_user.save()
+
+        return project_user
+
     class Meta:
         table_name = 'gws_project_project_users'
         database = ProjectDbManager.get_instance().db

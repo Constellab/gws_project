@@ -16,4 +16,5 @@ class GwsCoreDbListener(EventListener):
         if event.type == 'system' and event.action == 'started':
             UserService.sync_gws_core_users()
         if event.type == 'user':
+            print(f"User event received: {event.action} for user {event.data}")
             UserService.sync_gws_core_user(event.data)

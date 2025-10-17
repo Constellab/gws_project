@@ -23,7 +23,7 @@ def index():
 
 
 # Declare the project detail page with URL parameter
-@rx.page(route="/project/[project_id]", on_load=ProjectDetailState.on_load)
+@rx.page(route="/project/[project_id_param]", on_load=ProjectDetailState.on_load)
 def project_detail():
     """Project detail page displaying all information about a specific project.
 

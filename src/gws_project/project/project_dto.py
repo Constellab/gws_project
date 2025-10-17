@@ -6,6 +6,12 @@ from typing import Optional
 from gws_core import BaseModelDTO, ModelDTO, UserDTO
 
 
+class ProjectUserDTO(BaseModelDTO):
+    """DTO for displaying project user information with their role."""
+    user: UserDTO
+    role: str
+
+
 class SaveProjectDTO(BaseModelDTO):
     name: str
     description: str

@@ -1,7 +1,8 @@
 
 import reflex as rx
-from gws_project.project.project_dto import ProjectDTO
-from gws_reflex_main import main_component, user_inline_component
+from gws_project.project.project_dto import ProjectDTO, ProjectUserDTO
+from gws_reflex_main import (main_component, user_inline_component,
+                             user_profile_picture)
 
 from ..create_project_dialog.project_form_dialog_component import \
     project_update_dialog
@@ -9,6 +10,8 @@ from ..create_project_dialog.project_form_dialog_state import \
     ProjectFormDialogState
 from .delete_project_dialog_component import (DeleteProjectDialogState,
                                               delete_project_dialog)
+from .manage_users_dialog_component import (ManageUsersDialogState,
+                                            manage_users_dialog)
 from .project_detail_state import ProjectDetailState
 
 
@@ -49,6 +52,59 @@ def header(project: ProjectDTO) -> rx.Component:
         spacing="2",
         align="center",
     )
+
+
+def project_user_item(project_user: ProjectUserDTO) -> rx.Component:
+    """Create a project user item component displaying user photo and role.
+
+    :param project_user: The project user data transfer object
+    :type project_user: ProjectUserDTO
+    :return: The project user item component
+    :rtype: rx.Component
+    """
+    return user_profile_picture(project_user.user, size="40px")
+
+
+def project_users_section() -> rx.Component:
+    """Create the project users section displaying all users in a row.
+
+    :return: The project users section component
+    :rtype: rx.Component
+    """
+    return rx.cond(
+        ProjectDetailState.project_users.length() > 0,
+        rx.vstack(
+            # Header with title and manage button
+            rx.hstack(
+                rx.heading(
+                    "Team Members",
+                    size="5",
+                ),
+                rx.spacer(),
+                rx.button(
+                    rx.icon("users", size=16),
+                    "Manage Users",
+                    variant="soft",
+                    on_click=ManageUsersDialogState.open_dialog
+                ),
+                width="100%",
+                align="center",
+            ),
+            # User avatars
+            rx.hstack(
+                rx.foreach(
+                    ProjectDetailState.project_users,
+                    project_user_item
+                ),
+                spacing="3",
+                align="center",
+            ),
+            width="100%",
+            spacing="3",
+            align_items="start",
+        )
+    )
+
 
 def project_detail_page() -> rx.Component:
     """Create the project detail page component.
@@ -131,6 +187,8 @@ def project_detail_page() -> rx.Component:
                             color="gray",
                             margin_top="0.5rem"
                         ),
+                        # Project users section
+                        project_users_section(),
 
                         width="100%",
                         spacing="4"
@@ -145,5 +203,7 @@ def project_detail_page() -> rx.Component:
         # Add the update dialog
         project_update_dialog(),
         # Add the delete confirmation dialog
-        delete_project_dialog()
+        delete_project_dialog(),
+        # Add the manage users dialog
+        manage_users_dialog()
     )

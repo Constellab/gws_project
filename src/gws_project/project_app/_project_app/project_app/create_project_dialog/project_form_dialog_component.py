@@ -82,12 +82,12 @@ def _dialog() -> rx.Component:
     return form_dialog_component(
         state=ProjectFormDialogState,
         title=rx.cond(
-            ProjectFormDialogState.is_editing_item,
+            ProjectFormDialogState.is_update_mode,
             "Update Project",
             "Create New Project"
         ),
         description=rx.cond(
-            ProjectFormDialogState.is_editing_item,
+            ProjectFormDialogState.is_update_mode,
             "Update the project details below.",
             "Fill in the details below to create a new project."
         ),

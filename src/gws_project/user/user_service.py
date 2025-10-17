@@ -74,3 +74,13 @@ class UserService():
     def get_user_by_id(cls, id_: str) -> User | None:
         """Get a user by ID from gws_project database"""
         return User.get_by_id(id_)
+
+    @classmethod
+    def get_or_import_user_info(cls, user_id: str) -> User | None:
+        """Get a user by ID from gws_project database, or import from gws_core if not found"""
+        user = cls.get_user_by_id(user_id)
+        if user is None:
+            gws_core_user = GwsCoreUserService.get_or_import_user_info(user_id)
+            if gws_core_user:
+                user = cls.sync_gws_core_user(gws_core_user)
+        return user

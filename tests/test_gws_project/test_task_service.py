@@ -305,7 +305,7 @@ class TestTaskService(BaseTestCase):
 
         # Create another user and add them to the project
         second_user = self._create_test_user("second@example.com")
-        project_service.add_user_to_project(project.id, second_user.id, ProjectUserRole.USER)
+        project_service.add_group_to_project(project.id, second_user.id, ProjectUserRole.USER)
 
         # Create a task
         root_task_dto = CreateRootTaskDTO(
@@ -458,7 +458,7 @@ class TestTaskService(BaseTestCase):
 
         # Add another user to the project
         second_user = self._create_test_user("workflow@example.com")
-        project_service.add_user_to_project(project.id, second_user.id, ProjectUserRole.USER)
+        project_service.add_group_to_project(project.id, second_user.id, ProjectUserRole.USER)
 
         # 1. Create root task with subtasks allowed
         root_task_dto = CreateRootTaskDTO(

@@ -12,6 +12,7 @@ from gws_project.project.project_security_service import ProjectSecurityService
 from gws_project.project.project_user import ProjectUser, ProjectUserRole
 from gws_project.task.task import Task
 from gws_project.user.user import User
+from gws_project.user.user_service import UserService
 
 
 class ProjectService:
@@ -21,6 +22,8 @@ class ProjectService:
                          If not provided, a default SpaceService instance will be created.
     :type space_service: Optional[SpaceService]
     """
+
+    _space_service: SpaceService
 
     def __init__(self, space_service: Optional[SpaceService] = None):
         """Initialize the ProjectService with an optional SpaceService instance.
@@ -201,8 +204,8 @@ class ProjectService:
         project.delete_instance()
 
     @ProjectDbManager.transaction()
-    def add_user_to_project(self, project_id: str, user_id: str,
-                            role: ProjectUserRole = ProjectUserRole.USER) -> ProjectUser:
+    def add_group_to_project(self, project_id: str, group_id: str,
+                             role: ProjectUserRole = ProjectUserRole.USER) -> List[ProjectUser]:
         """Add a user to a project and share the project folder in Space.
 
         :param project_id: The ID of the project
@@ -219,20 +222,28 @@ class ProjectService:
         project = security_service.get_and_check_role_for_project(
             project_id, ProjectUserRole.OWNER)
 
-        # Create the ProjectUser entity with the specified role
-        project_user = ProjectUser()
-        project_user.project = project
-        project_user.user = User.get_by_id_and_check(user_id)
-        project_user.role = role.value
-        project_user.save()
-
         # If the project has a space folder, share it with the user
+        project_users = []
         if project.space_folder_id:
             # Convert ProjectUserRole to SpaceRootFolderUserRole
             space_role = SpaceRootFolderUserRole[role.name]
-            self._space_service.share_root_folder(project.space_folder_id, user_id, space_role)
+            folder_users = self._space_service.share_root_folder(project.space_folder_id, group_id, space_role)
 
-        return project_user
+            for folder_user in folder_users:
+                user = UserService.get_or_import_user_info(folder_user.user.id)
+
+                if not user:
+                    raise Exception(f"Error importing user {folder_user.user.email} from in lab.")
+
+                # Create the ProjectUser entity with the specified role
+                project_user = ProjectUser.create_or_update(
+                    project=project,
+                    user=user,
+                    role=folder_user.role
+                )
+                project_users.append(project_user)
+
+        return project_users
 
     @ProjectDbManager.transaction()
     def remove_user_from_project(self, project_id: str, user_id: str) -> None:
@@ -262,19 +273,19 @@ class ProjectService:
 
         if task_count > 0:
             raise BadRequestException(
-                f"Cannot remove user from the project. "
-                f"The user has {task_count} task(s) assigned in this project. "
+                f"Cannot remove user from the project. " +
+                f"The user has {task_count} task(s) assigned in this project. " +
                 f"Please reassign or complete these tasks before removing the user."
             )
 
         # If the user is an owner, check if they are the last owner
-        if project_user.role == ProjectUserRole.OWNER.value:
+        if project_user.role == ProjectUserRole.OWNER:
             # Count the number of owners in the project
             owner_count = ProjectUser.count_owner_by_project(project.id)
 
             if owner_count <= 1:
                 raise BadRequestException(
-                    "Cannot remove the last owner from the project. "
+                    "Cannot remove the last owner from the project. " +
                     "Please assign another owner before removing this user."
                 )
 
@@ -284,3 +295,53 @@ class ProjectService:
 
         # Delete the ProjectUser entity
         project_user.delete_instance()
+
+    @ProjectDbManager.transaction()
+    def update_user_role(self, project_id: str, user_id: str, role: ProjectUserRole) -> ProjectUser:
+        """Update a user's role in a project and update their Space folder permissions.
+
+        :param project_id: The ID of the project
+        :type project_id: str
+        :param user_id: The ID of the user whose role to update
+        :type user_id: str
+        :param role: The new role for the user
+        :type role: ProjectUserRole
+        :return: The updated ProjectUser entity
+        :rtype: ProjectUser
+        :raises BadRequestException: If trying to remove the last owner or user not found
+        """
+        # Get the project and check permissions
+        security_service = ProjectSecurityService()
+        project = security_service.get_and_check_role_for_project(
+            project_id, ProjectUserRole.OWNER)
+
+        # Get the ProjectUser entity
+        project_user = ProjectUser.get_by_project_and_user(project.id, user_id)
+
+        if not project_user:
+            raise BadRequestException("The user is not a member of the project.")
+
+        # If changing from OWNER to something else, check if they are the last owner
+        if project_user.role == ProjectUserRole.OWNER and role != ProjectUserRole.OWNER:
+            # Count the number of owners in the project
+            owner_count = ProjectUser.count_owner_by_project(project.id)
+
+            if owner_count <= 1:
+                raise BadRequestException(
+                    "Cannot change role of the last owner in the project. Please assign another owner before changing this user's role."
+                )
+
+        # Update the role
+        old_role = project_user.role
+        project_user.role = role.value
+        project_user.save()
+
+        print("old_role", old_role, "new_role", role.value)
+        # If the project has a space folder, update permissions
+        if project.space_folder_id and old_role != role.value:
+            # Convert ProjectUserRole to SpaceRootFolderUserRole
+            space_role = SpaceRootFolderUserRole[role.name]
+            # Update the user role in the folder
+            self._space_service.update_folder_user_role(project.space_folder_id, user_id, space_role)
+
+        return project_user

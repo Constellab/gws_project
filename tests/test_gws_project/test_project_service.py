@@ -82,7 +82,7 @@ class TestProjectService(BaseTestCase):
         second_user.save()
 
         # Add user with USER role
-        added_project_user = project_service.add_user_to_project(
+        added_project_user = project_service.add_group_to_project(
             project.id,
             second_user.id,
             ProjectUserRole.USER
@@ -106,7 +106,7 @@ class TestProjectService(BaseTestCase):
         self.assertIn('last owner', str(context.exception).lower())
 
         # Add second user as owner so we can test removing a user with tasks
-        project_service.add_user_to_project(
+        project_service.add_group_to_project(
             project.id,
             second_user.id,
             ProjectUserRole.OWNER

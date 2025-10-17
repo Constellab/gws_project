@@ -2,12 +2,9 @@ from datetime import datetime
 from typing import AsyncGenerator, Optional
 
 import reflex as rx
-from gws_core import Logger
-from gws_core.apps.reflex._gws_reflex.gws_reflex_main.components.reflex_form_dialog_component import \
-    FormDialogState
 from gws_project.project.project_dto import ProjectDTO, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
-from gws_reflex_main import ReflexMainState
+from gws_reflex_main import FormDialogState, ReflexMainState
 
 
 class ProjectFormDialogState(FormDialogState, rx.State):
@@ -29,6 +26,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         Args:
             project: The project to update
         """
+
         # Store the project being edited
         self._editing_project = project
 
@@ -40,7 +38,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         self.form_end_date = project.end_date.strftime('%Y-%m-%d')
 
         # Mark as editing
-        self.is_editing_item = True
+        self.is_update_mode = True
 
         # Open the dialog
         await self.open_dialog()
@@ -62,20 +60,16 @@ class ProjectFormDialogState(FormDialogState, rx.State):
 
         # Validate required fields
         if not name:
-            rx.toast.error("Project name is required")
-            return None
+            raise Exception("Project name is required")
 
         if not description:
-            rx.toast.error("Project description is required")
-            return None
+            raise Exception("Project description is required")
 
         if not start_date_str:
-            rx.toast.error("Start date is required")
-            return None
+            raise Exception("Start date is required")
 
         if not end_date_str:
-            rx.toast.error("End date is required")
-            return None
+            raise Exception("End date is required")
 
         # Parse dates from string to datetime
         start_date = datetime.fromisoformat(start_date_str)
@@ -90,7 +84,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             project_manager_id=None  # Using current user as project manager
         )
 
-    async def _create(self, form_data: dict) -> AsyncGenerator:
+    async def _create(self, form_data: dict):
         """Create a new project using the form data.
 
         Args:
@@ -120,7 +114,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         # Redirect to the project detail page
         yield rx.redirect(f"/project/{created_project.id}")
 
-    async def _update(self, form_data: dict) -> AsyncGenerator:
+    async def _update(self, form_data: dict):
         """Update an existing project using the form data.
 
         Args:
@@ -162,4 +156,4 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         self.form_description = ""
         self.form_start_date = ""
         self.form_end_date = ""
-        self.is_editing_item = False
+        self.is_update_mode = False
