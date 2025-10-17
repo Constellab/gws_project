@@ -43,6 +43,19 @@ class ProjectService:
         security_service = ProjectSecurityService()
         return security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
+    def get_project_users(self, project_id: str) -> List[ProjectUser]:
+        """Get all users associated with a project.
+
+        :param project_id: The ID of the project
+        :type project_id: str
+        :return: List of ProjectUser entities associated with the project
+        :rtype: List[ProjectUser]
+        """
+        security_service = ProjectSecurityService()
+        security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
+
+        return ProjectUser.get_by_project(project_id)
+
     def get_current_user_projects(self) -> List[Project]:
         """Get all projects that the current user is a member of.
 
@@ -63,7 +76,7 @@ class ProjectService:
         """
         if start_date > end_date:
             raise BadRequestException(
-                f"Project start date ({start_date}) cannot be after end date ({end_date})."
+                f"Project start date ({start_date.strftime('%d-%m-%Y')}) cannot be after end date ({end_date.strftime('%d-%m-%Y')})."
             )
 
     @ProjectDbManager.transaction()

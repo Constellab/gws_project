@@ -50,6 +50,17 @@ class ProjectUser(ModelWithUser):
                                       default=ProjectUserRole.USER.value)
 
     @classmethod
+    def get_by_project(cls, project_id: str) -> list['ProjectUser']:
+        """Get the list of ProjectUser entities for a given project.
+
+        :param project: The project
+        :type project: Project
+        :return: List of ProjectUser entities
+        :rtype: list[ProjectUser]
+        """
+        return list(cls.select().where(cls.project == project_id))
+
+    @classmethod
     def get_users_of_project(cls, project_id: str) -> list[User]:
         """Get the list of user IDs that are members of a project.
 
@@ -58,7 +69,7 @@ class ProjectUser(ModelWithUser):
         :return: List of user IDs
         :rtype: list[str]
         """
-        return [pu.user for pu in cls.select().where(cls.project == project_id)]
+        return [user.user for user in cls.get_by_project(project_id)]
 
     @classmethod
     def get_projects_of_user(cls, user_id: str) -> list[Project]:

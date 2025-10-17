@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gws reflex run:*)",
+      "Bash(gws utils screenshot:*)",
+      "Read(//lab/user/**)",
+      "Bash(python:*)",
+      "Bash(mkdir:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

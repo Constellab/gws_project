@@ -7,6 +7,8 @@ from ..create_project_dialog.project_form_dialog_component import \
     project_update_dialog
 from ..create_project_dialog.project_form_dialog_state import \
     ProjectFormDialogState
+from .delete_project_dialog_component import (DeleteProjectDialogState,
+                                              delete_project_dialog)
 from .project_detail_state import ProjectDetailState
 
 
@@ -59,7 +61,7 @@ def project_detail_page() -> rx.Component:
     """
     return main_component(
         rx.vstack(
-            # Header with back button and update button
+            # Header with back button and action buttons
             rx.hstack(
                 rx.link(
                     rx.button(
@@ -72,10 +74,23 @@ def project_detail_page() -> rx.Component:
                 rx.spacer(),
                 rx.cond(
                     ProjectDetailState.project,
-                    rx.button(
-                        rx.icon("pencil", size=18),
-                        "Update Project",
-                        on_click=lambda: ProjectFormDialogState.open_update_dialog(ProjectDetailState.project)
+                    rx.hstack(
+                        rx.button(
+                            rx.icon("pencil", size=18),
+                            "Update Project",
+                            on_click=lambda: ProjectFormDialogState.open_update_dialog(ProjectDetailState.project)
+                        ),
+                        rx.button(
+                            rx.icon("trash_2", size=18),
+                            "Delete",
+                            color_scheme="red",
+                            variant="soft",
+                            on_click=lambda: DeleteProjectDialogState.open_dialog_with_project(
+                                ProjectDetailState.project.id,
+                            )
+                        ),
+
+                        spacing="2"
                     ),
                 ),
                 justify="between",
@@ -128,5 +143,7 @@ def project_detail_page() -> rx.Component:
             padding="2rem"
         ),
         # Add the update dialog
-        project_update_dialog()
+        project_update_dialog(),
+        # Add the delete confirmation dialog
+        delete_project_dialog()
     )
