@@ -6,7 +6,7 @@ from gws_core import EnumField
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
-from gws_project.task.task_dto import TaskPriority, TaskStatus
+from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from gws_project.user.user import User
 from peewee import (BooleanField, CharField, DateField, ForeignKeyField,
                     TextField)
@@ -83,6 +83,31 @@ class Task(ModelWithUser):
         :rtype: int
         """
         return cls.select().where((cls.assign_to == user_id) & (cls.project == project_id)).count()
+
+    def to_dto(self) -> TaskDTO:
+        """Convert the Task model to a TaskDTO for display in the frontend.
+
+        :return: TaskDTO instance
+        :rtype: TaskDTO
+        """
+        return TaskDTO(
+            id=self.id,
+            title=self.title,
+            description=self.description,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            status=self.status,
+            priority=self.priority,
+            allow_subtasks=self.allow_subtasks,
+            assign_to=self.assign_to.to_dto(),
+            project_id=self.project.id,
+            parent_task_id=self.parent_task.id if self.parent_task else None,
+            space_folder_id=self.space_folder_id,
+            created_at=self.created_at,
+            created_by=self.created_by.to_dto(),
+            last_modified_at=self.last_modified_at,
+            last_modified_by=self.last_modified_by.to_dto()
+        )
 
     class Meta:
         table_name = 'gws_project_tasks'

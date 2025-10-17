@@ -43,7 +43,7 @@ class ProjectUser(ModelWithUser):
     """
 
     project = ForeignKeyField(Project, on_delete='CASCADE', null=False, backref='+')
-    user = ForeignKeyField(User, null=False, backref='+')
+    user: User = ForeignKeyField(User, null=False, backref='+')
     role: ProjectUserRole = EnumField(choices=ProjectUserRole,
                                       max_length=20,
                                       null=False,

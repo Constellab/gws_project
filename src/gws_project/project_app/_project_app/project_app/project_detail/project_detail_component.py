@@ -8,6 +8,9 @@ from ..create_project_dialog.project_form_dialog_component import \
     project_update_dialog
 from ..create_project_dialog.project_form_dialog_state import \
     ProjectFormDialogState
+from ..task_form.task_form_dialog_component import task_form_dialog
+from ..task_form.task_form_dialog_state import TaskFormDialogState
+from ..task_list.task_list_component import task_list_component
 from .delete_project_dialog_component import (DeleteProjectDialogState,
                                               delete_project_dialog)
 from .manage_users_dialog_component import (ManageUsersDialogState,
@@ -106,6 +109,37 @@ def project_users_section() -> rx.Component:
     )
 
 
+def tasks_section() -> rx.Component:
+    """Create the tasks section with task list and create button.
+
+    :return: The tasks section component
+    :rtype: rx.Component
+    """
+    return rx.vstack(
+        # Header with title and create button
+        rx.hstack(
+            rx.heading(
+                "Tasks",
+                size="5",
+            ),
+            rx.spacer(),
+            rx.button(
+                rx.icon("plus", size=16),
+                "Create Root Task",
+                variant="soft",
+                on_click=lambda: TaskFormDialogState.open_create_dialog(ProjectDetailState.project)
+            ),
+            width="100%",
+            align="center",
+        ),
+        # Task list component
+        task_list_component(),
+        width="100%",
+        spacing="3",
+        align_items="start",
+    )
+
+
 def project_detail_page() -> rx.Component:
     """Create the project detail page component.
 
@@ -190,6 +224,9 @@ def project_detail_page() -> rx.Component:
                         # Project users section
                         project_users_section(),
 
+                        # Tasks section
+                        tasks_section(),
+
                         width="100%",
                         spacing="4"
                     ),
@@ -205,5 +242,7 @@ def project_detail_page() -> rx.Component:
         # Add the delete confirmation dialog
         delete_project_dialog(),
         # Add the manage users dialog
-        manage_users_dialog()
+        manage_users_dialog(),
+        # Add the task form dialog
+        task_form_dialog()
     )

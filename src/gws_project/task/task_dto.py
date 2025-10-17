@@ -4,8 +4,7 @@ from datetime import date
 from enum import Enum
 from typing import Optional
 
-from gws_core import BaseModelDTO
-from gws_project.user.user import User
+from gws_core import BaseModelDTO, ModelDTO, UserDTO
 
 
 class TaskStatus(Enum):
@@ -47,3 +46,20 @@ class UpdateTaskDTO(BaseModelDTO):
     start_date: date
     end_date: date
     priority: TaskPriority
+
+
+class TaskDTO(ModelDTO):
+    """DTO for displaying task information in the frontend."""
+    title: str
+    description: Optional[str]
+    start_date: date
+    end_date: date
+    status: TaskStatus
+    priority: TaskPriority
+    allow_subtasks: bool
+    assign_to: UserDTO
+    project_id: str
+    parent_task_id: Optional[str]
+    space_folder_id: Optional[str]
+    created_by: UserDTO
+    last_modified_by: UserDTO

@@ -26,6 +26,8 @@ class ProjectDetailState(ReflexMainState):
         :param project_id: The ID of the project to load
         :type project_id: str
         """
+        from ..task_list.task_list_state import TaskListState
+
         # Check authentication before accessing data
         if not await self.check_authentication():
             self.error_message = "You must be authenticated to view project details"
@@ -50,6 +52,10 @@ class ProjectDetailState(ReflexMainState):
                     )
                     for pu in project_users
                 ]
+
+            # Load tasks for this project
+            task_list_state = await self.get_state(TaskListState)
+            await task_list_state.load_tasks(project_id)
 
         except Exception as e:
             self.error_message = f"Error loading project: {str(e)}"

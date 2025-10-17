@@ -273,8 +273,8 @@ class ProjectService:
 
         if task_count > 0:
             raise BadRequestException(
-                f"Cannot remove user from the project. " +
-                f"The user has {task_count} task(s) assigned in this project. " +
+                f"Cannot remove user from the project. "
+                f"The user has {task_count} task(s) assigned in this project. "
                 f"Please reassign or complete these tasks before removing the user."
             )
 
@@ -285,7 +285,7 @@ class ProjectService:
 
             if owner_count <= 1:
                 raise BadRequestException(
-                    "Cannot remove the last owner from the project. " +
+                    "Cannot remove the last owner from the project. "
                     "Please assign another owner before removing this user."
                 )
 
