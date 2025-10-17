@@ -92,9 +92,14 @@ def _task_row(task: TaskDTO) -> rx.Component:
     """
     return rx.table.row(
         rx.table.cell(
-            rx.text(
-                task.title,
-                weight="medium"
+            rx.link(
+                rx.text(
+                    task.title,
+                    weight="medium",
+                    color="blue"
+                ),
+                href=f"/task/{task.id}",
+                style={"text_decoration": "none"}
             )
         ),
         rx.table.cell(

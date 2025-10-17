@@ -5,6 +5,8 @@ from .project_detail.project_detail_component import project_detail_page
 from .project_detail.project_detail_state import ProjectDetailState
 from .project_list.project_list_component import project_list_page
 from .project_list.project_list_state import ProjectListState
+from .task_detail.task_detail_component import task_detail_page
+from .task_detail.task_detail_state import TaskDetailState
 
 app = rx.App(
     theme=get_theme(),
@@ -30,6 +32,16 @@ def project_detail():
     The project_id is extracted from the URL path.
     """
     return project_detail_page()
+
+
+# Declare the task detail page with URL parameter
+@rx.page(route="/task/[task_id_param]", on_load=TaskDetailState.on_load)
+def task_detail():
+    """Task detail page displaying all information about a specific task.
+
+    The task_id is extracted from the URL path.
+    """
+    return task_detail_page()
 
 
 # Add the unauthorized page to the app.

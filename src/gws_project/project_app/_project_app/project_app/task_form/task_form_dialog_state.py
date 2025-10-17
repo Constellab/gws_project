@@ -326,12 +326,15 @@ class TaskFormDialogState(FormDialogState, rx.State):
             Reflex events (rx.toast)
         """
         from ..task_list.task_list_state import TaskListState
+        from ..task_detail.task_detail_state import TaskDetailState
 
         main_state: ReflexMainState
         task_list_state: TaskListState
+        task_detail_state: TaskDetailState
         async with self:
             main_state = await self.get_state(ReflexMainState)
             task_list_state = await self.get_state(TaskListState)
+            task_detail_state = await self.get_state(TaskDetailState)
 
         # Create the task based on the form mode
         if self._form_mode == TaskFormMode.CREATE_ROOT.value:
@@ -362,9 +365,12 @@ class TaskFormDialogState(FormDialogState, rx.State):
             # Show success toast
             yield rx.toast.success("Subtask created successfully")
 
-        # Reload tasks
+        # Reload tasks and task detail if applicable
         async with self:
             await task_list_state.load_tasks(self._project.id)
+            # Reload task detail if we're on the task detail page (for subtasks)
+            if self._form_mode == TaskFormMode.CREATE_SUB.value and task_detail_state.task:
+                await task_detail_state.load_task(self._parent_task_id)
 
     async def _update(self, form_data: dict):
         """Update an existing task using the form data.
@@ -376,12 +382,15 @@ class TaskFormDialogState(FormDialogState, rx.State):
             Reflex events (rx.toast)
         """
         from ..task_list.task_list_state import TaskListState
+        from ..task_detail.task_detail_state import TaskDetailState
 
         main_state: ReflexMainState
         task_list_state: TaskListState
+        task_detail_state: TaskDetailState
         async with self:
             main_state = await self.get_state(ReflexMainState)
             task_list_state = await self.get_state(TaskListState)
+            task_detail_state = await self.get_state(TaskDetailState)
 
         # Validate and parse form data
         task_dto = self._validate_and_parse_update_form_data(form_data)
@@ -393,9 +402,15 @@ class TaskFormDialogState(FormDialogState, rx.State):
             task_service = TaskService()
             task_service.update_task(self._editing_task.id, task_dto)
 
-        # Reload tasks
+        # Reload tasks and task detail if applicable
         async with self:
             await task_list_state.load_tasks(self._editing_task.project_id)
+            # Reload task detail if we're on the task detail page
+            if task_detail_state.task and task_detail_state.task.id == self._editing_task.id:
+                await task_detail_state.load_task(self._editing_task.id)
+            # Reload parent task if we updated a subtask
+            elif task_detail_state.task and self._editing_task.parent_task_id:
+                await task_detail_state.load_task(self._editing_task.parent_task_id)
 
         # Show success toast
         yield rx.toast.success("Task updated successfully")
