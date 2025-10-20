@@ -10,6 +10,7 @@ from ..create_project_dialog.project_form_dialog_state import \
     ProjectFormDialogState
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_form.task_form_dialog_state import TaskFormDialogState
+from ..task_list.task_kanban_component import task_kanban_component
 from ..task_list.task_list_component import task_list_component
 from .delete_project_dialog_component import (DeleteProjectDialogState,
                                               delete_project_dialog)
@@ -116,13 +117,27 @@ def tasks_section() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        # Header with title and create button
+        # Header with title, view toggle, and create button
         rx.hstack(
             rx.heading(
                 "Tasks",
                 size="5",
             ),
             rx.spacer(),
+            # View mode toggle buttons
+            rx.segmented_control.root(
+                rx.segmented_control.item(
+                    rx.icon("list", size=16),
+                    value="list",
+                ),
+                rx.segmented_control.item(
+                    rx.icon("kanban", size=16),
+                    value="kanban",
+                ),
+                value=ProjectDetailState.view_mode,
+                on_change=ProjectDetailState.set_view_mode,
+                size="2",
+            ),
             rx.button(
                 rx.icon("plus", size=16),
                 "Create Root Task",
@@ -132,8 +147,12 @@ def tasks_section() -> rx.Component:
             width="100%",
             align="center",
         ),
-        # Task list component
-        task_list_component(),
+        # Conditional rendering based on view mode
+        rx.cond(
+            ProjectDetailState.view_mode == "list",
+            task_list_component(),
+            task_kanban_component()
+        ),
         width="100%",
         spacing="3",
         align_items="start",

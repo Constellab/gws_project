@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import reflex as rx
 from gws_core.user.user_dto import UserDTO
@@ -19,6 +19,7 @@ class ProjectDetailState(ReflexMainState):
     project_users: List[ProjectUserDTO] = []
     is_loading: bool = False
     error_message: str = ""
+    view_mode: str = "list"  # "list" or "kanban"
 
     async def load_project(self, project_id: str):
         """Load the project details based on the project ID.
@@ -85,3 +86,19 @@ class ProjectDetailState(ReflexMainState):
     def users(self) -> List[UserDTO]:
         """Return the list of users associated with the project."""
         return [pu.user for pu in self.project_users]
+
+    def toggle_view_mode(self):
+        """Toggle between list and kanban view modes."""
+        self.view_mode = "kanban" if self.view_mode == "list" else "list"
+
+    def set_view_mode(self, value: Union[str, List[str]]):
+        """Set the view mode from the segmented control.
+
+        :param value: The view mode value ("list" or "kanban")
+        :type value: Union[str, List[str]]
+        """
+        # Handle both single value and list of values (though we only expect single)
+        if isinstance(value, list):
+            self.view_mode = value[0] if value else "list"
+        else:
+            self.view_mode = value

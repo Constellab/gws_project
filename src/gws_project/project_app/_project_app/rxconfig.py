@@ -73,6 +73,11 @@ config = rx.Config(
     app_name="project_app",
     plugins=[rx.plugins.SitemapPlugin()],
     # [START_AUTO_CODE]
-    api_url=api_url
+    api_url=api_url,
     # [END_AUTO_CODE]
+    frontend_packages=[
+        "@dnd-kit/core",
+        "@dnd-kit/sortable",
+        "@dnd-kit/utilities",
+    ],
 )
