@@ -2,6 +2,7 @@ import reflex as rx
 from gws_project.task.task_dto import TaskDTO
 from gws_reflex_main import main_component, user_inline_component
 
+from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 from .delete_task_dialog_component import delete_task_dialog
@@ -270,16 +271,11 @@ def task_detail_page() -> rx.Component:
     """
     return main_component(
         rx.vstack(
-            # Header with back button and action buttons
+            # Breadcrumb navigation
+            breadcrumb_component(),
+
+            # Header with action buttons
             rx.hstack(
-                rx.link(
-                    rx.button(
-                        rx.icon("arrow_left", size=18),
-                        "Back to Projects",
-                        variant="soft",
-                    ),
-                    href="/",
-                ),
                 rx.spacer(),
                 rx.cond(
                     TaskDetailState.task,
@@ -302,7 +298,7 @@ def task_detail_page() -> rx.Component:
                         spacing="2"
                     ),
                 ),
-                justify="between",
+                justify="end",
                 align="center",
                 width="100%",
                 margin_bottom="1rem"

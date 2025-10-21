@@ -15,66 +15,48 @@ def task_list_component() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        # Error message display
+        # Task table
         rx.cond(
-            TaskListState.error_message != "",
-            rx.callout(
-                TaskListState.error_message,
-                icon="triangle_alert",
-                color_scheme="red",
-                role="alert",
-            ),
-        ),
-
-        # Loading indicator
-        rx.cond(
-            TaskListState.is_loading,
-            rx.center(
-                rx.spinner(size="3"),
-                padding="1rem"
-            ),
-            # Task table
-            rx.cond(
-                TaskListState.tasks.length() > 0,
-                rx.table.root(
-                    rx.table.header(
-                        rx.table.row(
-                            rx.table.column_header_cell("Title"),
-                            rx.table.column_header_cell("Description"),
-                            rx.table.column_header_cell("Start Date"),
-                            rx.table.column_header_cell("End Date"),
-                            rx.table.column_header_cell("Status"),
-                            rx.table.column_header_cell("Priority"),
-                            rx.table.column_header_cell("Assigned To"),
-                            rx.table.column_header_cell("Actions", width="100px"),
-                        ),
+            TaskListState.get_tasks.length() > 0,
+            rx.table.root(
+                rx.table.header(
+                    rx.table.row(
+                        rx.table.column_header_cell("Title"),
+                        rx.table.column_header_cell("Description"),
+                        rx.table.column_header_cell("Start Date"),
+                        rx.table.column_header_cell("End Date"),
+                        rx.table.column_header_cell("Status"),
+                        rx.table.column_header_cell("Priority"),
+                        rx.table.column_header_cell("Assigned To"),
+                        rx.table.column_header_cell("Actions", width="100px"),
                     ),
-                    rx.table.body(
-                        rx.foreach(
-                            TaskListState.tasks,
-                            lambda task: _task_row(task)
-                        )
-                    ),
-                    width="100%",
-                    style={"table": {"vertical_align": "middle"}},
                 ),
-                # Empty state when no tasks
-                rx.center(
-                    rx.vstack(
-                        rx.icon("list_todo", size=40, color="gray"),
-                        rx.text(
-                            "No tasks found",
-                            size="3",
-                            color="gray",
-                            margin_top="0.5rem"
-                        ),
-                        spacing="2",
-                        align="center"
+                rx.table.body(
+                    rx.foreach(
+                        TaskListState.get_tasks,
+                        lambda task: _task_row(task)
+                    )
+                ),
+                width="100%",
+                style={"table": {"vertical_align": "middle"}},
+            ),
+            # Empty state when no tasks
+            rx.center(
+                rx.vstack(
+                    rx.icon("list_todo", size=40, color="gray"),
+                    rx.text(
+                        "No tasks found",
+                        size="3",
+                        color="gray",
+                        margin_top="0.5rem"
                     ),
-                    padding="2rem"
-                )
+                    spacing="2",
+                    align="center"
+                ),
+                padding="2rem"
             )
         ),
+
 
         width="100%",
         spacing="3",

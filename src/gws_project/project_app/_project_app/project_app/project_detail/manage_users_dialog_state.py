@@ -3,7 +3,7 @@ from gws_project.project.project_dto import ProjectUserDTO
 from gws_project.project.project_service import ProjectService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
-from .project_detail_state import ProjectDetailState
+from ..common.project_page_state import ProjectPageState
 
 
 class RemoveUserDialogState(ConfirmDialogState, ReflexMainState):
@@ -15,7 +15,7 @@ class RemoveUserDialogState(ConfirmDialogState, ReflexMainState):
     user_to_remove: ProjectUserDTO = None
 
     @rx.event
-    def open_dialog(self, user: ProjectUserDTO):
+    def open_user_dialog(self, user: ProjectUserDTO):
         """Open the confirmation dialog for removing a user.
 
         :param user: The user to remove
@@ -31,22 +31,22 @@ class RemoveUserDialogState(ConfirmDialogState, ReflexMainState):
             return
 
         try:
+
+            project_page_state = await self.get_state(ProjectPageState)
             with await self.authenticate_user():
                 project_service = ProjectService()
                 # Get the project ID from parent state
-                project_detail_state = await self.get_state(ProjectDetailState)
-                project_id = project_detail_state.get_project_id()
+                url_param = await project_page_state.get_url_params()
 
                 # Remove the user from the project
-                project_service.remove_user_from_project(project_id, self.user_to_remove.user.id)
+                project_service.remove_user_from_project(url_param.id, self.user_to_remove.user.id)
 
             # Close the dialog
             self.close_dialog()
             self.user_to_remove = None
 
             # Reload the project users
-            project_detail_state = await self.get_state(ProjectDetailState)
-            await project_detail_state.load_project(project_detail_state.get_project_id())
+            await project_page_state.refresh_object()
 
             # Show success message
             return rx.toast.success("User removed from project successfully")

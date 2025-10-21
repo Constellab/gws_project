@@ -36,7 +36,7 @@ def user_action_menu(project_user: ProjectUserDTO) -> rx.Component:
             rx.menu.item(
                 "Remove from Project",
                 color="red",
-                on_click=RemoveUserDialogState.open_dialog(project_user)
+                on_click=RemoveUserDialogState.open_user_dialog(project_user)
             ),
         ),
     )

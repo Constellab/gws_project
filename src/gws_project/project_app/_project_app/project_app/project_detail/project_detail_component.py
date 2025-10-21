@@ -4,6 +4,7 @@ from gws_project.project.project_dto import ProjectDTO, ProjectUserDTO
 from gws_reflex_main import (main_component, user_inline_component,
                              user_profile_picture)
 
+from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..create_project_dialog.project_form_dialog_component import \
     project_update_dialog
 from ..create_project_dialog.project_form_dialog_state import \
@@ -170,16 +171,11 @@ def project_detail_page() -> rx.Component:
     """
     return main_component(
         rx.vstack(
-            # Header with back button and action buttons
+            # Breadcrumb navigation
+            breadcrumb_component(),
+
+            # Header with action buttons
             rx.hstack(
-                rx.link(
-                    rx.button(
-                        rx.icon("arrow_left", size=18),
-                        "Back to Projects",
-                        variant="soft",
-                    ),
-                    href="/",
-                ),
                 rx.spacer(),
                 rx.cond(
                     ProjectDetailState.project,
@@ -202,54 +198,35 @@ def project_detail_page() -> rx.Component:
                         spacing="2"
                     ),
                 ),
-                justify="between",
+                justify="end",
                 align="center",
                 width="100%",
                 margin_bottom="1rem"
             ),
 
-            # Error message display
+
+            # Project details
             rx.cond(
-                ProjectDetailState.error_message != "",
-                rx.callout(
-                    ProjectDetailState.error_message,
-                    icon="triangle_alert",
-                    color_scheme="red",
-                    role="alert",
-                    margin_bottom="1rem"
-                ),
-            ),
-
-            # Loading indicator
-            rx.cond(
-                ProjectDetailState.is_loading,
-                rx.center(
-                    rx.spinner(size="3"),
-                    padding="2rem"
-                ),
-                # Project details
-                rx.cond(
-                    ProjectDetailState.project,
-                    rx.vstack(
-                        # Header with title, dates, and project manager
-                        header(ProjectDetailState.project),
-                        # Description (without label)
-                        rx.text(
-                            ProjectDetailState.project.description,
-                            size="3",
-                            color="gray",
-                            margin_top="0.5rem"
-                        ),
-                        # Project users section
-                        project_users_section(),
-
-                        # Tasks section
-                        tasks_section(),
-
-                        width="100%",
-                        spacing="4"
+                ProjectDetailState.project,
+                rx.vstack(
+                    # Header with title, dates, and project manager
+                    header(ProjectDetailState.project),
+                    # Description (without label)
+                    rx.text(
+                        ProjectDetailState.project.description,
+                        size="3",
+                        color="gray",
+                        margin_top="0.5rem"
                     ),
-                )
+                    # Project users section
+                    project_users_section(),
+
+                    # Tasks section
+                    tasks_section(),
+
+                    width="100%",
+                    spacing="4"
+                ),
             ),
 
             width="100%",

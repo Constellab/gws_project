@@ -6,32 +6,11 @@ from typing import Union
 from gws_core import EnumField
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
+from gws_project.project.project_dto import ProjectUserDTO, ProjectUserRole
 from gws_project.user.user import User
 from peewee import ForeignKeyField
 
 from .project import Project
-
-
-class ProjectUserRole(Enum):
-    """Role of a user in a project - corresponds to Space folder user roles"""
-    OWNER = 'OWNER'
-    USER = 'USER'
-    VIEWER = 'VIEWER'
-
-    def get_access_level(self) -> int:
-        """Get the access level corresponding to the role.
-
-        :return: Access level as an integer
-        :rtype: int
-        """
-        if self == ProjectUserRole.OWNER:
-            return 3  # Full access
-        elif self == ProjectUserRole.USER:
-            return 2  # Edit access
-        elif self == ProjectUserRole.VIEWER:
-            return 1  # Read-only access
-        else:
-            return 0  # No access
 
 
 class ProjectUser(ModelWithUser):
@@ -48,6 +27,17 @@ class ProjectUser(ModelWithUser):
                                       max_length=20,
                                       null=False,
                                       default=ProjectUserRole.USER.value)
+
+    def to_dto(self) -> ProjectUserDTO:
+        """Convert the ProjectUser model to a ProjectUserDTO.
+
+        :return: The ProjectUserDTO representation
+        :rtype: ProjectUserDTO
+        """
+        return ProjectUserDTO(
+            user=self.user.to_dto(),
+            role=self.role
+        )
 
     @classmethod
     def get_by_project(cls, project_id: str) -> list['ProjectUser']:

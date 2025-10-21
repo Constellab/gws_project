@@ -52,7 +52,7 @@ class Task(ModelWithUser):
         return self.subtasks
 
     @classmethod
-    def get_tasks_of_project(cls, project: 'Project') -> List['Task']:
+    def get_root_tasks_of_project(cls, project_id: str) -> List['Task']:
         """Get all tasks associated with a project
 
         :param project: The project
@@ -60,7 +60,18 @@ class Task(ModelWithUser):
         :return: List of tasks
         :rtype: List[Task]
         """
-        return list(cls.select().where(cls.project == project).order_by(cls.created_at))
+        return list(cls.select().where((cls.project == project_id) & (cls.parent_task.is_null())).order_by(cls.created_at))
+
+    @classmethod
+    def get_subtasks_of_task(cls, parent_task_id: str) -> List['Task']:
+        """Get all subtasks of a parent task
+
+        :param parent_task: The parent task
+        :type parent_task: Task
+        :return: List of subtasks
+        :rtype: List[Task]
+        """
+        return list(cls.select().where(cls.parent_task == parent_task_id).order_by(cls.created_at))
 
     @classmethod
     def get_tasks_of_user(cls, user_id: str) -> List['Task']:

@@ -1,7 +1,7 @@
 """Kanban view component for tasks."""
 
 import reflex as rx
-from custom_components.kanban import kanban_board
+from kanban.kanban import kanban_board
 
 from .task_list_state import TaskListState
 
@@ -16,48 +16,31 @@ def task_kanban_component() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        # Error message display
-        rx.cond(
-            TaskListState.error_message != "",
-            rx.callout(
-                TaskListState.error_message,
-                icon="triangle_alert",
-                color_scheme="red",
-                role="alert",
-            ),
-        ),
-
         # Loading indicator
+
+        # Kanban board
         rx.cond(
-            TaskListState.is_loading,
-            rx.center(
-                rx.spinner(size="3"),
-                padding="1rem"
+            TaskListState.get_tasks.length() > 0,
+            kanban_board(
+                board_data=TaskListState.kanban_board_data,
+                disable_column_drag=True,
+                on_card_move=TaskListState.handle_card_move,
+                # on_custom_event2=TaskListState.jjj,
             ),
-            # Kanban board
-            rx.cond(
-                TaskListState.tasks.length() > 0,
-                kanban_board(
-                    board_data=TaskListState.kanban_board_data,
-                    disable_column_drag=True,
-                    on_card_move=TaskListState.handle_card_move,
-                    # on_custom_event2=TaskListState.jjj,
-                ),
-                # Empty state when no tasks
-                rx.center(
-                    rx.vstack(
-                        rx.icon("list_todo", size=40, color="gray"),
-                        rx.text(
-                            "No tasks found",
-                            size="3",
-                            color="gray",
-                            margin_top="0.5rem"
-                        ),
-                        spacing="2",
-                        align="center"
+            # Empty state when no tasks
+            rx.center(
+                rx.vstack(
+                    rx.icon("list_todo", size=40, color="gray"),
+                    rx.text(
+                        "No tasks found",
+                        size="3",
+                        color="gray",
+                        margin_top="0.5rem"
                     ),
-                    padding="2rem"
-                )
+                    spacing="2",
+                    align="center"
+                ),
+                padding="2rem"
             )
         ),
 

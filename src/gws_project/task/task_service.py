@@ -1,6 +1,6 @@
 
 from datetime import date
-from typing import Optional
+from typing import List, Optional
 
 from gws_core import (BadRequestException, CurrentUserService,
                       ExternalSpaceCreateFolder, Paginator, SearchParams,
@@ -45,6 +45,36 @@ class TaskService:
         """
         security_service = ProjectSecurityService()
         return security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
+
+    def get_root_tasks_of_project(self, project_id: str) -> List[Task]:
+        """Get the root task of a project by project ID.
+
+        :param project_id: The ID of the project
+        :type project_id: str
+        :return: The root tasks if the user has access
+        :rtype: List[Task]
+        :raises NotFoundException: If the project is not found
+        :raises UnauthorizedException: If the user doesn't have access to the project
+        """
+        security_service = ProjectSecurityService()
+        project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
+
+        return Task.get_root_tasks_of_project(project)
+
+    def get_subtasks(self, parent_task_id: str) -> List[Task]:
+        """Get all subtasks of a parent task by parent task ID.
+
+        :param parent_task_id: The ID of the parent task
+        :type parent_task_id: str
+        :return: List of subtasks if the user has access
+        :rtype: List[Task]
+        :raises NotFoundException: If the parent task is not found
+        :raises UnauthorizedException: If the user doesn't have access to the parent task
+        """
+        security_service = ProjectSecurityService()
+        parent_task = security_service.get_and_check_role_for_task(parent_task_id, ProjectUserRole.USER)
+
+        return Task.get_subtasks_of_task(parent_task.id)
 
     def search(self, search: SearchParams, page: int = 0, number_of_items_per_page: int = 20) -> Paginator[Task]:
         """Search for tasks based on search parameters with pagination.

@@ -1,10 +1,12 @@
 from datetime import datetime
-from typing import AsyncGenerator, Optional
+from typing import Optional
 
 import reflex as rx
 from gws_project.project.project_dto import ProjectDTO, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_reflex_main import FormDialogState, ReflexMainState
+
+from ..common.project_page_state import ProjectPageState
 
 
 class ProjectFormDialogState(FormDialogState, rx.State):
@@ -126,10 +128,10 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         from ..project_detail.project_detail_state import ProjectDetailState
 
         main_state: ReflexMainState
-        project_detail_state: ProjectDetailState
+        project_page_state: ProjectPageState
         async with self:
             main_state = await self.get_state(ReflexMainState)
-            project_detail_state = await self.get_state(ProjectDetailState)
+            project_page_state = await self.get_state(ProjectPageState)
 
         # Validate and parse form data
         project_dto = self._validate_and_parse_form_data(form_data)
@@ -144,7 +146,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         # Close dialog and clear all state after successful operation
         async with self:
             # Reload the project detail state if available
-            await project_detail_state.load_project(self._editing_project.id)
+            project = await project_page_state.refresh_object()
 
         # Show success toast
         yield rx.toast.success("Project updated successfully")

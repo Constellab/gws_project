@@ -325,8 +325,8 @@ class TaskFormDialogState(FormDialogState, rx.State):
         Yields:
             Reflex events (rx.toast)
         """
-        from ..task_list.task_list_state import TaskListState
         from ..task_detail.task_detail_state import TaskDetailState
+        from ..task_list.task_list_state import TaskListState
 
         main_state: ReflexMainState
         task_list_state: TaskListState
@@ -367,7 +367,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
 
         # Reload tasks and task detail if applicable
         async with self:
-            await task_list_state.load_tasks(self._project.id)
+            await task_list_state.reload_tasks()
             # Reload task detail if we're on the task detail page (for subtasks)
             if self._form_mode == TaskFormMode.CREATE_SUB.value and task_detail_state.task:
                 await task_detail_state.load_task(self._parent_task_id)
@@ -381,8 +381,8 @@ class TaskFormDialogState(FormDialogState, rx.State):
         Yields:
             Reflex events (rx.toast)
         """
-        from ..task_list.task_list_state import TaskListState
         from ..task_detail.task_detail_state import TaskDetailState
+        from ..task_list.task_list_state import TaskListState
 
         main_state: ReflexMainState
         task_list_state: TaskListState
@@ -404,7 +404,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
 
         # Reload tasks and task detail if applicable
         async with self:
-            await task_list_state.load_tasks(self._editing_task.project_id)
+            await task_list_state.reload_tasks()
             # Reload task detail if we're on the task detail page
             if task_detail_state.task and task_detail_state.task.id == self._editing_task.id:
                 await task_detail_state.load_task(self._editing_task.id)

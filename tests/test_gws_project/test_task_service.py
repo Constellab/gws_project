@@ -4,9 +4,8 @@ from datetime import date, datetime
 from gws_core import (BadRequestException, BaseTestCase, CurrentUserService,
                       TestMockSpaceService, UserGroup)
 from gws_project.project.project import Project
-from gws_project.project.project_dto import SaveProjectDTO
+from gws_project.project.project_dto import ProjectUserRole, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
-from gws_project.project.project_user import ProjectUserRole
 from gws_project.task.task import Task
 from gws_project.task.task_dto import (CreateRootTaskDTO, CreateSubTaskDTO,
                                        TaskPriority, TaskStatus, UpdateTaskDTO)

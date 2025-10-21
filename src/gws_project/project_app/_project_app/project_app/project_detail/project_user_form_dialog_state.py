@@ -2,11 +2,11 @@ from typing import List, Optional
 
 import reflex as rx
 from gws_core import SpaceGroupDTO, SpaceRootFolderUserRole, SpaceService
-from gws_project.project.project_dto import ProjectUserDTO
+from gws_project.project.project_dto import ProjectUserDTO, ProjectUserRole
 from gws_project.project.project_service import ProjectService
-from gws_project.project.project_user import ProjectUserRole
 from gws_reflex_main import FormDialogState, ReflexMainState
 
+from ..common.project_page_state import ProjectPageState
 from .project_detail_state import ProjectDetailState
 
 
@@ -174,16 +174,12 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
             The current project ID
         """
         async with self:
-            project_detail_state: ProjectDetailState = await self.get_state(ProjectDetailState)
-            project_id = project_detail_state.get_project_id()
-
-            if not project_id:
-                raise Exception("No project selected")
-
-            return project_id
+            project_detail_state = await self.get_state(ProjectPageState)
+            url_params = await project_detail_state.get_url_params()
+            return url_params.id
 
     async def _reload_project_detail(self):
         """Reload the project detail state to refresh data."""
         async with self:
             project_detail_state: ProjectDetailState = await self.get_state(ProjectDetailState)
-            await project_detail_state.on_load()
+            await project_detail_state.reload_users()

@@ -1,11 +1,11 @@
 from typing import List, Optional, Union
 
 import reflex as rx
-from gws_core.user.user_dto import UserDTO
-from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectDTO, ProjectUserDTO
 from gws_project.project.project_service import ProjectService
 from gws_reflex_main import ReflexMainState
+
+from ..common.project_page_state import ProjectPageState
 
 
 class ProjectDetailState(ReflexMainState):
@@ -15,77 +15,60 @@ class ProjectDetailState(ReflexMainState):
     based on the project ID from the URL.
     """
 
-    project: Optional[ProjectDTO] = None
-    project_users: List[ProjectUserDTO] = []
-    is_loading: bool = False
-    error_message: str = ""
     view_mode: str = "list"  # "list" or "kanban"
 
-    async def load_project(self, project_id: str):
-        """Load the project details based on the project ID.
+    _project_id: Optional[str] = None
+    _project_users: List[ProjectUserDTO] = []
 
-        :param project_id: The ID of the project to load
-        :type project_id: str
+    @rx.var
+    async def project(self) -> Optional[ProjectDTO]:
+        """Return the current project DTO.
+
+        :return: The current project DTO
+        :rtype: Optional[ProjectDTO]
         """
-        from ..task_list.task_list_state import TaskListState
+        project_page_state = await self.get_state(ProjectPageState)
+        current_object = await project_page_state.project()
+        if current_object:
+            return current_object.to_dto()
+        return None
 
-        # Check authentication before accessing data
-        if not await self.check_authentication():
-            self.error_message = "You must be authenticated to view project details"
-            return
+    @rx.var
+    async def project_users(self) -> List[ProjectUserDTO]:
+        """Return the list of project users associated with the current project.
 
-        self.is_loading = True
-        self.error_message = ""
+        :return: List of ProjectUserDTOs
+        :rtype: List[ProjectUserDTO]
+        """
+        project_page_state = await self.get_state(ProjectPageState)
+        current_project = await project_page_state.project()
 
-        try:
-            project: Optional[Project]
+        if not current_project:
+            self._project_id = None
+            self._project_users = []
+            return []
+
+        if self._project_id != current_project.id:
             with await self.authenticate_user():
                 project_service = ProjectService()
-                project = project_service.get_project(project_id)
-                self.project = project.to_dto()
-
                 # Load project users
-                project_users = project_service.get_project_users(project_id)
-                self.project_users = [
-                    ProjectUserDTO(
-                        user=pu.user.to_dto(),
-                        role=pu.role.value
-                    )
+                project_users = project_service.get_project_users(current_project.id)
+                self._project_users = [
+                    pu.to_dto()
                     for pu in project_users
                 ]
+            self._project_id = current_project.id
 
-            # Load tasks for this project
-            task_list_state = await self.get_state(TaskListState)
-            await task_list_state.load_tasks(project_id)
+        return self._project_users
 
-        except Exception as e:
-            self.error_message = f"Error loading project: {str(e)}"
-            self.project = None
-            self.project_users = []
-
-        finally:
-            self.is_loading = False
-
-    async def on_load(self):
+    async def reload_users(self):
         """Event handler called when the page loads.
 
         This method is automatically called by Reflex when the page is loaded.
         It extracts the project_id from the URL and loads the project.
         """
-        # Get project_id from the router
-        if self.get_project_id():
-            await self.load_project(self.get_project_id())
-        else:
-            self.error_message = "No project ID provided"
-
-    def get_project_id(self) -> str:
-        """Return the current project ID from the URL."""
-        return self.project_id_param  # from the URL parameter
-
-    @rx.var
-    def users(self) -> List[UserDTO]:
-        """Return the list of users associated with the project."""
-        return [pu.user for pu in self.project_users]
+        self._project_id = None
+        await self.project_users
 
     def toggle_view_mode(self):
         """Toggle between list and kanban view modes."""

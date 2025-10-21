@@ -7,9 +7,9 @@ from gws_core import (BadRequestException, CurrentUserService,
                       SpaceService)
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
-from gws_project.project.project_dto import SaveProjectDTO
+from gws_project.project.project_dto import ProjectUserRole, SaveProjectDTO
 from gws_project.project.project_security_service import ProjectSecurityService
-from gws_project.project.project_user import ProjectUser, ProjectUserRole
+from gws_project.project.project_user import ProjectUser
 from gws_project.task.task import Task
 from gws_project.user.user import User
 from gws_project.user.user_service import UserService

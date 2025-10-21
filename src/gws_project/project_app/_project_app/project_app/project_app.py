@@ -15,7 +15,7 @@ app = rx.App(
 
 
 # Declare the project list page as the index page
-@rx.page(route="/", on_load=ProjectListState.on_load)
+@rx.page(route="/", on_load=[ProjectListState.on_load])
 def index():
     """Main page displaying the list of projects.
 
@@ -25,7 +25,7 @@ def index():
 
 
 # Declare the project detail page with URL parameter
-@rx.page(route="/project/[project_id_param]", on_load=ProjectDetailState.on_load)
+@rx.page(route="/project/[project_id_param]")
 def project_detail():
     """Project detail page displaying all information about a specific project.
 
@@ -35,7 +35,7 @@ def project_detail():
 
 
 # Declare the task detail page with URL parameter
-@rx.page(route="/task/[task_id_param]", on_load=TaskDetailState.on_load)
+@rx.page(route="/task/[task_id_param]", on_load=[TaskDetailState.on_load])
 def task_detail():
     """Task detail page displaying all information about a specific task.
 

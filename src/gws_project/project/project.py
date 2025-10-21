@@ -19,7 +19,7 @@ class Project(ModelWithUser):
     description = TextField(null=True)
     start_date = DateField(null=False, index=True)
     end_date = DateField(null=False, index=True)
-    project_manager = ForeignKeyField(User, null=False)
+    project_manager: User = ForeignKeyField(User, null=False)
     space_folder_id = CharField(max_length=36, unique=True, null=True)
 
     def to_dto(self) -> ProjectDTO:
@@ -34,7 +34,6 @@ class Project(ModelWithUser):
             start_date=self.start_date,
             end_date=self.end_date,
             project_manager=self.project_manager.to_dto(),
-            space_folder_id=self.space_folder_id
         )
 
     class Meta:

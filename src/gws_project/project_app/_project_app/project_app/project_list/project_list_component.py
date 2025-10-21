@@ -65,7 +65,7 @@ def project_list_page() -> rx.Component:
                         rx.table.body(
                             rx.foreach(
                                 ProjectListState.projects,
-                                lambda project: _row(project)
+                                _row
                             )
                         ),
                         width="100%",
@@ -84,7 +84,8 @@ def project_list_page() -> rx.Component:
                             spacing="2",
                             align="center"
                         ),
-                        padding="3rem"
+                        padding="3rem",
+                        width="100%"
                     )
                 )
             ),
@@ -94,6 +95,7 @@ def project_list_page() -> rx.Component:
             padding="2rem"
         )
     )
+
 
 def _row(project: ProjectDTO) -> rx.Component:
     return rx.table.row(
