@@ -176,7 +176,7 @@ def task_form_dialog() -> rx.Component:
             rx.cond(
                 TaskFormDialogState.is_create_sub_mode,
                 "Create New Subtask",
-                "Create New Root Task"
+                "Create New Task"
             )
         ),
         description=rx.cond(
@@ -185,7 +185,7 @@ def task_form_dialog() -> rx.Component:
             rx.cond(
                 TaskFormDialogState.is_create_sub_mode,
                 "Fill in the details below to create a new subtask under the parent task.",
-                "Fill in the details below to create a new root task for this project."
+                "Fill in the details below to create a new task for this project."
             )
         ),
         form_content=_form_content(),

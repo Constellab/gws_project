@@ -1,11 +1,14 @@
-from typing import List, Optional
+from typing import Optional
 
 import reflex as rx
 from gws_project.project.project_dto import ProjectDTO
+from gws_project.task.task import Task
 from gws_project.task.task_dto import TaskDTO
 from gws_reflex_main import ReflexMainState
 
 from ..common.project_page_state import ProjectPageState
+from ..task_form.task_form_dialog_state import TaskFormDialogState
+from ..task_list.task_list_state import TaskListState
 
 
 class TaskDetailState(ReflexMainState):
@@ -14,10 +17,6 @@ class TaskDetailState(ReflexMainState):
     This state handles fetching and displaying the details of a single task
     based on the task ID from the URL.
     """
-
-    _task_id: Optional[str] = None
-    _parent_task: Optional[TaskDTO] = None
-    _subtasks: List[TaskDTO] = []
 
     @rx.var
     async def task(self) -> Optional[TaskDTO]:
@@ -55,52 +54,47 @@ class TaskDetailState(ReflexMainState):
         project_page_state = await self.get_state(ProjectPageState)
         current_task = await project_page_state.task()
 
-        if not current_task:
-            self._task_id = None
-            self._parent_task = None
+        if not current_task or not current_task.parent_task:
             return None
 
-        if self._task_id != current_task.id:
-            # Load parent task if this is a subtask
-            if current_task.parent_task:
-                self._parent_task = current_task.parent_task.to_dto()
-            else:
-                self._parent_task = None
-            self._task_id = current_task.id
+        return current_task.parent_task.to_dto()
 
-        return self._parent_task
+    async def open_create_subtask_dialog(self):
+        """Open the create subtask dialog."""
 
-    @rx.var
-    async def subtasks(self) -> List[TaskDTO]:
-        """Return the list of subtasks for the current task.
+        form_state = await self.get_state(TaskFormDialogState)
 
-        :return: List of TaskDTOs
-        :rtype: List[TaskDTO]
+        task = await self.task
+
+        await form_state.open_create_sub_dialog(
+            parent_task_id=task.id,
+            project=await self.project,
+            callback_after_close=self._on_create_subtask_dialog_close
+        )
+
+    async def _on_create_subtask_dialog_close(self, task: Task):
+        """Callback after the create subtask dialog is closed to refresh subtasks."""
+        # Currently, no specific action is needed here.
+        task_list_state = await self.get_state(TaskListState)
+
+        task_list_state.add_or_update_task(task)
+
+    async def open_update_task_dialog(self):
+        """Open the update task dialog for this task."""
+        form_state = await self.get_state(TaskFormDialogState)
+        task = await self.task
+
+        await form_state.open_update_dialog(
+            task=task,
+            callback_after_close=self._on_update_task_dialog_close
+        )
+
+    async def _on_update_task_dialog_close(self, _: Task):
+        """Callback after the update task dialog is closed to refresh the task.
+
+        :param task: The updated task
+        :type task: Task
         """
+        # Refresh the current task by reloading from the page state
         project_page_state = await self.get_state(ProjectPageState)
-        current_task = await project_page_state.task()
-
-        if not current_task:
-            self._task_id = None
-            self._subtasks = []
-            return []
-
-        if self._task_id != current_task.id:
-            # Load subtasks if the task allows them
-            if current_task.allow_subtasks:
-                subtasks = current_task.get_subtasks()
-                self._subtasks = [subtask.to_dto() for subtask in subtasks]
-            else:
-                self._subtasks = []
-            self._task_id = current_task.id
-
-        return self._subtasks
-
-    async def reload_subtasks(self):
-        """Reload the subtasks for the current task.
-
-        This method forces a reload of subtasks from the database.
-        """
-        self._task_id = None
-        await self.subtasks
-
+        await project_page_state.refresh_object()

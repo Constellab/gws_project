@@ -3,9 +3,12 @@ from typing import List, Optional, Union
 import reflex as rx
 from gws_project.project.project_dto import ProjectDTO, ProjectUserDTO
 from gws_project.project.project_service import ProjectService
+from gws_project.task.task import Task
 from gws_reflex_main import ReflexMainState
 
 from ..common.project_page_state import ProjectPageState
+from ..task_form.task_form_dialog_state import TaskFormDialogState
+from ..task_list.task_list_state import TaskListState
 
 
 class ProjectDetailState(ReflexMainState):
@@ -85,3 +88,22 @@ class ProjectDetailState(ReflexMainState):
             self.view_mode = value[0] if value else "list"
         else:
             self.view_mode = value
+
+    async def open_create_task_dialog(self):
+        """Open the create task dialog for this project."""
+        form_state = await self.get_state(TaskFormDialogState)
+        project = await self.project
+
+        await form_state.open_create_dialog(
+            project=project,
+            callback_after_close=self._on_create_task_dialog_close
+        )
+
+    async def _on_create_task_dialog_close(self, task: Task):
+        """Callback after the create task dialog is closed to refresh the task list.
+
+        :param task: The created task
+        :type task: Task
+        """
+        task_list_state = await self.get_state(TaskListState)
+        task_list_state.add_or_update_task(task)

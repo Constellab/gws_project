@@ -2,14 +2,15 @@ import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
 
 from ..common.detail_page_layout import detail_page_layout
+from ..common.page_layout import page_layout
 from ..common.priority_chip_component import priority_chip
 from ..common.status_chip_component import status_chip
 from ..common.task_components import task_icon_component
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_form.task_form_dialog_state import TaskFormDialogState
+from ..task_list.task_list_component import task_list_component
 from .delete_task_dialog_component import delete_task_dialog
 from .delete_task_dialog_state import DeleteTaskDialogState
-from .subtask_list.subtask_list_component import subtask_list_component
 from .task_detail_state import TaskDetailState
 
 
@@ -43,7 +44,7 @@ def main_content_area() -> rx.Component:
                     rx.menu.item(
                         rx.icon("pencil", size=16),
                         "Update Task",
-                        on_click=lambda: TaskFormDialogState.open_update_dialog(TaskDetailState.task)
+                        on_click=TaskDetailState.open_update_task_dialog
                     ),
                     rx.menu.separator(),
                     rx.menu.item(
@@ -51,8 +52,7 @@ def main_content_area() -> rx.Component:
                         "Delete",
                         color="red",
                         on_click=lambda: DeleteTaskDialogState.open_dialog_with_task(
-                            TaskDetailState.task.id,
-                            TaskDetailState.task.allow_subtasks
+                            TaskDetailState.task
                         )
                     ),
                 ),
@@ -76,27 +76,6 @@ def main_content_area() -> rx.Component:
             align_items="start"
         ),
 
-        # Parent task (if exists)
-        rx.cond(
-            TaskDetailState.parent_task,
-            rx.vstack(
-                rx.hstack(
-                    rx.text("Parent task:", size="3", color="gray"),
-                    rx.link(
-                        TaskDetailState.parent_task.title,
-                        href=f"/task/{TaskDetailState.parent_task.id}",
-                        size="3",
-                        color="blue",
-                        text_decoration="underline"
-                    ),
-                    spacing="1",
-                    align="center"
-                ),
-                width="100%",
-                margin_top="1rem"
-            )
-        ),
-
         # Subtasks section (only if task allows subtasks)
         rx.cond(
             TaskDetailState.task.allow_subtasks,
@@ -114,16 +93,13 @@ def main_content_area() -> rx.Component:
                         "Create Subtask",
                         variant="soft",
                         size="2",
-                        on_click=lambda: TaskFormDialogState.open_create_sub_dialog(
-                            TaskDetailState.task.id,
-                            TaskDetailState.project
-                        )
+                        on_click=TaskDetailState.open_create_subtask_dialog
                     ),
                     width="100%",
                     align="center",
                 ),
                 # Subtask list component
-                subtask_list_component(),
+                task_list_component(),
                 width="100%",
                 spacing="3",
                 align_items="start",
@@ -148,6 +124,21 @@ def details_sidebar() -> rx.Component:
 
         # Details grid - single parent grid with all fields
         rx.grid(
+            # Parent task (conditional row)
+            rx.cond(
+                TaskDetailState.parent_task,
+                rx.fragment(
+                    rx.text("Parent task", size="2", color="gray", weight="medium"),
+                    rx.link(
+                        TaskDetailState.parent_task.title,
+                        href=f"/task/{TaskDetailState.parent_task.id}",
+                        size="2",
+                        color="blue",
+                        text_decoration="underline"
+                    ),
+                )
+            ),
+
             # Assigned to
             rx.text("Assigned to", size="2", color="gray", weight="medium"),
             user_inline_component(TaskDetailState.task.assign_to),
@@ -221,19 +212,21 @@ def task_detail_page() -> rx.Component:
     :rtype: rx.Component
     """
     return main_component(
-        rx.vstack(
-            # Task details in two-column layout with breadcrumb
-            rx.cond(
-                TaskDetailState.task,
-                detail_page_layout(
-                    main_content=main_content_area(),
-                    sidebar_content=details_sidebar()
+        page_layout(
+            rx.vstack(
+                # Task details in two-column layout with breadcrumb
+                rx.cond(
+                    TaskDetailState.task,
+                    detail_page_layout(
+                        main_content=main_content_area(),
+                        sidebar_content=details_sidebar()
+                    ),
                 ),
-            ),
 
-            width="100%",
-            spacing="4",
-            padding="2rem"
+                width="100%",
+                spacing="4",
+                padding="2rem"
+            )
         ),
         # Add the task form dialog
         task_form_dialog(),

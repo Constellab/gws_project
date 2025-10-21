@@ -1,3 +1,5 @@
+from typing import AsyncGenerator
+
 import reflex as rx
 from gws_project.project.project_service import ProjectService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState, confirm_dialog
@@ -19,30 +21,25 @@ class DeleteProjectDialogState(ConfirmDialogState, rx.State):
         self._project_id = project_id
         self.open_dialog()
 
-    @rx.event
-    async def confirm_action(self):
+    async def _on_confirm(self) -> AsyncGenerator:
         if not self._project_id:
             yield
             return
 
-        try:
-            main_state = await self.get_state(ReflexMainState)
-            with await main_state.authenticate_user():
-                project_service = ProjectService()
-                project_service.delete_project(self._project_id)
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            project_service = ProjectService()
+            project_service.delete_project(self._project_id)
 
-            # Show success message
-            yield rx.toast.success(f"Project deleted")
+        # Show success message
+        yield rx.toast.success(f"Project deleted")
 
-            # Close the dialog
-            self.dialog_opened = False
+        # Clear the project ID
+        async with self:
             self._project_id = ""
 
-            # Redirect to project list
-            yield rx.redirect("/")
-
-        except Exception as e:
-            yield rx.toast.error(f"Error deleting project: {str(e)}")
+        # Redirect to project list
+        yield rx.redirect("/")
 
 
 def delete_project_dialog() -> rx.Component:

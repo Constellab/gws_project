@@ -62,5 +62,13 @@ class ProjectListState(ReflexMainState):
         from ..create_project_dialog.project_form_dialog_state import \
             ProjectFormDialogState
 
-
         ProjectFormDialogState.open_dialog(on_close=self.load_projects)
+
+    @rx.event
+    def go_to_project(self, project_id: str):
+        """Navigate to the project detail page for the given project ID.
+
+        :param project_id: The ID of the project to navigate to
+        :type project_id: str
+        """
+        return rx.redirect(f"/project/{project_id}")

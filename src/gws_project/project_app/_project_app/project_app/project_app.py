@@ -2,11 +2,9 @@ import reflex as rx
 from gws_reflex_main import add_unauthorized_page, get_theme
 
 from .project_detail.project_detail_component import project_detail_page
-from .project_detail.project_detail_state import ProjectDetailState
 from .project_list.project_list_component import project_list_page
 from .project_list.project_list_state import ProjectListState
 from .task_detail.task_detail_component import task_detail_page
-from .task_detail.task_detail_state import TaskDetailState
 
 app = rx.App(
     theme=get_theme(),

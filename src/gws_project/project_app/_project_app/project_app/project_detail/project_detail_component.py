@@ -5,10 +5,12 @@ from gws_reflex_main import (main_component, user_inline_component,
                              user_profile_picture)
 
 from ..common.detail_page_layout import detail_page_layout
+from ..common.page_layout import page_layout
 from ..create_project_dialog.project_form_dialog_component import \
     project_update_dialog
 from ..create_project_dialog.project_form_dialog_state import \
     ProjectFormDialogState
+from ..task_detail.delete_task_dialog_component import delete_task_dialog
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 from ..task_list.task_kanban_component import task_kanban_component
@@ -122,10 +124,10 @@ def main_content_area() -> rx.Component:
                 ),
                 rx.button(
                     rx.icon("plus", size=16),
-                    "Create Root Task",
+                    "Create Task",
                     variant="soft",
                     size="2",
-                    on_click=lambda: TaskFormDialogState.open_create_dialog(ProjectDetailState.project)
+                    on_click=ProjectDetailState.open_create_task_dialog
                 ),
                 width="100%",
                 align="center",
@@ -240,19 +242,21 @@ def project_detail_page() -> rx.Component:
     :rtype: rx.Component
     """
     return main_component(
-        rx.vstack(
-            # Project details in two-column layout with breadcrumb
-            rx.cond(
-                ProjectDetailState.project,
-                detail_page_layout(
-                    main_content=main_content_area(),
-                    sidebar_content=details_sidebar()
+        page_layout(
+            rx.vstack(
+                # Project details in two-column layout with breadcrumb
+                rx.cond(
+                    ProjectDetailState.project,
+                    detail_page_layout(
+                        main_content=main_content_area(),
+                        sidebar_content=details_sidebar()
+                    ),
                 ),
-            ),
 
-            width="100%",
-            spacing="4",
-            padding="2rem"
+                width="100%",
+                spacing="4",
+                padding="2rem"
+            )
         ),
         # Add the update dialog
         project_update_dialog(),
@@ -261,5 +265,7 @@ def project_detail_page() -> rx.Component:
         # Add the manage users dialog
         manage_users_dialog(),
         # Add the task form dialog
-        task_form_dialog()
+        task_form_dialog(),
+        # Add the delete confirmation dialog
+        delete_task_dialog()
     )

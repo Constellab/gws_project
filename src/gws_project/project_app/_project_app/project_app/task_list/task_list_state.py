@@ -8,6 +8,7 @@ from kanban.kanban import CardMoveEvent
 
 from ..common.breadcrumb.breadcrumb_state import Task
 from ..common.project_page_state import ProjectPageState, ProjectUrlParam
+from ..task_form.task_form_dialog_state import TaskFormDialogState
 
 
 class TaskListState(ReflexMainState):
@@ -42,38 +43,30 @@ class TaskListState(ReflexMainState):
 
         return [task.to_dto() for task in self._tasks]
 
-    async def reload_tasks(self):
-        """Refresh the task list based on current URL parameters."""
-        self._url_params = None
-        await self.get_tasks
-
-    @rx.event(background=True)  # type: ignore
-    async def delete_task(self, task_id: str):
-        """Delete a task and reload the task list.
+    def delete_task(self, task_id: str):
+        """Delete a task and its subtasks from the state.
 
         :param task_id: The ID of the task to delete
         :type task_id: str
         """
-        main_state: ReflexMainState
-        async with self:
-            main_state = await self.get_state(ReflexMainState)
+        if self._tasks:
+            self._tasks = [task for task in self._tasks if task.id != task_id]
 
-        try:
-            # Delete the task
-            with await main_state.authenticate_user():
-                task_service = TaskService()
-                task_service.delete_task(task_id)
+    def add_or_update_task(self, task: Task):
+        """Update a task in the state.
 
-            # Show success toast
-            yield rx.toast.success("Task deleted successfully")
+        :param updated_task: The updated TaskDTO
+        :type updated_task: TaskDTO
+        """
+        if not self._tasks:
+            return
 
-            # Reload tasks - we need to get the project_id from the current tasks
-            async with self:
-                if self._tasks:
-                    self._tasks = [t for t in self._tasks if t.id != task_id]
+        for i, task_ in enumerate(self._tasks):
+            if task_.id == task.id:
+                self._tasks[i] = task
+                return
 
-        except Exception as e:
-            yield rx.toast.error(f"Error deleting task: {str(e)}")
+        self._tasks.append(task)
 
     @rx.var
     async def kanban_board_data(self) -> Dict[str, Any]:
@@ -178,3 +171,24 @@ class TaskListState(ReflexMainState):
         """
         # Navigate to task detail page
         return rx.redirect(f"/task/{card_id}")
+
+    async def open_update_task_dialog(self, task: TaskDTO):
+        """Open the update task dialog.
+
+        :param task: The task to update
+        :type task: TaskDTO
+        """
+        form_state = await self.get_state(TaskFormDialogState)
+
+        await form_state.open_update_dialog(
+            task=task,
+            callback_after_close=self._on_update_task_dialog_close
+        )
+
+    async def _on_update_task_dialog_close(self, task: Task):
+        """Callback after the update task dialog is closed to refresh the task list.
+
+        :param task: The updated task
+        :type task: Task
+        """
+        self.add_or_update_task(task)

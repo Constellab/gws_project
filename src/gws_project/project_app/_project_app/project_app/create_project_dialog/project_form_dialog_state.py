@@ -146,7 +146,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         # Close dialog and clear all state after successful operation
         async with self:
             # Reload the project detail state if available
-            project = await project_page_state.refresh_object()
+            await project_page_state.refresh_object()
 
         # Show success toast
         yield rx.toast.success("Project updated successfully")

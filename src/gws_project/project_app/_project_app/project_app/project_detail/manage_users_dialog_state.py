@@ -1,3 +1,5 @@
+from typing import AsyncGenerator
+
 import reflex as rx
 from gws_project.project.project_dto import ProjectUserDTO
 from gws_project.project.project_service import ProjectService
@@ -24,36 +26,30 @@ class RemoveUserDialogState(ConfirmDialogState, ReflexMainState):
         self.user_to_remove = user
         self.dialog_opened = True
 
-    @rx.event
-    async def confirm_action(self):
+    async def _on_confirm(self) -> AsyncGenerator:
         """Remove the user from the project."""
         if not self.user_to_remove:
+            yield
             return
 
-        try:
+        project_page_state = await self.get_state(ProjectPageState)
+        with await self.authenticate_user():
+            project_service = ProjectService()
+            # Get the project ID from parent state
+            url_param = await project_page_state.get_url_params()
 
-            project_page_state = await self.get_state(ProjectPageState)
-            with await self.authenticate_user():
-                project_service = ProjectService()
-                # Get the project ID from parent state
-                url_param = await project_page_state.get_url_params()
+            # Remove the user from the project
+            project_service.remove_user_from_project(url_param.id, self.user_to_remove.user.id)
 
-                # Remove the user from the project
-                project_service.remove_user_from_project(url_param.id, self.user_to_remove.user.id)
-
-            # Close the dialog
-            self.close_dialog()
+        # Clear the user to remove
+        async with self:
             self.user_to_remove = None
 
-            # Reload the project users
-            await project_page_state.refresh_object()
+        # Reload the project users
+        await project_page_state.refresh_object()
 
-            # Show success message
-            return rx.toast.success("User removed from project successfully")
-
-        except Exception as e:
-            self.dialog_opened = False
-            return rx.toast.error(f"Error removing user: {str(e)}")
+        # Show success message
+        yield rx.toast.success("User removed from project successfully")
 
 
 class ManageUsersDialogState(ReflexMainState):
