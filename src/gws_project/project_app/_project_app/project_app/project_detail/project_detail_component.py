@@ -10,13 +10,9 @@ from ..create_project_dialog.project_form_dialog_component import \
     project_update_dialog
 from ..create_project_dialog.project_form_dialog_state import \
     ProjectFormDialogState
-from ..task_detail.delete_task_dialog_component import delete_task_dialog
 from ..task_form.task_form_dialog_component import task_form_dialog
-from ..task_form.task_form_dialog_state import TaskFormDialogState
 from ..task_list.task_kanban_component import task_kanban_component
 from ..task_list.task_list_component import task_list_component
-from .delete_project_dialog_component import (DeleteProjectDialogState,
-                                              delete_project_dialog)
 from .manage_users_dialog_component import (ManageUsersDialogState,
                                             manage_users_dialog)
 from .project_detail_state import ProjectDetailState
@@ -73,8 +69,7 @@ def main_content_area() -> rx.Component:
                         rx.icon("trash_2", size=16),
                         "Delete Project",
                         color="red",
-                        on_click=lambda: DeleteProjectDialogState.open_dialog_with_project(
-                            ProjectDetailState.project.id)
+                        on_click=ProjectDetailState.open_delete_project_dialog
                     ),
                 ),
             ),
@@ -260,12 +255,8 @@ def project_detail_page() -> rx.Component:
         ),
         # Add the update dialog
         project_update_dialog(),
-        # Add the delete confirmation dialog
-        delete_project_dialog(),
         # Add the manage users dialog
         manage_users_dialog(),
         # Add the task form dialog
         task_form_dialog(),
-        # Add the delete confirmation dialog
-        delete_task_dialog()
     )

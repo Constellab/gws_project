@@ -1,9 +1,8 @@
 import reflex as rx
 from gws_project.project.project_dto import ProjectUserDTO
-from gws_reflex_main import confirm_dialog, user_inline_component
+from gws_reflex_main import user_inline_component
 
-from .manage_users_dialog_state import (ManageUsersDialogState,
-                                        RemoveUserDialogState)
+from .manage_users_dialog_state import ManageUsersDialogState
 from .project_detail_state import ProjectDetailState
 from .project_user_form_dialog_component import project_user_form_dialog
 from .project_user_form_dialog_state import ProjectUserFormDialogState
@@ -36,7 +35,7 @@ def user_action_menu(project_user: ProjectUserDTO) -> rx.Component:
             rx.menu.item(
                 "Remove from Project",
                 color="red",
-                on_click=RemoveUserDialogState.open_user_dialog(project_user)
+                on_click=lambda: ManageUsersDialogState.open_remove_user_dialog(project_user)
             ),
         ),
     )
@@ -169,13 +168,4 @@ def manage_users_dialog() -> rx.Component:
         ),
         # Nested form dialog for adding/updating users
         project_user_form_dialog(),
-
-        # Confirmation dialog for removing users
-        confirm_dialog(
-            title="Remove User from Project",
-            content="Are you sure you want to remove " +
-            RemoveUserDialogState.user_to_remove.user.first_name + " " + RemoveUserDialogState.user_to_remove.user.last_name +
-            " from this project?",
-            state=RemoveUserDialogState,
-        )
     )

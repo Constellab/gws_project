@@ -1,8 +1,6 @@
 import reflex as rx
-from gws_core.apps.reflex._gws_reflex.gws_reflex_main.components.reflex_form_dialog_component import \
-    form_dialog_component
 from gws_project.task.task_dto import TaskPriority, TaskStatus
-from gws_reflex_main import user_select
+from gws_reflex_main import form_dialog_component, user_select
 
 from .task_form_dialog_state import TaskFormDialogState
 

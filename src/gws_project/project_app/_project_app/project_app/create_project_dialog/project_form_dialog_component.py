@@ -1,6 +1,5 @@
 import reflex as rx
-from gws_core.apps.reflex._gws_reflex.gws_reflex_main.components.reflex_form_dialog_component import \
-    form_dialog_component
+from gws_reflex_main import form_dialog_component
 
 from .project_form_dialog_state import ProjectFormDialogState
 

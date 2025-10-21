@@ -117,7 +117,6 @@ def _actions_menu(subtask: TaskDTO) -> rx.Component:
     :return: The actions menu component
     :rtype: rx.Component
     """
-    from ..task_detail.delete_task_dialog_state import DeleteTaskDialogState
     from ..task_list.task_list_state import TaskListState
 
     return rx.menu.root(
@@ -139,7 +138,7 @@ def _actions_menu(subtask: TaskDTO) -> rx.Component:
                 rx.icon("trash_2", size=16),
                 "Delete",
                 color="red",
-                on_click=lambda: DeleteTaskDialogState.open_dialog_with_task(subtask)
+                on_click=lambda: TaskListState.open_delete_task_dialog(subtask)
             ),
             on_click=lambda: rx.stop_propagation,  # Prevent row click event
         ),

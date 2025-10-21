@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 import reflex as rx
 from gws_project.task.task_dto import TaskDTO, TaskStatus
 from gws_project.task.task_service import TaskService
-from gws_reflex_main import ReflexMainState
+from gws_reflex_main import ConfirmDialogState, ReflexMainState
 from kanban.kanban import CardMoveEvent
 
 from ..common.breadcrumb.breadcrumb_state import Task
@@ -192,3 +192,35 @@ class TaskListState(ReflexMainState):
         :type task: Task
         """
         self.add_or_update_task(task)
+
+    @rx.event
+    async def open_delete_task_dialog(self, task: TaskDTO):
+        """Open the delete task confirmation dialog.
+
+        :param task: The task to delete
+        :type task: TaskDTO
+        """
+        delete_dialog_state = await self.get_state(ConfirmDialogState)
+
+        # Build confirmation message
+        warning = ""
+        if task.allow_subtasks:
+            warning = " This will also delete all its subtasks."
+
+        delete_dialog_state.open_dialog(
+            title="Delete Task",
+            content=f"Are you sure you want to delete this task?{warning}",
+            action=lambda: self._delete_action(task.id)
+        )
+
+    async def _delete_action(self, task_id: str):
+        """Delete the task from the list."""
+        with await self.authenticate_user():
+            task_service = TaskService()
+            task_service.delete_task(task_id)
+
+        # Show success toast
+        yield rx.toast.success("Task deleted successfully")
+
+        # Remove from list
+        self.delete_task(task_id)

@@ -4,7 +4,7 @@ import reflex as rx
 from gws_project.project.project_dto import ProjectDTO, ProjectUserDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
-from gws_reflex_main import ReflexMainState
+from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.project_page_state import ProjectPageState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
@@ -107,3 +107,31 @@ class ProjectDetailState(ReflexMainState):
         """
         task_list_state = await self.get_state(TaskListState)
         task_list_state.add_or_update_task(task)
+
+    @rx.event
+    async def open_delete_project_dialog(self):
+        """Open the delete project confirmation dialog."""
+
+        delete_dialog_state = await self.get_state(ConfirmDialogState)
+        delete_dialog_state.open_dialog(
+            title="Delete Project",
+            content="Are you sure you want to delete this project?",
+            action=self._delete_project_action
+        )
+
+    async def _delete_project_action(self):
+        """Action to delete the project after confirmation."""
+        project = await self.project
+        if not project:
+            yield
+            return
+
+        with await self.authenticate_user():
+            project_service = ProjectService()
+            project_service.delete_project(project.id)
+
+        # Show success message
+        yield rx.toast.success("Project deleted")
+
+        # Redirect to project list
+        yield rx.redirect("/")

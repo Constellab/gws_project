@@ -4,7 +4,8 @@ import reflex as rx
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.task.task import Task
 from gws_project.task.task_dto import TaskDTO
-from gws_reflex_main import ReflexMainState
+from gws_project.task.task_service import TaskService
+from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.project_page_state import ProjectPageState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
@@ -98,3 +99,51 @@ class TaskDetailState(ReflexMainState):
         # Refresh the current task by reloading from the page state
         project_page_state = await self.get_state(ProjectPageState)
         await project_page_state.refresh_object()
+
+    @rx.event
+    async def open_delete_task_dialog(self):
+        """Open the delete task confirmation dialog."""
+        task = await self.task
+        if not task:
+            yield
+            return
+
+        delete_dialog_state = await self.get_state(ConfirmDialogState)
+
+        # Build confirmation message
+        warning = ""
+        if task.allow_subtasks:
+            warning = " This will also delete all its subtasks."
+
+        delete_dialog_state.open_dialog(
+            title="Delete Task",
+            content=f"Are you sure you want to delete this task?{warning}",
+            action=self._delete_task_action
+        )
+
+    async def _delete_task_action(self):
+        """Action to delete the task after confirmation."""
+        task = await self.task
+        if not task:
+            yield
+            return
+
+        # Delete the task
+        with await self.authenticate_user():
+            task_service = TaskService()
+            task_service.delete_task(task.id)
+
+        # Show success toast
+        yield rx.toast.success("Task deleted successfully")
+
+        # Navigate based on context
+        project_page_state = await self.get_state(ProjectPageState)
+        current_object = await project_page_state.get_object()
+
+        if isinstance(current_object, Task):
+            if current_object.parent_task:
+                # If we are on a subtask's detail page, redirect to parent task
+                yield rx.redirect(f"/task/{current_object.parent_task.id}")
+            else:
+                # If we are on the deleted task's detail page, redirect to project detail
+                yield rx.redirect(f"/project/{current_object.project.id}")
