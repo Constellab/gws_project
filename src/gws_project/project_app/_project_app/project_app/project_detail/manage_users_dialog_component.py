@@ -169,24 +169,13 @@ def manage_users_dialog() -> rx.Component:
         ),
         # Nested form dialog for adding/updating users
         project_user_form_dialog(),
+
         # Confirmation dialog for removing users
         confirm_dialog(
             title="Remove User from Project",
-            content=rx.cond(
-                RemoveUserDialogState.user_to_remove,
-                rx.text(
-                    "Are you sure you want to remove ",
-                    rx.text.strong(
-                        rx.cond(
-                            RemoveUserDialogState.user_to_remove.user,
-                            RemoveUserDialogState.user_to_remove.user.first_name + " " + RemoveUserDialogState.user_to_remove.user.last_name,
-                            ""
-                        )
-                    ),
-                    " from this project?"
-                ),
-                rx.text("Are you sure you want to remove this user from the project?")
-            ),
+            content="Are you sure you want to remove " +
+            RemoveUserDialogState.user_to_remove.user.first_name + " " + RemoveUserDialogState.user_to_remove.user.last_name +
+            " from this project?",
             state=RemoveUserDialogState,
         )
     )

@@ -59,6 +59,5 @@ def delete_project_dialog() -> rx.Component:
     return confirm_dialog(
         state=DeleteProjectDialogState,
         title="Delete Project",
-        content= "Are you sure you want to delete this project?"
+        content="Are you sure you want to delete this project?"
     )
-

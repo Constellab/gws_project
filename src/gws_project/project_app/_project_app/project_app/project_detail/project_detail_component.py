@@ -23,7 +23,7 @@ from .project_detail_state import ProjectDetailState
 def header(project: ProjectDTO) -> rx.Component:
     """Create the header component for the project detail page.
 
-    This component displays the project title, dates, and project manager.
+    This component displays the project title, dates, project manager, and action menu.
 
     :param project: The project data transfer object
     :type project: ProjectDTO
@@ -31,30 +31,65 @@ def header(project: ProjectDTO) -> rx.Component:
     :rtype: rx.Component
     """
     return rx.hstack(
-        # Title
-        rx.heading(
-            project.title,
-            size="8",
-            margin_bottom="0.5rem"
-        ),
-        # Calendar icon with dates
-        rx.icon("calendar", size=18),
-        rx.text(
-            rx.moment(
-                project.start_date,
-                format="MMM D, YYYY"
+        # Left side: Title, dates, and project manager
+        rx.hstack(
+            # Title
+            rx.heading(
+                project.title,
+                size="8",
+                margin_bottom="0.5rem"
             ),
-            " - ",
-            rx.moment(
-                project.end_date,
-                format="MMM D, YYYY"
+            # Calendar icon with dates
+            rx.icon("calendar", size=18),
+            rx.text(
+                rx.moment(
+                    project.start_date,
+                    format="MMM D, YYYY"
+                ),
+                " - ",
+                rx.moment(
+                    project.end_date,
+                    format="MMM D, YYYY"
+                ),
+                size="3",
+                color="gray"
             ),
-            size="3",
-            color="gray"
+            # Project Manager
+            user_inline_component(project.project_manager),
+            spacing="2",
+            align="center",
         ),
-        # Project Manager
-        user_inline_component(project.project_manager),
-        spacing="2",
+        rx.spacer(),
+        # Right side: Action menu
+        rx.menu.root(
+            rx.menu.trigger(
+                rx.button(
+                    rx.icon("ellipsis-vertical", size=18),
+                    variant="soft",
+                    size="2"
+                )
+            ),
+            rx.menu.content(
+                rx.menu.item(
+                    rx.icon("pencil", size=16),
+                    "Update Project",
+                    on_click=lambda: ProjectFormDialogState.open_update_dialog(project)
+                ),
+                rx.menu.item(
+                    rx.icon("users", size=16),
+                    "Manage Users",
+                    on_click=ManageUsersDialogState.open_dialog
+                ),
+                rx.menu.separator(),
+                rx.menu.item(
+                    rx.icon("trash_2", size=16),
+                    "Delete Project",
+                    color="red",
+                    on_click=lambda: DeleteProjectDialogState.open_dialog_with_project(project.id)
+                ),
+            ),
+        ),
+        width="100%",
         align="center",
     )
 
@@ -79,21 +114,10 @@ def project_users_section() -> rx.Component:
     return rx.cond(
         ProjectDetailState.project_users.length() > 0,
         rx.vstack(
-            # Header with title and manage button
-            rx.hstack(
-                rx.heading(
-                    "Team Members",
-                    size="5",
-                ),
-                rx.spacer(),
-                rx.button(
-                    rx.icon("users", size=16),
-                    "Manage Users",
-                    variant="soft",
-                    on_click=ManageUsersDialogState.open_dialog
-                ),
-                width="100%",
-                align="center",
+            # Header with title
+            rx.heading(
+                "Team Members",
+                size="5",
             ),
             # User avatars
             rx.hstack(
@@ -174,42 +198,11 @@ def project_detail_page() -> rx.Component:
             # Breadcrumb navigation
             breadcrumb_component(),
 
-            # Header with action buttons
-            rx.hstack(
-                rx.spacer(),
-                rx.cond(
-                    ProjectDetailState.project,
-                    rx.hstack(
-                        rx.button(
-                            rx.icon("pencil", size=18),
-                            "Update Project",
-                            on_click=lambda: ProjectFormDialogState.open_update_dialog(ProjectDetailState.project)
-                        ),
-                        rx.button(
-                            rx.icon("trash_2", size=18),
-                            "Delete",
-                            color_scheme="red",
-                            variant="soft",
-                            on_click=lambda: DeleteProjectDialogState.open_dialog_with_project(
-                                ProjectDetailState.project.id,
-                            )
-                        ),
-
-                        spacing="2"
-                    ),
-                ),
-                justify="end",
-                align="center",
-                width="100%",
-                margin_bottom="1rem"
-            ),
-
-
             # Project details
             rx.cond(
                 ProjectDetailState.project,
                 rx.vstack(
-                    # Header with title, dates, and project manager
+                    # Header with title, dates, project manager, and action menu
                     header(ProjectDetailState.project),
                     # Description (without label)
                     rx.text(

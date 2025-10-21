@@ -3,6 +3,8 @@ from gws_project.task.task_dto import TaskDTO
 from gws_reflex_main import main_component, user_inline_component
 
 from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
+from ..common.priority_chip_component import priority_chip
+from ..common.status_chip_component import status_chip
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 from .delete_task_dialog_component import delete_task_dialog
@@ -93,8 +95,8 @@ def parent_task_section() -> rx.Component:
                     ),
                     rx.spacer(),
                     rx.hstack(
-                        _status_badge(TaskDetailState.parent_task.status),
-                        _priority_badge(TaskDetailState.parent_task.priority),
+                        status_chip(TaskDetailState.parent_task.status, size="2"),
+                        priority_chip(TaskDetailState.parent_task.priority, size="2"),
                         spacing="2",
                         align="center"
                     ),
@@ -121,13 +123,13 @@ def task_info_section() -> rx.Component:
         rx.hstack(
             rx.vstack(
                 rx.text("Status", size="2", weight="bold", color="gray"),
-                _status_badge(TaskDetailState.task.status),
+                status_chip(TaskDetailState.task.status, size="2"),
                 spacing="1",
                 align_items="start"
             ),
             rx.vstack(
                 rx.text("Priority", size="2", weight="bold", color="gray"),
-                _priority_badge(TaskDetailState.task.priority),
+                priority_chip(TaskDetailState.task.priority, size="2"),
                 spacing="1",
                 align_items="start"
             ),
@@ -178,48 +180,6 @@ def task_info_section() -> rx.Component:
         width="100%",
         spacing="3",
         align_items="start"
-    )
-
-
-def _status_badge(status: str) -> rx.Component:
-    """Create a status badge component.
-
-    :param status: The task status
-    :type status: str
-    :return: The status badge component
-    :rtype: rx.Component
-    """
-    color_map = {
-        "TODO": "gray",
-        "DOING": "blue",
-        "DONE": "green"
-    }
-    return rx.badge(
-        status,
-        color_scheme=color_map.get(status, "gray"),
-        variant="soft",
-        size="2"
-    )
-
-
-def _priority_badge(priority: str) -> rx.Component:
-    """Create a priority badge component.
-
-    :param priority: The task priority
-    :type priority: str
-    :return: The priority badge component
-    :rtype: rx.Component
-    """
-    color_map = {
-        "HIGH": "red",
-        "MEDIUM": "yellow",
-        "LOW": "gray"
-    }
-    return rx.badge(
-        priority,
-        color_scheme=color_map.get(priority, "gray"),
-        variant="soft",
-        size="2"
     )
 
 

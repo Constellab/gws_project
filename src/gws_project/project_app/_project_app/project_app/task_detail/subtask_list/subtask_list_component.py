@@ -1,6 +1,8 @@
 import reflex as rx
 from gws_reflex_main import user_inline_component
 
+from ...common.priority_chip_component import priority_chip
+from ...common.status_chip_component import status_chip
 from ..task_detail_state import TaskDetailState, TaskDTO
 from .subtask_list_state import SubtaskListState
 
@@ -94,50 +96,10 @@ def _subtask_row(subtask: TaskDTO) -> rx.Component:
         ),
         rx.table.cell(rx.moment(subtask.start_date, format="MMM D, YYYY")),
         rx.table.cell(rx.moment(subtask.end_date, format="MMM D, YYYY")),
-        rx.table.cell(_status_badge(subtask.status)),
-        rx.table.cell(_priority_badge(subtask.priority)),
+        rx.table.cell(status_chip(subtask.status)),
+        rx.table.cell(priority_chip(subtask.priority)),
         rx.table.cell(user_inline_component(subtask.assign_to)),
         rx.table.cell(_subtask_actions_menu(subtask)),
-    )
-
-
-def _status_badge(status: str) -> rx.Component:
-    """Create a status badge component.
-
-    :param status: The task status
-    :type status: str
-    :return: The status badge component
-    :rtype: rx.Component
-    """
-    color_map = {
-        "TODO": "gray",
-        "DOING": "blue",
-        "DONE": "green"
-    }
-    return rx.badge(
-        status,
-        color_scheme=color_map.get(status, "gray"),
-        variant="soft"
-    )
-
-
-def _priority_badge(priority: str) -> rx.Component:
-    """Create a priority badge component.
-
-    :param priority: The task priority
-    :type priority: str
-    :return: The priority badge component
-    :rtype: rx.Component
-    """
-    color_map = {
-        "HIGH": "red",
-        "MEDIUM": "yellow",
-        "LOW": "gray"
-    }
-    return rx.badge(
-        priority,
-        color_scheme=color_map.get(priority, "gray"),
-        variant="soft"
     )
 
 
