@@ -35,7 +35,7 @@ def project_detail():
 
 
 # Declare the task detail page with URL parameter
-@rx.page(route="/task/[task_id_param]", on_load=[TaskDetailState.on_load])
+@rx.page(route="/task/[task_id_param]")
 def task_detail():
     """Task detail page displaying all information about a specific task.
 

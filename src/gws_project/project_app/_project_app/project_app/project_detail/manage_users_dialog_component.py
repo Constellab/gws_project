@@ -125,7 +125,7 @@ def manage_users_dialog() -> rx.Component:
             rx.dialog.content(
                 rx.dialog.title(
                     rx.hstack(
-                        rx.text("Manage Team Members", flex=1),
+                        rx.text("Manage Project Members", flex=1),
                         rx.button(
                             rx.icon("user-plus", size=18),
                             "Add User",
