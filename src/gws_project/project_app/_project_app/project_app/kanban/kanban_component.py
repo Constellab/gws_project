@@ -9,7 +9,7 @@ from .kanban_state import KanbanState
 
 
 def _filter_bar() -> rx.Component:
-    """Create the filter bar with search, project, and user filters in a row.
+    """Create the filter bar with search, project, user, and date filters in a row.
 
     :return: The filter bar component
     :rtype: rx.Component
@@ -49,6 +49,21 @@ def _filter_bar() -> rx.Component:
             value=KanbanState.selected_user_id,
             on_change=KanbanState.handle_user_change,
             width="200px",
+        ),
+
+        # Date filter select
+        rx.select.root(
+            rx.select.trigger(
+                width="200px",
+            ),
+            rx.select.content(
+                rx.select.item("All", value="all"),
+                rx.select.item("Current Week", value="current_week"),
+                rx.select.item("Next Week", value="next_week"),
+                rx.select.item("Current Month", value="current_month"),
+            ),
+            value=KanbanState.selected_date_filter,
+            on_change=KanbanState.handle_date_filter_change,
         ),
 
         # Clear filters button

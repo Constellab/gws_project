@@ -1,4 +1,6 @@
 
+from datetime import date
+
 from gws_core import SearchBuilder
 from gws_project.task.task import Task
 
@@ -40,4 +42,34 @@ class TaskSearchBuilder(SearchBuilder):
         """Filter the search query by whether tasks allow subtasks
         """
         self.add_expression(Task.allow_subtasks == allow_subtasks)
+        return self
+
+    def add_date_range_filter(self, start_date: date, end_date: date) -> "TaskSearchBuilder":
+        """Filter the search query by tasks where dates overlap with the filter range.
+
+        A task is included if any of these conditions are true:
+        1. Task start_date falls within the filter range (start_date <= task.start_date <= end_date)
+        2. Task end_date falls within the filter range (start_date <= task.end_date <= end_date)
+        3. Task dates wrap/encompass the entire filter range (task.start_date <= start_date AND task.end_date >= end_date)
+
+        Examples:
+        - Filter: Jan 5-10, Task: Jan 1-7 -> Included (task end_date Jan 7 is between Jan 5-10)
+        - Filter: Jan 5-10, Task: Jan 8-12 -> Included (task start_date Jan 8 is between Jan 5-10)
+        - Filter: Jan 5-10, Task: Jan 1-15 -> Included (task wraps the filter range)
+        - Filter: Jan 5-10, Task: Jan 11-15 -> Excluded (no overlap)
+
+        :param start_date: The start date of the filter range
+        :type start_date: date
+        :param end_date: The end date of the filter range
+        :type end_date: date
+        """
+        # Include tasks where:
+        # 1. Task start_date is within filter range
+        # 2. Task end_date is within filter range
+        # 3. Task wraps the filter range
+        self.add_expression(
+            ((Task.start_date >= start_date) & (Task.start_date <= end_date)) |  # start_date in range
+            ((Task.end_date >= start_date) & (Task.end_date <= end_date)) |      # end_date in range
+            ((Task.start_date <= start_date) & (Task.end_date >= end_date))      # task wraps range
+        )
         return self

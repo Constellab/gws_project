@@ -1,7 +1,8 @@
-from typing import Dict, List, Optional
+from datetime import date, datetime, timedelta
+from typing import List
 
 import reflex as rx
-from gws_core import CurrentUserService, UserDTO
+from gws_core import UserDTO
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.project.project_user import ProjectUser
@@ -30,6 +31,7 @@ class KanbanState(ReflexMainState):
     search_text: str = ""
     selected_project_id: str = ""
     selected_user_id: str = ""
+    selected_date_filter: str = "current_week"  # Default to current week
 
     # Data for filters
     available_projects: List[ProjectDTO] = []
@@ -67,10 +69,49 @@ class KanbanState(ReflexMainState):
         else:
             self.available_users = user_dtos
 
+    def _get_date_range(self, filter_type: str) -> tuple[date | None, date | None]:
+        """Calculate start and end dates based on the selected filter type.
+
+        :param filter_type: One of 'all', 'current_week', 'next_week', 'current_month'
+        :type filter_type: str
+        :return: Tuple of (start_date, end_date), or (None, None) for 'all'
+        :rtype: tuple[date | None, date | None]
+        """
+        if filter_type == "all":
+            # No date filtering
+            return None, None
+
+        today = date.today()
+
+        if filter_type == "current_week":
+            # Get Monday of current week (weekday 0 = Monday)
+            start_date = today - timedelta(days=today.weekday())
+            # Get Sunday of current week
+            end_date = start_date + timedelta(days=6)
+        elif filter_type == "next_week":
+            # Get Monday of next week
+            start_date = today - timedelta(days=today.weekday()) + timedelta(weeks=1)
+            # Get Sunday of next week
+            end_date = start_date + timedelta(days=6)
+        elif filter_type == "current_month":
+            # First day of current month
+            start_date = today.replace(day=1)
+            # Last day of current month
+            if today.month == 12:
+                end_date = today.replace(day=31)
+            else:
+                end_date = (today.replace(month=today.month + 1, day=1) - timedelta(days=1))
+        else:
+            # Default to current week
+            start_date = today - timedelta(days=today.weekday())
+            end_date = start_date + timedelta(days=6)
+
+        return start_date, end_date
+
     async def load_tasks(self):
         """Fetch all tasks accessible to the current user with applied filters.
 
-        Applies text search, project filter, and user filter using the TaskSearchBuilder.
+        Applies text search, project filter, user filter, and date filter using the TaskSearchBuilder.
         If no project filter is selected, returns tasks from all user's projects.
 
         :return: List of filtered tasks as DTOs
@@ -98,6 +139,11 @@ class KanbanState(ReflexMainState):
         # Text search filter
         if self.search_text:
             search_builder.add_text_search(self.search_text)
+
+        # Date filter - only applied if not 'all'
+        start_date, end_date = self._get_date_range(self.selected_date_filter)
+        if start_date is not None and end_date is not None:
+            search_builder.add_date_range_filter(start_date, end_date)
 
         # only show the leaf tasks
         search_builder.add_allow_subtasks_filter(False)
@@ -142,11 +188,21 @@ class KanbanState(ReflexMainState):
         self.selected_user_id = value
         await self.load_tasks()
 
+    async def handle_date_filter_change(self, value: str):
+        """Handle date filter change.
+
+        :param value: The selected date filter ('current_week', 'next_week', 'current_month')
+        :type value: str
+        """
+        self.selected_date_filter = value
+        await self.load_tasks()
+
     async def clear_filters(self):
-        """Clear all filters and reload tasks."""
+        """Clear all filters and reload tasks. Date filter is reset to current week."""
         self.search_text = ""
         self.selected_project_id = ""
         self.selected_user_id = ""
+        self.selected_date_filter = "current_week"
         await self.load_tasks()
 
     @rx.var
