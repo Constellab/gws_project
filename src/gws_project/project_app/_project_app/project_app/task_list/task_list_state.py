@@ -7,7 +7,7 @@ from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import Task
 from ..common.kanban.kanban import (BoardDataDTO, CardDTO, CardMoveEvent,
-                                    ColumnDTO)
+                                    ColumnDTO, build_kanban_board_data)
 from ..common.project_page_state import ProjectPageState, ProjectUrlParam
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 
@@ -76,31 +76,8 @@ class TaskListState(ReflexMainState):
         :return: BoardDataDTO with columns structure for the Kanban board
         :rtype: BoardDataDTO
         """
-        # Group tasks by status
         tasks = await self.get_tasks
-        todo_tasks = [task for task in tasks if task.status == TaskStatus.TODO]
-        doing_tasks = [task for task in tasks if task.status == TaskStatus.DOING]
-        done_tasks = [task for task in tasks if task.status == TaskStatus.DONE]
-
-        return BoardDataDTO(
-            columns=[
-                ColumnDTO(
-                    id=TaskStatus.TODO.value,
-                    title="To Do",
-                    cards=[self._task_to_card(task) for task in todo_tasks]
-                ),
-                ColumnDTO(
-                    id=TaskStatus.DOING.value,
-                    title="In Progress",
-                    cards=[self._task_to_card(task) for task in doing_tasks]
-                ),
-                ColumnDTO(
-                    id=TaskStatus.DONE.value,
-                    title="Done",
-                    cards=[self._task_to_card(task) for task in done_tasks]
-                )
-            ]
-        )
+        return build_kanban_board_data(tasks, self._task_to_card)
 
     @rx.var
     async def kanban_cards(self) -> Dict[str, List[CardDTO]]:

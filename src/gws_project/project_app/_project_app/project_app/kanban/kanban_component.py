@@ -1,6 +1,7 @@
 
 import reflex as rx
 from gws_reflex_main import main_component
+from gws_reflex_main.components.reflex_user_components import user_select
 
 from ..common.kanban.kanban import kanban_board
 from ..common.page_layout import page_layout
@@ -26,6 +27,7 @@ def _filter_bar() -> rx.Component:
         rx.select.root(
             rx.select.trigger(
                 placeholder="All Projects",
+                width="200px",
             ),
             rx.select.content(
                 rx.foreach(
@@ -38,23 +40,12 @@ def _filter_bar() -> rx.Component:
             ),
             value=KanbanState.selected_project_id,
             on_change=KanbanState.handle_project_change,
-            width="200px",
         ),
 
         # User filter select
-        rx.select.root(
-            rx.select.trigger(
-                placeholder="All Users",
-            ),
-            rx.select.content(
-                rx.foreach(
-                    KanbanState.user_options,
-                    lambda opt: rx.select.item(
-                        opt[1],
-                        value=opt[0],
-                    ),
-                )
-            ),
+        user_select(
+            users=KanbanState.available_users,
+            placeholder="All Users",
             value=KanbanState.selected_user_id,
             on_change=KanbanState.handle_user_change,
             width="200px",

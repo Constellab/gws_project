@@ -35,8 +35,7 @@ class User(Model):
         :rtype: ModelSelect
         """
         return list(User.select().where(
-            (User.group != UserGroup.SYSUSER) &
-            (User.is_active == True)
+            (User.group != UserGroup.SYSUSER)
         ).order_by(User.first_name, User.last_name))
 
     class Meta:

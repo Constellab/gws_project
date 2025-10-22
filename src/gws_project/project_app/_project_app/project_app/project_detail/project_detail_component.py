@@ -18,17 +18,6 @@ from .manage_users_dialog_component import (ManageUsersDialogState,
 from .project_detail_state import ProjectDetailState
 
 
-def project_user_item(project_user: ProjectUserDTO) -> rx.Component:
-    """Create a project user item component displaying user photo and role.
-
-    :param project_user: The project user data transfer object
-    :type project_user: ProjectUserDTO
-    :return: The project user item component
-    :rtype: rx.Component
-    """
-    return user_profile_picture(project_user.user, size="40px")
-
-
 def main_content_area() -> rx.Component:
     """Create the main content area (left side) with title, description, team members, and tasks.
 

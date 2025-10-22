@@ -1,9 +1,10 @@
 """Reflex wrapper for React Kanban board component using @dnd-kit."""
 
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import reflex as rx
 from gws_core.core.model.model_dto import BaseModelDTO
+from gws_project.task.task_dto import TaskDTO, TaskStatus
 from reflex.vars import Var
 
 # Path to the custom TSX component
@@ -134,3 +135,44 @@ class KanbanBoard(rx.Component):
 
 # Convenience function to create the component
 kanban_board = KanbanBoard.create
+
+
+def build_kanban_board_data(
+    tasks: List[TaskDTO],
+    task_to_card_converter: Callable[[TaskDTO], CardDTO]
+) -> BoardDataDTO:
+    """Build kanban board data from a list of tasks.
+
+    This utility function groups tasks by status and converts them to a kanban board format.
+
+    :param tasks: List of tasks to convert
+    :type tasks: List[TaskDTO]
+    :param task_to_card_converter: Function to convert a TaskDTO to a CardDTO
+    :type task_to_card_converter: Callable[[TaskDTO], CardDTO]
+    :return: BoardDataDTO with columns structure for the Kanban board
+    :rtype: BoardDataDTO
+    """
+    # Group tasks by status
+    todo_tasks = [task for task in tasks if task.status == TaskStatus.TODO]
+    doing_tasks = [task for task in tasks if task.status == TaskStatus.DOING]
+    done_tasks = [task for task in tasks if task.status == TaskStatus.DONE]
+
+    return BoardDataDTO(
+        columns=[
+            ColumnDTO(
+                id=TaskStatus.TODO.value,
+                title="To Do",
+                cards=[task_to_card_converter(task) for task in todo_tasks]
+            ),
+            ColumnDTO(
+                id=TaskStatus.DOING.value,
+                title="In Progress",
+                cards=[task_to_card_converter(task) for task in doing_tasks]
+            ),
+            ColumnDTO(
+                id=TaskStatus.DONE.value,
+                title="Done",
+                cards=[task_to_card_converter(task) for task in done_tasks]
+            )
+        ]
+    )

@@ -46,7 +46,8 @@ def _form_content() -> rx.Component:
                     users=TaskFormDialogState.users,
                     placeholder="Select a user (optional)",
                     name="assign_to_id",
-                    default_value=TaskFormDialogState.form_assign_to_id
+                    default_value=TaskFormDialogState.form_assign_to_id,
+                    width="100%",
                 ),
                 width="100%",
                 spacing="1"

@@ -9,12 +9,11 @@ from gws_project.task.task_dto import TaskDTO, TaskStatus
 from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.task.task_service import TaskService
 from gws_project.user.user import User
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
+from gws_reflex_main import ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import Task
 from ..common.kanban.kanban import (BoardDataDTO, CardDTO, CardMoveEvent,
-                                    ColumnDTO)
-from ..task_form.task_form_dialog_state import TaskFormDialogState
+                                    build_kanban_board_data)
 
 
 class KanbanState(ReflexMainState):
@@ -38,15 +37,35 @@ class KanbanState(ReflexMainState):
 
     async def load_projects(self):
         """Load the list of projects for the current user."""
-        with await self.authenticate_user():
-            current_user = CurrentUserService.get_and_check_current_user()
-            user_projects = ProjectUser.get_projects_of_user(current_user.id)
-            self.available_projects = [project.to_dto() for project in user_projects]
+        current_user = await self.get_and_check_current_user()
+        user_projects = ProjectUser.get_projects_of_user(current_user.id)
+        self.available_projects = [project.to_dto() for project in user_projects]
 
     async def load_users(self):
-        """Load the list of all real users (excluding SYSUSER)."""
+        """Load the list of all real users (excluding SYSUSER).
+
+        The current user is placed first in the list.
+        """
+        current_user = await self.get_and_check_current_user()
         users = User.get_real_users()
-        self.available_users = [user.to_dto() for user in users]
+
+        # Convert to DTOs
+        user_dtos = [user.to_dto() for user in users]
+
+        # Move current user to the front
+        current_user_dto = None
+        other_users = []
+        for user_dto in user_dtos:
+            if user_dto.id == current_user.id:
+                current_user_dto = user_dto
+            else:
+                other_users.append(user_dto)
+
+        # Place current user first if found
+        if current_user_dto:
+            self.available_users = [current_user_dto] + other_users
+        else:
+            self.available_users = user_dtos
 
     async def load_tasks(self):
         """Fetch all tasks accessible to the current user with applied filters.
@@ -58,30 +77,29 @@ class KanbanState(ReflexMainState):
         :rtype: List[TaskDTO]
         """
         tasks: List[Task]
-        with await self.authenticate_user():
-            current_user = CurrentUserService.get_and_check_current_user()
+        current_user = await self.get_and_check_current_user()
 
-            # Build the search with filters
-            search_builder = TaskSearchBuilder()
+        # Build the search with filters
+        search_builder = TaskSearchBuilder()
 
-            # Project filter: if no specific project is selected, filter by all user projects
-            if self.selected_project_id:
-                search_builder.add_project_filter(self.selected_project_id)
-            else:
-                user_projects = ProjectUser.get_projects_of_user(current_user.id)
-                project_ids = [project.id for project in user_projects]
-                if project_ids:
-                    search_builder.add_projects_filter(project_ids)
+        # Project filter: if no specific project is selected, filter by all user projects
+        if self.selected_project_id:
+            search_builder.add_project_filter(self.selected_project_id)
+        else:
+            user_projects = ProjectUser.get_projects_of_user(current_user.id)
+            project_ids = [project.id for project in user_projects]
+            if project_ids:
+                search_builder.add_projects_filter(project_ids)
 
-            # User/assignee filter
-            if self.selected_user_id:
-                search_builder.add_user_filter(self.selected_user_id)
+        # User/assignee filter
+        if self.selected_user_id:
+            search_builder.add_user_filter(self.selected_user_id)
 
-            # Text search filter
-            if self.search_text:
-                search_builder.add_text_search(self.search_text)
+        # Text search filter
+        if self.search_text:
+            search_builder.add_text_search(self.search_text)
 
-            tasks = search_builder.search_all()
+        tasks = search_builder.search_all()
 
         self.tasks = [task.to_dto() for task in tasks]
 
@@ -153,31 +171,7 @@ class KanbanState(ReflexMainState):
         :return: BoardDataDTO with columns structure for the Kanban board
         :rtype: BoardDataDTO
         """
-        # Group tasks by status
-        tasks = self.tasks
-        todo_tasks = [task for task in tasks if task.status == TaskStatus.TODO]
-        doing_tasks = [task for task in tasks if task.status == TaskStatus.DOING]
-        done_tasks = [task for task in tasks if task.status == TaskStatus.DONE]
-
-        return BoardDataDTO(
-            columns=[
-                ColumnDTO(
-                    id=TaskStatus.TODO.value,
-                    title="To Do",
-                    cards=[self._task_to_card(task) for task in todo_tasks]
-                ),
-                ColumnDTO(
-                    id=TaskStatus.DOING.value,
-                    title="In Progress",
-                    cards=[self._task_to_card(task) for task in doing_tasks]
-                ),
-                ColumnDTO(
-                    id=TaskStatus.DONE.value,
-                    title="Done",
-                    cards=[self._task_to_card(task) for task in done_tasks]
-                )
-            ]
-        )
+        return build_kanban_board_data(self.tasks, self._task_to_card)
 
     def _task_to_card(self, task: TaskDTO) -> CardDTO:
         """Convert a TaskDTO to a Kanban card format."""
