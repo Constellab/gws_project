@@ -3,7 +3,7 @@ from typing import Optional
 import reflex as rx
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.task.task import Task
-from gws_project.task.task_dto import TaskDTO
+from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from gws_project.task.task_service import TaskService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
@@ -154,3 +154,47 @@ class TaskDetailState(ReflexMainState):
             else:
                 # If we are on the deleted task's detail page, redirect to project detail
                 yield rx.redirect(f"/project/{current_object.project.id}")
+
+    async def update_status(self, new_status: str):
+        """Handle status change for the task.
+
+        :param new_status: The new status string
+        :type new_status: str
+        """
+        task = await self.task
+        if not task:
+            yield rx.toast.error("Task not found")
+            return
+
+        # create TaskStatus enum from string
+        task_status = TaskStatus[new_status]
+
+        with await self.authenticate_user():
+            task_service = TaskService()
+            task_service.update_status(task.id, task_status)
+
+        # Refresh the current task
+        project_page_state = await self.get_state(ProjectPageState)
+        await project_page_state.refresh_object()
+
+    async def update_priority(self, new_priority: str):
+        """Handle priority change for the task.
+
+        :param new_priority: The new priority string
+        :type new_priority: str
+        """
+        task = await self.task
+        if not task:
+            yield rx.toast.error("Task not found")
+            return
+
+        # create TaskPriority enum from string
+        task_priority = TaskPriority[new_priority]
+
+        with await self.authenticate_user():
+            task_service = TaskService()
+            task_service.update_priority(task.id, task_priority)
+
+        # Refresh the current task
+        project_page_state = await self.get_state(ProjectPageState)
+        await project_page_state.refresh_object()

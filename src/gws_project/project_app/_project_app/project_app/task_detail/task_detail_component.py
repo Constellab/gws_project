@@ -128,8 +128,6 @@ def details_sidebar() -> rx.Component:
                         TaskDetailState.parent_task.title,
                         href=f"/task/{TaskDetailState.parent_task.id}",
                         size="2",
-                        color="blue",
-                        text_decoration="underline"
                     ),
                 )
             ),
@@ -140,11 +138,21 @@ def details_sidebar() -> rx.Component:
 
             # Status
             rx.text("Status", size="2", color="gray", weight="medium"),
-            rx.box(status_chip(TaskDetailState.task.status, size="2")),
+            rx.box(status_chip(
+                TaskDetailState.task.status,
+                on_status_change=TaskDetailState.update_status,
+                allow_subtask=TaskDetailState.task.allow_subtasks,
+                size="2"
+            )),
 
             # Priority
             rx.text("Priority", size="2", color="gray", weight="medium"),
-            rx.box(priority_chip(TaskDetailState.task.priority, size="2")),
+            rx.box(priority_chip(
+                TaskDetailState.task.priority,
+                on_priority_change=TaskDetailState.update_priority,
+                allow_subtask=TaskDetailState.task.allow_subtasks,
+                size="2"
+            )),
 
             # Start date
             rx.text("Start date", size="2", color="gray", weight="medium"),

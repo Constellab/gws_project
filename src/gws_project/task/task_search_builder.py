@@ -35,3 +35,9 @@ class TaskSearchBuilder(SearchBuilder):
             (Task.description.ilike(like_pattern))
         )
         return self
+
+    def add_allow_subtasks_filter(self, allow_subtasks: bool) -> "TaskSearchBuilder":
+        """Filter the search query by whether tasks allow subtasks
+        """
+        self.add_expression(Task.allow_subtasks == allow_subtasks)
+        return self

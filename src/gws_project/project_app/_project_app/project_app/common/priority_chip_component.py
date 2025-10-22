@@ -1,30 +1,54 @@
 """Priority chip component for displaying task priority with color-coded badges."""
 
-from typing import Literal
+from typing import Callable, Literal
 
 import reflex as rx
 from gws_project.task.task_dto import TaskPriority
 
+from .updatable_chip_component import updatable_chip
 
-def priority_chip(priority: TaskPriority, size: Literal['1', '2', '3'] = None) -> rx.Component:
-    """Create a priority chip component with color-coded badge.
+
+def _get_priority_color(priority: TaskPriority):
+    """Get the color scheme for a given priority.
+
+    :param priority: The task priority
+    :type priority: TaskPriority
+    :return: The color scheme name
+    :rtype: str
+    """
+    return rx.match(
+        priority,
+        (TaskPriority.HIGH, "red"),
+        (TaskPriority.MEDIUM, "yellow"),
+        "gray"
+    )
+
+
+def priority_chip(
+    priority: TaskPriority,
+    size: Literal['1', '2', '3'] = None,
+    on_priority_change: Callable[[str], None] = None,
+    allow_subtask: bool = False
+) -> rx.Component:
+    """Create a priority chip component with color-coded badge and priority selector.
 
     :param priority: The task priority (HIGH, MEDIUM, LOW)
     :type priority: TaskPriority
     :param size: The badge size (optional)
     :type size: Literal['1', '2', '3']
+    :param on_priority_change: Callback function when priority changes (optional)
+    :type on_priority_change: Callable[[str], None]
+    :param allow_subtask: If True, shows message that priority is calculated from children (optional)
+    :type allow_subtask: bool
     :return: The priority chip component
     :rtype: rx.Component
     """
-
-    return rx.badge(
-        priority,
+    return updatable_chip(
+        value=priority,
+        all_values=list(TaskPriority),
+        get_color_scheme=_get_priority_color,
         size=size,
-        color_scheme=rx.match(
-            priority,
-            (TaskPriority.HIGH, "red"),
-            (TaskPriority.MEDIUM, "yellow"),
-            "gray"
-        ),
-        variant="soft"
+        on_value_change=on_priority_change,
+        allow_subtask=allow_subtask,
+        readonly_message="Priority is calculated from children and cannot be updated manually."
     )

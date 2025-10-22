@@ -359,6 +359,47 @@ class TaskService:
         return task
 
     @ProjectDbManager.transaction()
+    def update_priority(self, task_id: str, priority: TaskPriority) -> Task:
+        """Update the priority of a task and automatically update parent task information if applicable.
+
+        :param task_id: The ID of the task to update
+        :type task_id: str
+        :param priority: The new priority for the task
+        :type priority: TaskPriority
+        :return: The updated task
+        :rtype: Task
+        :raises BadRequestException: If the task allows subtasks (priority is calculated automatically)
+        """
+        # Get the task and ensure it exists
+        security_service = ProjectSecurityService()
+        task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
+
+        # Validate that the task does not allow subtasks
+        # Tasks with subtasks have their priority calculated automatically
+        if task.allow_subtasks:
+            raise BadRequestException(
+                "Cannot manually update priority for tasks with subtasks. "
+                "The priority is calculated automatically based on subtask priorities."
+            )
+
+        # Validate that the new priority is not the same as the current priority
+        if task.priority == priority:
+            return task  # No change needed
+
+        # Update the task priority
+        task.priority = priority
+
+        # Save the task to the database
+        task.save()
+
+        # Update parent task information if this is a subtask
+        # This updates not just priority, but also dates and status based on all subtasks
+        if task.parent_task:
+            self._update_parent_task_from_subtasks(task.parent_task)
+
+        return task
+
+    @ProjectDbManager.transaction()
     def delete_task(self, task_id: str) -> None:
         """Delete a task. If it's a root task, also deletes all subtasks and the Space folder.
         If it's a subtask, updates the parent task information after deletion.

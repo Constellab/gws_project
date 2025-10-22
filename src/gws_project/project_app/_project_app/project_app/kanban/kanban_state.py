@@ -99,6 +99,9 @@ class KanbanState(ReflexMainState):
         if self.search_text:
             search_builder.add_text_search(self.search_text)
 
+        # only show the leaf tasks
+        search_builder.add_allow_subtasks_filter(False)
+
         tasks = search_builder.search_all()
 
         self.tasks = [task.to_dto() for task in tasks]
