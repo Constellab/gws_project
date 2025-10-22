@@ -390,7 +390,7 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, on
   }
 
   return (
-    <div className="kanban-board-container" style={{ width: '100%', height: '100%' }}>
+    <div className="kanban-board-container" style={{ width: '100%', flex: 1, minHeight: 0, overflowY: 'auto' }}>
       {/* Test component display area */}
       {superTest && (
         <div style={{
@@ -417,7 +417,7 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, on
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div style={{ display: 'flex', overflowX: 'auto', width: '100%', height: '100%' }}>
+        <div style={{ display: 'flex', overflowX: 'auto', width: '100%', minHeight: '100%' }}>
           {columns.map((column) => (
             <Column
               key={column.id}
