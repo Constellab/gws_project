@@ -1,8 +1,9 @@
 """Kanban view component for tasks."""
 
-import reflex as rx
-from kanban.kanban import kanban_board
 
+import reflex as rx
+
+from ..common.kanban.kanban import kanban_board
 from .task_list_state import TaskListState
 
 
@@ -16,8 +17,6 @@ def task_kanban_component() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        # Loading indicator
-
         # Kanban board
         rx.cond(
             TaskListState.get_tasks.length() > 0,
@@ -25,8 +24,8 @@ def task_kanban_component() -> rx.Component:
                 board_data=TaskListState.kanban_board_data,
                 disable_column_drag=True,
                 on_card_move=TaskListState.handle_card_move,
-                # on_custom_event2=TaskListState.jjj,
             ),
+
             # Empty state when no tasks
             rx.center(
                 rx.vstack(

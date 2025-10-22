@@ -217,10 +217,7 @@ def task_detail_page() -> rx.Component:
                         sidebar_content=details_sidebar()
                     ),
                 ),
-
                 width="100%",
-                spacing="4",
-                padding="2rem"
             )
         ),
         # Add the task form dialog

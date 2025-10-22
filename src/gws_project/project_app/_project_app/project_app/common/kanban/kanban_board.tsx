@@ -1,4 +1,9 @@
 import React, { useState } from 'react';
+import type {
+  DragStartEvent,
+  DragOverEvent,
+  DragEndEvent,
+} from '@dnd-kit/core';
 import {
   DndContext,
   DragOverlay,
@@ -18,8 +23,56 @@ import {
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+// Type definitions
+interface Card {
+  id: string;
+  title: string;
+  description?: string;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+  assignee?: string;
+  parent_task_title?: string;
+  is_leaf?: boolean;
+}
+
+interface Column {
+  id: string;
+  title: string;
+  cards: Card[];
+}
+
+interface BoardData {
+  columns: Column[];
+}
+
+interface CardMoveEvent {
+  card_id: string;
+  from_column_id: string;
+  to_column_id: string;
+}
+
+interface SortableCardProps {
+  id: string;
+  card: Card;
+  onCardClick?: (card: Card) => void;
+  customRenderer?: (card: Card) => React.ReactNode;
+}
+
+interface ColumnProps {
+  column: Column;
+  cards: Card[];
+  cardRenderer?: (card: Card) => React.ReactNode;
+}
+
+interface KanbanBoardProps {
+  boardData: BoardData;
+  onCardMove?: (event: CardMoveEvent) => void;
+  disableColumnDrag?: boolean;
+  superTest?: any;
+  cardRenderer?: (card: Card) => React.ReactNode;
+}
+
 // Sortable Card Component
-function SortableCard({ id, card, onCardClick }) {
+function SortableCard({ id, card, onCardClick, customRenderer }: SortableCardProps) {
   const {
     attributes,
     listeners,
@@ -39,10 +92,10 @@ function SortableCard({ id, card, onCardClick }) {
     borderRadius: '8px',
     border: '1px solid #e0e0e0',
     cursor: 'grab',
-    boxShadow: isDragging ? '0 4px 8px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
+    boxShadow: isDragging ? '0 4px 8px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'
   };
 
-  const priorityColors = {
+  const priorityColors: Record<'LOW' | 'MEDIUM' | 'HIGH', string> = {
     LOW: '#4caf50',
     MEDIUM: '#ff9800',
     HIGH: '#f44336',
@@ -50,39 +103,55 @@ function SortableCard({ id, card, onCardClick }) {
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>{card.title}</h4>
-        {card.priority && (
-          <span
-            style={{
-              fontSize: '10px',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              backgroundColor: priorityColors[card.priority] || '#999',
-              color: 'white',
-              fontWeight: 'bold',
-            }}
-          >
-            {card.priority}
-          </span>
-        )}
-      </div>
-      {card.description && (
-        <p style={{ margin: '4px 0', fontSize: '12px', color: '#666' }}>
-          {card.description}
-        </p>
-      )}
-      {card.assignee && (
-        <div style={{ marginTop: '8px', fontSize: '11px', color: '#888' }}>
-          👤 {card.assignee}
-        </div>
+      {customRenderer ? (
+        customRenderer(card)
+      ) : (
+        <>
+          {card.parent_task_title && (
+            <div style={{ marginBottom: '4px', fontSize: '10px', color: '#888', fontStyle: 'italic' }}>
+              📁 {card.parent_task_title}
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '14px' }}>
+                {card.is_leaf ? '📄' : '📁'}
+              </span>
+              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>{card.title}</h4>
+            </div>
+            {card.priority && (
+              <span
+                style={{
+                  fontSize: '10px',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  backgroundColor: priorityColors[card.priority] || '#999',
+                  color: 'white',
+                  fontWeight: 'bold',
+                }}
+              >
+                {card.priority}
+              </span>
+            )}
+          </div>
+          {card.description && (
+            <p style={{ margin: '4px 0', fontSize: '12px', color: '#666' }}>
+              {card.description}
+            </p>
+          )}
+          {card.assignee && (
+            <div style={{ marginTop: '8px', fontSize: '11px', color: '#888' }}>
+              👤 {card.assignee}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
 
 // Column Component
-function Column({ column, cards }) {
+function Column({ column, cards, cardRenderer }: ColumnProps) {
   const cardIds = cards.map((card) => card.id);
   const { setNodeRef } = useDroppable({
     id: column.id,
@@ -106,7 +175,7 @@ function Column({ column, cards }) {
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
         <div style={{ minHeight: '100px' }}>
           {cards.map((card) => (
-            <SortableCard key={card.id} id={card.id} card={card} />
+            <SortableCard key={card.id} id={card.id} card={card} customRenderer={cardRenderer} />
           ))}
         </div>
       </SortableContext>
@@ -115,10 +184,10 @@ function Column({ column, cards }) {
 }
 
 // Main Kanban Board Component
-export function KanbanBoard({ boardData, onCardMove, disableColumnDrag = true }) {
-  const [activeId, setActiveId] = useState(null);
-  const [columns, setColumns] = useState(boardData?.columns || []);
-  const [originalContainer, setOriginalContainer] = useState(null);
+export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, disableColumnDrag = true }: KanbanBoardProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [columns, setColumns] = useState<Column[]>(boardData?.columns || []);
+  const [originalContainer, setOriginalContainer] = useState<string | null>(null);
 
   // Update columns when boardData changes
   React.useEffect(() => {
@@ -139,7 +208,7 @@ export function KanbanBoard({ boardData, onCardMove, disableColumnDrag = true })
   );
 
   // Find which column a card belongs to
-  const findContainer = (id) => {
+  const findContainer = (id: string): string | null => {
     for (const column of columns) {
       if (column.cards.some((card) => card.id === id)) {
         return column.id;
@@ -148,21 +217,21 @@ export function KanbanBoard({ boardData, onCardMove, disableColumnDrag = true })
     return null;
   };
 
-  const handleDragStart = (event) => {
-    setActiveId(event.active.id);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
     // Store the original container before any drag operations
-    const container = findContainer(event.active.id);
+    const container = findContainer(event.active.id as string);
     setOriginalContainer(container);
     console.log('Drag started - original container:', container);
   };
 
-  const handleDragOver = (event) => {
+  const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
 
     if (!over) return;
 
-    const activeContainer = findContainer(active.id);
-    const overContainer = findContainer(over.id) || over.id;
+    const activeContainer = findContainer(active.id as string);
+    const overContainer = findContainer(over.id as string) || (over.id as string);
 
     if (!activeContainer || !overContainer) return;
 
@@ -197,7 +266,7 @@ export function KanbanBoard({ boardData, onCardMove, disableColumnDrag = true })
     }
   };
 
-  const handleDragEnd = (event) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
     console.log('=== DRAG END START ===');
@@ -216,7 +285,7 @@ export function KanbanBoard({ boardData, onCardMove, disableColumnDrag = true })
     // Use the original container stored at drag start instead of finding it
     // (because handleDragOver may have already moved the card)
     const activeContainer = originalContainer;
-    const overContainer = findContainer(over.id) || over.id;
+    const overContainer = findContainer(over.id as string) || (over.id as string);
 
     console.log('Active container (from drag start):', activeContainer);
     console.log('Over container:', overContainer);
@@ -331,38 +400,60 @@ export function KanbanBoard({ boardData, onCardMove, disableColumnDrag = true })
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-    >
-      <div style={{ display: 'flex', padding: '20px', overflowX: 'auto', width: '100%' }}>
-        {columns.map((column) => (
-          <Column
-            key={column.id}
-            column={column}
-            cards={column.cards}
-          />
-        ))}
-      </div>
-      <DragOverlay>
-        {activeCard ? (
-          <div
-            style={{
-              backgroundColor: 'white',
-              padding: '12px',
-              borderRadius: '8px',
-              border: '1px solid #e0e0e0',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              cursor: 'grabbing',
-            }}
-          >
-            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>{activeCard.title}</h4>
+    <div style={{ width: '100%' }}>
+      {/* Test component display area */}
+      {superTest && (
+        <div style={{
+          padding: '20px',
+          marginBottom: '20px',
+          backgroundColor: '#f0f4f8',
+          borderRadius: '8px',
+          border: '2px solid #3b82f6',
+        }}>
+          <h3 style={{ margin: '0 0 12px 0', color: '#1e40af', fontSize: '14px', fontWeight: '600' }}>
+            Test Component:
+          </h3>
+          <div>
+            {superTest}
           </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+        </div>
+      )}
+
+      {/* Kanban Board */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <div style={{ display: 'flex', padding: '20px', overflowX: 'auto', width: '100%' }}>
+          {columns.map((column) => (
+            <Column
+              key={column.id}
+              column={column}
+              cards={column.cards}
+              cardRenderer={cardRenderer}
+            />
+          ))}
+        </div>
+        <DragOverlay>
+          {activeCard ? (
+            <div
+              style={{
+                backgroundColor: 'white',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid #e0e0e0',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                cursor: 'grabbing',
+              }}
+            >
+              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>{activeCard.title}</h4>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }

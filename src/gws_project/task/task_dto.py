@@ -60,6 +60,7 @@ class TaskDTO(ModelDTO):
     assign_to: UserDTO
     project_id: str
     parent_task_id: Optional[str]
+    parent_task_title: Optional[str]
     space_folder_id: Optional[str]
     created_by: UserDTO
     last_modified_by: UserDTO

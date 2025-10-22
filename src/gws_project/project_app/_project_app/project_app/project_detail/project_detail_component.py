@@ -238,20 +238,14 @@ def project_detail_page() -> rx.Component:
     """
     return main_component(
         page_layout(
-            rx.vstack(
-                # Project details in two-column layout with breadcrumb
-                rx.cond(
-                    ProjectDetailState.project,
-                    detail_page_layout(
-                        main_content=main_content_area(),
-                        sidebar_content=details_sidebar()
-                    ),
+            # Project details in two-column layout with breadcrumb
+            rx.cond(
+                ProjectDetailState.project,
+                detail_page_layout(
+                    main_content=main_content_area(),
+                    sidebar_content=details_sidebar()
                 ),
-
-                width="100%",
-                spacing="4",
-                padding="2rem"
-            )
+            ),
         ),
         # Add the update dialog
         project_update_dialog(),

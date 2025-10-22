@@ -35,7 +35,7 @@ class ProjectListState(ReflexMainState):
         try:
 
             projects: List[Project]
-            with await self.authenticate_user() as user:
+            with await self.authenticate_user():
                 project_service = ProjectService()
                 projects = project_service.get_current_user_projects()
 

@@ -94,7 +94,6 @@ def project_list_page() -> rx.Component:
 
                 width="100%",
                 spacing="4",
-                padding="2rem"
             )
         )
     )

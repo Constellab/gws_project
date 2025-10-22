@@ -76,7 +76,7 @@ class TaskService:
 
         return Task.get_subtasks_of_task(parent_task.id)
 
-    def search(self, search: SearchParams, page: int = 0, number_of_items_per_page: int = 20) -> Paginator[Task]:
+    def search(self, search: SearchParams = None) -> List[Task]:
         """Search for tasks based on search parameters with pagination.
 
         :param search: The search parameters
@@ -94,7 +94,10 @@ class TaskService:
 
         search_builder = TaskSearchBuilder()
         search_builder.add_projects_filter(project_ids)
-        return search_builder.add_search_params(search).search_page(page, number_of_items_per_page)
+
+        if search:
+            search_builder.add_search_params(search)
+        return search_builder.search_all()
 
     @ProjectDbManager.transaction()
     def create_root_task(self, project_id: str, task_dto: CreateRootTaskDTO) -> Task:

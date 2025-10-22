@@ -1,6 +1,8 @@
 import reflex as rx
 from gws_reflex_main import add_unauthorized_page, get_theme
 
+from .kanban.kanban_component import kanban_page
+from .kanban.kanban_state import KanbanState
 from .project_detail.project_detail_component import project_detail_page
 from .project_list.project_list_component import project_list_page
 from .project_list.project_list_state import ProjectListState
@@ -40,6 +42,16 @@ def task_detail():
     The task_id is extracted from the URL path.
     """
     return task_detail_page()
+
+
+# Declare the kanban board page
+@rx.page(route="/kanban", on_load=[KanbanState.on_load])
+def kanban():
+    """Kanban board page displaying all tasks across all projects.
+
+    This page shows a kanban view of all tasks accessible to the current user.
+    """
+    return kanban_page()
 
 
 # Add the unauthorized page to the app.

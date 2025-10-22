@@ -113,6 +113,7 @@ class Task(ModelWithUser):
             assign_to=self.assign_to.to_dto(),
             project_id=self.project.id,
             parent_task_id=self.parent_task.id if self.parent_task else None,
+            parent_task_title=self.parent_task.title if self.parent_task else None,
             space_folder_id=self.space_folder_id,
             created_at=self.created_at,
             created_by=self.created_by.to_dto(),

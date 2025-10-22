@@ -80,9 +80,10 @@ def page_layout(content: rx.Component) -> rx.Component:
             flex="1",
             width="100%",
             overflow_y="auto",
+            padding="2em",
         ),
 
         width="100%",
-        spacing="4",
+        spacing="0",
         align_items="start",
     )

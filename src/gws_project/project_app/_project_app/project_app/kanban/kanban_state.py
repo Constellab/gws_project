@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import reflex as rx
 from gws_project.task.task_dto import TaskDTO, TaskStatus
@@ -8,41 +8,42 @@ from gws_reflex_main import ConfirmDialogState, ReflexMainState
 from ..common.breadcrumb.breadcrumb_state import Task
 from ..common.kanban.kanban import (BoardDataDTO, CardDTO, CardMoveEvent,
                                     ColumnDTO)
-from ..common.project_page_state import ProjectPageState, ProjectUrlParam
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 
 
-class TaskListState(ReflexMainState):
-    """State for managing the task list within a project.
+class KanbanState(ReflexMainState):
+    """State for managing the kanban board view of all tasks.
 
-    This state handles fetching and displaying tasks for a specific project,
-    as well as managing task deletion.
+    This state handles fetching and displaying all tasks accessible to the user
+    in a kanban board format, as well as managing task updates and deletion.
     """
 
-    _url_params: Optional[ProjectUrlParam] = None
+    tasks: List[TaskDTO] = []
+    _is_loaded: bool = False
 
-    _tasks: List[Task] = []
+    async def load_tasks(self):
+        """Fetch all tasks accessible to the current user.
 
-    @rx.var
-    async def get_tasks(self) -> List[TaskDTO]:
+        Uses the task_service.search method without parameters to get all tasks
+        from all projects the user has access to.
 
-        project_state = await self.get_state(ProjectPageState)
-        url_param = await project_state.get_url_params()
+        :return: List of all tasks as DTOs
+        :rtype: List[TaskDTO]
+        """
+        task_service = TaskService()
 
-        previous_id = self._url_params.id if self._url_params else None
-        current_id = url_param.id if url_param else None
-        if previous_id != current_id:
-            self._url_params = url_param
-            task_service = TaskService()
-            with await self.authenticate_user():
-                if url_param and url_param.type == "project":
-                    self._tasks = task_service.get_root_tasks_of_project(url_param.id)
-                elif url_param and url_param.type == "task":
-                    self._tasks = task_service.get_subtasks(url_param.id)
-                else:
-                    self._tasks = []
+        tasks: List[Task]
+        with await self.authenticate_user():
+            tasks = task_service.search()
 
-        return [task.to_dto() for task in self._tasks]
+        self.tasks = [task.to_dto() for task in tasks]
+
+    async def on_load(self):
+        """Event handler called when the page loads.
+
+        Resets the loaded state to force a fresh fetch of tasks.
+        """
+        await self.load_tasks()
 
     def delete_task(self, task_id: str):
         """Delete a task and its subtasks from the state.
@@ -50,24 +51,24 @@ class TaskListState(ReflexMainState):
         :param task_id: The ID of the task to delete
         :type task_id: str
         """
-        if self._tasks:
-            self._tasks = [task for task in self._tasks if task.id != task_id]
+        if self.tasks:
+            self.tasks = [task for task in self.tasks if task.id != task_id]
 
     def add_or_update_task(self, task: Task):
-        """Update a task in the state.
+        """Update a task in the state or add it if it doesn't exist.
 
-        :param updated_task: The updated TaskDTO
-        :type updated_task: TaskDTO
+        :param task: The updated Task entity
+        :type task: Task
         """
-        if not self._tasks:
+        if not self.tasks:
             return
 
-        for i, task_ in enumerate(self._tasks):
+        for i, task_ in enumerate(self.tasks):
             if task_.id == task.id:
-                self._tasks[i] = task
+                self.tasks[i] = task
                 return
 
-        self._tasks.append(task)
+        self.tasks.append(task)
 
     @rx.var
     async def kanban_board_data(self) -> BoardDataDTO:
@@ -77,7 +78,7 @@ class TaskListState(ReflexMainState):
         :rtype: BoardDataDTO
         """
         # Group tasks by status
-        tasks = await self.get_tasks
+        tasks = self.tasks
         todo_tasks = [task for task in tasks if task.status == TaskStatus.TODO]
         doing_tasks = [task for task in tasks if task.status == TaskStatus.DOING]
         done_tasks = [task for task in tasks if task.status == TaskStatus.DONE]
@@ -102,30 +103,6 @@ class TaskListState(ReflexMainState):
             ]
         )
 
-    @rx.var
-    async def kanban_cards(self) -> Dict[str, List[CardDTO]]:
-        """Get the list of Kanban cards from the current tasks as dict where key is the status.
-
-        :return: List of CardDTOs representing the tasks
-        :rtype: Dict[str, CardDTO]
-        """
-        tasks = await self.get_tasks
-        return {
-            TaskStatus.TODO.value: [self._task_to_card(task) for task in tasks if task.status == TaskStatus.TODO],
-            TaskStatus.DOING.value: [self._task_to_card(task) for task in tasks if task.status == TaskStatus.DOING],
-            TaskStatus.DONE.value: [self._task_to_card(task) for task in tasks if task.status == TaskStatus.DONE],
-        }
-
-    @rx.var
-    async def kanban_cards2(self) -> List[CardDTO]:
-        """Get the list of Kanban cards from the current tasks.
-
-        :return: List of CardDTOs representing the tasks
-        :rtype: List[CardDTO]
-        """
-        tasks = await self.get_tasks
-        return [self._task_to_card(task) for task in tasks]
-
     def _task_to_card(self, task: TaskDTO) -> CardDTO:
         """Convert a TaskDTO to a Kanban card format."""
         assignee = task.assign_to.first_name + ' ' + task.assign_to.last_name if task.assign_to else "Unassigned"
@@ -143,10 +120,8 @@ class TaskListState(ReflexMainState):
     async def handle_card_move(self, event_dict: dict):
         """Handle card movement in the Kanban board.
 
-        :param new_board: The updated board structure
-        :param card: The card that was moved
-        :param source: Source column information
-        :param destination: Destination column information
+        :param event_dict: The event data containing card move information
+        :type event_dict: dict
         """
         event = CardMoveEvent.from_json(event_dict)
         main_state: ReflexMainState
@@ -179,15 +154,15 @@ class TaskListState(ReflexMainState):
     async def _update_task(self, task: Task):
         """Update a task in the state.
 
-        :param task: The updated TaskDTO
-        :type task: TaskDTO
+        :param task: The updated Task entity
+        :type task: Task
         """
-        if not self._tasks:
+        if not self.tasks:
             return
 
-        for i, t in enumerate(self._tasks):
+        for i, t in enumerate(self.tasks):
             if t.id == task.id:
-                self._tasks[i] = task
+                self.tasks[i] = task
                 break
 
     async def handle_card_click(self, card_id: str, metadata: Dict, lane_id: str):
