@@ -51,6 +51,125 @@ class Task(ModelWithUser):
         """Get the list of subtasks for this task"""
         return self.subtasks
 
+    def _calculate_status_from_subtasks(self) -> bool:
+        """Calculate and set the task status based on its subtasks.
+
+        Rules:
+        - If any subtask is DOING, set to DOING
+        - If all subtasks are DONE, set to DONE
+        - Otherwise, set to TODO
+
+        :return: True if the status was changed, False otherwise
+        :rtype: bool
+        """
+        subtasks = self.get_subtasks()
+
+        if not subtasks:
+            new_status = TaskStatus.TODO
+        else:
+            subtask_statuses = [subtask.status for subtask in subtasks]
+
+            # If any subtask is DOING, parent should be DOING
+            if TaskStatus.DOING in subtask_statuses:
+                new_status = TaskStatus.DOING
+            # If all subtasks are DONE, parent should be DONE
+            elif all(status == TaskStatus.DONE for status in subtask_statuses):
+                new_status = TaskStatus.DONE
+            # Otherwise, parent should be TODO
+            else:
+                new_status = TaskStatus.TODO
+
+        # Check if status changed
+        if self.status != new_status:
+            self.status = new_status
+            return True
+        return False
+
+    def _calculate_priority_from_subtasks(self) -> bool:
+        """Calculate and set the task priority based on its subtasks.
+
+        Sets to the highest priority among all subtasks (HIGH > MEDIUM > LOW).
+
+        :return: True if the priority was changed, False otherwise
+        :rtype: bool
+        """
+        subtasks = self.get_subtasks()
+
+        if not subtasks:
+            new_priority = TaskPriority.MEDIUM
+        else:
+            # Define priority order
+            priority_order = {TaskPriority.HIGH: 3, TaskPriority.MEDIUM: 2, TaskPriority.LOW: 1}
+            subtask_priorities = [subtask.priority for subtask in subtasks]
+
+            # Get the highest priority
+            new_priority = max(subtask_priorities, key=lambda p: priority_order[p])
+
+        # Check if priority changed
+        if self.priority != new_priority:
+            self.priority = new_priority
+            return True
+        return False
+
+    def _calculate_dates_from_subtasks(self) -> bool:
+        """Calculate and set the task start and end dates based on its subtasks.
+
+        Sets:
+        - Start date: earliest start date of all subtasks (or project start date if no subtasks)
+        - End date: latest end date of all subtasks (or project end date if no subtasks)
+
+        :return: True if any date was changed, False otherwise
+        :rtype: bool
+        """
+        subtasks = self.get_subtasks()
+
+        if not subtasks:
+            # Use project dates if no subtasks
+            new_start_date = self.project.start_date
+            new_end_date = self.project.end_date
+        else:
+            # Calculate start date: earliest start date from subtasks
+            start_dates = [subtask.start_date for subtask in subtasks if subtask.start_date]
+            new_start_date = min(start_dates) if start_dates else self.project.start_date
+
+            # Calculate end date: latest end date from subtasks
+            end_dates = [subtask.end_date for subtask in subtasks if subtask.end_date]
+            new_end_date = max(end_dates) if end_dates else self.project.end_date
+
+        # Check if dates changed
+        dates_changed = False
+        if self.start_date != new_start_date:
+            self.start_date = new_start_date
+            dates_changed = True
+        if self.end_date != new_end_date:
+            self.end_date = new_end_date
+            dates_changed = True
+
+        return dates_changed
+
+    def update_from_subtasks(self) -> bool:
+        """Update task dates, status, and priority based on all its subtasks.
+
+        This is the main method to call when subtasks change. It will:
+        - Calculate and set dates from subtasks
+        - Calculate and set status from subtasks
+        - Calculate and set priority from subtasks
+
+        :return: True if any value was changed, False otherwise
+        :rtype: bool
+        """
+
+        if not self.allow_subtasks:
+            # No need to calculate if subtasks are not allowed
+            return False
+        # Track if any changes were made
+        dates_changed = self._calculate_dates_from_subtasks()
+        status_changed = self._calculate_status_from_subtasks()
+        priority_changed = self._calculate_priority_from_subtasks()
+
+        # Return True if any value changed
+        return dates_changed or status_changed or priority_changed
+
     @classmethod
     def get_root_tasks_of_project(cls, project_id: str) -> List['Task']:
         """Get all tasks associated with a project

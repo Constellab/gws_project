@@ -177,12 +177,23 @@ class TaskListState(ReflexMainState):
         # Navigate to task detail page
         return rx.redirect(f"/task/{card_id}")
 
-    async def open_update_task_dialog(self, task: TaskDTO):
+    async def open_update_task_dialog(self, task_id: str):
         """Open the update task dialog.
 
-        :param task: The task to update
-        :type task: TaskDTO
+        :param task_id: The ID of the task to update
+        :type task_id: str
         """
+        # Find the task in the local list
+        task = None
+        for t in self._tasks:
+            if t.id == task_id:
+                task = t
+                break
+
+        if not task:
+            yield rx.toast.error("Task not found")
+            return
+
         form_state = await self.get_state(TaskFormDialogState)
 
         await form_state.open_update_dialog(

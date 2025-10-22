@@ -11,7 +11,7 @@ from gws_project.project.project_security_service import (
 from gws_project.project.project_user import ProjectUser
 from gws_project.task.task import Task
 from gws_project.task.task_dto import (CreateRootTaskDTO, CreateSubTaskDTO,
-                                       TaskStatus, UpdateTaskDTO)
+                                       TaskPriority, TaskStatus, UpdateTaskDTO)
 from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.user.user import User
 
@@ -156,6 +156,7 @@ class TaskService:
     def create_sub_task(self, parent_task_id: str, task_dto: CreateSubTaskDTO) -> Task:
         """Create a subtask under a parent task. Does not create a folder in Space.
         Only allows creating subtasks under root tasks (no nested subtasks).
+        Parent task dates, status, and priority are automatically updated based on all subtasks.
 
         :param parent_task_id: The ID of the parent task
         :type parent_task_id: str
@@ -164,7 +165,7 @@ class TaskService:
         :return: The created subtask
         :rtype: Task
         :raises BadRequestException: If parent task doesn't allow subtasks, is not a root task,
-                                      dates are outside parent task bounds, or user is not in project
+                                      or user is not in project
         """
         # Get the parent task and ensure it exists
         security_service = ProjectSecurityService()
@@ -184,24 +185,26 @@ class TaskService:
                 "Subtasks can only be created under root tasks (tasks without a parent)."
             )
 
-        # Validate subtask dates are within parent task dates
-        self._validate_task_dates_within_parent_task(parent_task, task_dto.start_date, task_dto.end_date)
-
         # Create the subtask model from DTO
+        # Dates, status, and priority will use default values initially
         subtask = Task()
         subtask.project = parent_task.project
         subtask.parent_task = parent_task
         subtask.title = task_dto.title
         subtask.description = task_dto.description
-        subtask.start_date = task_dto.start_date
-        subtask.end_date = task_dto.end_date
-        subtask.status = task_dto.status
-        subtask.priority = task_dto.priority
+        # Set default values for subtask
+        subtask.start_date = parent_task.start_date  # Default to parent's current start date
+        subtask.end_date = parent_task.end_date  # Default to parent's current end date
+        subtask.status = TaskStatus.TODO  # Default status
+        subtask.priority = TaskPriority.MEDIUM  # Default priority
         subtask.allow_subtasks = False  # Subtasks cannot have their own subtasks
         subtask.assign_to = self._validate_assign_to_in_project(parent_task.project.id, task_dto.assign_to_id)
 
         # Save the subtask to the database
         subtask.save()
+
+        # Update parent task information based on all subtasks (including the new one)
+        self._update_parent_task_from_subtasks(parent_task)
 
         # Note: We do NOT create a folder in Space for subtasks
 
@@ -209,7 +212,12 @@ class TaskService:
 
     @ProjectDbManager.transaction()
     def update_task(self, task_id: str, task_dto: UpdateTaskDTO) -> Task:
-        """Update a task. For root tasks, also updates the corresponding folder in Space if the title changes.
+        """Update a task.
+
+        For subtasks: Updates title, description, dates, and priority, then recalculates parent task info.
+        For parent tasks: Only updates title and description. Dates, status, and priority are
+                         automatically calculated from subtasks.
+        For root tasks without subtasks: Updates all fields and syncs with Space folder.
 
         :param task_id: The ID of the task to update
         :type task_id: str
@@ -217,11 +225,27 @@ class TaskService:
         :type task_dto: UpdateTaskDTO
         :return: The updated task
         :rtype: Task
-        :raises BadRequestException: If dates are outside valid bounds
+        :raises BadRequestException: If task is a parent task and trying to update dates/priority,
+                                      or if dates are outside valid bounds
         """
         # Get the task and ensure it exists
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
+
+        # Check if this task has subtasks (is a parent task)
+        if task.allow_subtasks:
+            # For parent tasks, only allow updating title and description
+            # Dates, status, and priority are calculated from subtasks
+            task.title = task_dto.title
+            task.description = task_dto.description
+            task.save()
+
+            # Recalculate parent task information from subtasks
+            self._update_parent_task_from_subtasks(task)
+
+            return task
+
+        # For tasks without subtasks (regular tasks or subtasks)
 
         # Check if title or dates have changed
         folder_has_changed = task.title != task_dto.title or \
@@ -233,8 +257,12 @@ class TaskService:
             # For root tasks, validate against project dates
             self._validate_task_dates_within_project(task.project, task_dto.start_date, task_dto.end_date)
         else:
-            # For subtasks, validate against parent task dates
-            self._validate_task_dates_within_parent_task(task.parent_task, task_dto.start_date, task_dto.end_date)
+            # For subtasks, dates are no longer validated against parent since parent adjusts automatically
+            # Just validate that start_date <= end_date
+            if task_dto.start_date > task_dto.end_date:
+                raise BadRequestException(
+                    f"Task start date ({task_dto.start_date}) cannot be after its end date ({task_dto.end_date})."
+                )
 
         # Update the task fields from DTO
         task.title = task_dto.title
@@ -245,6 +273,10 @@ class TaskService:
 
         # Save the task to the database
         task.save()
+
+        # If this is a subtask, update the parent task information
+        if not task.is_root_task():
+            self._update_parent_task_from_subtasks(task.parent_task)
 
         # If this is a root task with a space folder, update the folder in Space
         if task.is_root_task() and task.space_folder_id and folder_has_changed:
@@ -287,7 +319,7 @@ class TaskService:
 
     @ProjectDbManager.transaction()
     def update_status(self, task_id: str, status: TaskStatus) -> Task:
-        """Update the status of a task and automatically update parent task status if applicable.
+        """Update the status of a task and automatically update parent task information if applicable.
 
         :param task_id: The ID of the task to update
         :type task_id: str
@@ -309,20 +341,27 @@ class TaskService:
                 "The status is calculated automatically based on subtask statuses."
             )
 
+        # Validate that the new status is not the same as the current status
+        if task.status == status:
+            return task  # No change needed
+
         # Update the task status
         task.status = status
 
         # Save the task to the database
         task.save()
 
-        # Update parent task status if this is a subtask
-        self._update_parent_task_status(task)
+        # Update parent task information if this is a subtask
+        # This updates not just status, but also dates and priority based on all subtasks
+        if task.parent_task:
+            self._update_parent_task_from_subtasks(task.parent_task)
 
         return task
 
     @ProjectDbManager.transaction()
     def delete_task(self, task_id: str) -> None:
         """Delete a task. If it's a root task, also deletes all subtasks and the Space folder.
+        If it's a subtask, updates the parent task information after deletion.
 
         :param task_id: The ID of the task to delete
         :type task_id: str
@@ -330,6 +369,9 @@ class TaskService:
         # Get the task and ensure it exists
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
+
+        # Store parent task reference before deletion if this is a subtask
+        parent_task = task.parent_task if not task.is_root_task() else None
 
         # If this is a root task with subtasks, delete all subtasks first
         if task.allow_subtasks:
@@ -341,6 +383,10 @@ class TaskService:
 
         # Delete the task from the database
         task.delete_instance()
+
+        # If this was a subtask, update the parent task information
+        if parent_task:
+            self._update_parent_task_from_subtasks(parent_task)
 
         # If this is a root task with a space folder, delete the folder in Space
         if task.is_root_task() and task.space_folder_id:
@@ -370,31 +416,6 @@ class TaskService:
                 f"Task start date ({task_start_date}) cannot be after its end date ({task_end_date})."
             )
 
-    def _validate_task_dates_within_parent_task(
-            self, parent_task: Task, task_start_date: date, task_end_date: date) -> None:
-        """Validate that subtask dates are within parent task dates.
-
-        :param parent_task: The parent task
-        :type parent_task: Task
-        :param task_start_date: Subtask start date
-        :type task_start_date: date
-        :param task_end_date: Subtask end date
-        :type task_end_date: date
-        :raises BadRequestException: If dates are outside parent task bounds
-        """
-        if task_start_date < parent_task.start_date:
-            raise BadRequestException(
-                f"Subtask start date ({task_start_date}) cannot be before parent task start date ({parent_task.start_date})."
-            )
-        if task_end_date > parent_task.end_date:
-            raise BadRequestException(
-                f"Subtask end date ({task_end_date}) cannot be after parent task end date ({parent_task.end_date})."
-            )
-        if task_start_date > task_end_date:
-            raise BadRequestException(
-                f"Subtask start date ({task_start_date}) cannot be after its end date ({task_end_date})."
-            )
-
     def _validate_assign_to_in_project(self, project_id: str, user_id: str | None) -> User:
         """Validate that the user to whom the task is assigned is a member of the project.
 
@@ -416,45 +437,35 @@ class TaskService:
 
         return User.get_by_id_and_check(user_id)
 
-    def _calculate_parent_status_from_subtasks(self, parent_task: Task) -> TaskStatus:
-        """Calculate the parent task status based on subtask statuses.
+    def _update_parent_task_from_subtasks(self, parent_task: Task) -> None:
+        """Update parent task information (dates, status, priority) based on all its subtasks.
 
-        Rules:
-        - If any subtask is DOING, parent is DOING
-        - If all subtasks are DONE, parent is DONE
-        - Otherwise, parent is TODO
+        This method automatically calculates:
+        - Start date: earliest start date of all subtasks (or project start date if no subtasks)
+        - End date: latest end date of all subtasks (or project end date if no subtasks)
+        - Status: based on subtask statuses (or TODO if no subtasks)
+        - Priority: highest priority among all subtasks (or MEDIUM if no subtasks)
 
-        :param parent_task: The parent task
+        Only saves to database and updates Space if there were actual changes.
+
+        :param parent_task: The parent task to update
         :type parent_task: Task
-        :return: The calculated status
-        :rtype: TaskStatus
         """
-        subtasks = parent_task.get_subtasks()
+        # Update from subtasks (calculates dates, status, and priority)
+        has_changes = parent_task.update_from_subtasks()
 
-        if not subtasks:
-            return TaskStatus.TODO
+        # Only save and update Space if there were changes
+        if has_changes:
+            # Save the updated parent task
+            parent_task.save()
 
-        subtask_statuses = [subtask.status for subtask in subtasks]
-
-        # If any subtask is DOING, parent should be DOING
-        if TaskStatus.DOING in subtask_statuses:
-            return TaskStatus.DOING
-
-        # If all subtasks are DONE, parent should be DONE
-        if all(status == TaskStatus.DONE for status in subtask_statuses):
-            return TaskStatus.DONE
-
-        # Otherwise, parent should be TODO
-        return TaskStatus.TODO
-
-    def _update_parent_task_status(self, task: Task) -> None:
-        """Update the parent task status based on its subtasks if the task has a parent.
-
-        :param task: The task whose parent status should be updated
-        :type task: Task
-        """
-        if task.parent_task:
-            new_status = self._calculate_parent_status_from_subtasks(task.parent_task)
-            if task.parent_task.status != new_status:
-                task.parent_task.status = new_status
-                task.parent_task.save()
+            # Update Space folder if this is a root task
+            if parent_task.is_root_task() and parent_task.space_folder_id:
+                space_folder = ExternalSpaceCreateFolder(
+                    name=parent_task.title,
+                    code=None,
+                    tags=None,
+                    starting_date=parent_task.start_date,
+                    ending_date=parent_task.end_date
+                )
+                self._space_service.update_folder(parent_task.space_folder_id, space_folder)

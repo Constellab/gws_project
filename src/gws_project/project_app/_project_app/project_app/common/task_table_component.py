@@ -32,8 +32,7 @@ def task_table_component(
                 rx.table.row(
                     rx.table.column_header_cell("Title"),
                     rx.table.column_header_cell("Description"),
-                    rx.table.column_header_cell("Start Date"),
-                    rx.table.column_header_cell("End Date"),
+                    rx.table.column_header_cell("Dates"),
                     rx.table.column_header_cell("Status"),
                     rx.table.column_header_cell("Priority"),
                     rx.table.column_header_cell("Assigned To"),
@@ -95,8 +94,14 @@ def _task_row(task: TaskDTO) -> rx.Component:
             ),
             max_width="300px"
         ),
-        rx.table.cell(rx.moment(task.start_date, format="MMM D, YYYY")),
-        rx.table.cell(rx.moment(task.end_date, format="MMM D, YYYY")),
+        rx.table.cell(
+            rx.vstack(
+                rx.text(rx.moment(task.start_date, format="MMM D, YYYY"), size="2"),
+                rx.text(rx.moment(task.end_date, format="MMM D, YYYY"), size="2"),
+                spacing="1",
+                align="start"
+            )
+        ),
         rx.table.cell(status_chip(task.status)),
         rx.table.cell(priority_chip(task.priority)),
         rx.table.cell(user_inline_component(task.assign_to)),
@@ -131,7 +136,7 @@ def _actions_menu(subtask: TaskDTO) -> rx.Component:
             rx.menu.item(
                 rx.icon("pencil", size=16),
                 "Update",
-                on_click=lambda: TaskListState.open_update_task_dialog(subtask)
+                on_click=lambda: TaskListState.open_update_task_dialog(subtask.id)
             ),
             rx.menu.separator(),
             rx.menu.item(

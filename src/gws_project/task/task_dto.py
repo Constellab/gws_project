@@ -33,10 +33,6 @@ class CreateRootTaskDTO(BaseModelDTO):
 class CreateSubTaskDTO(BaseModelDTO):
     title: str
     description: str
-    start_date: date
-    end_date: date
-    status: TaskStatus = TaskStatus.TODO
-    priority: TaskPriority = TaskPriority.MEDIUM
     assign_to_id: Optional[str] = None
 
 

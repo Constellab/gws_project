@@ -33,7 +33,7 @@ def detail_page_layout(
                            margin_bottom="1em"
                            ),
                     main_content,
-                    max_width="1000px",
+                    max_width="1200px",
                     width="100%",
                     flex="1"
                 ),

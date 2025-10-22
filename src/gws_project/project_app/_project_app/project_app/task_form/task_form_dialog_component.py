@@ -54,99 +54,148 @@ def _form_content() -> rx.Component:
             ),
 
         ),
-        # Date fields
-        rx.hstack(
-            rx.vstack(
-                rx.text("Start Date", size="2", weight="bold"),
-                rx.input(
-                    type="date",
-                    name="start_date",
-                    required=True,
-                    width="100%",
-                    default_value=TaskFormDialogState.form_start_date,
-                    min=TaskFormDialogState.get_min_start_date,
-                    max=TaskFormDialogState.get_max_end_date,
-                ),
-                width="100%",
-                spacing="1"
-            ),
 
-            rx.vstack(
-                rx.text("End Date", size="2", weight="bold"),
-                rx.input(
-                    type="date",
-                    name="end_date",
-                    required=True,
-                    width="100%",
-                    default_value=TaskFormDialogState.form_end_date,
-                    min=TaskFormDialogState.get_min_start_date,
-                    max=TaskFormDialogState.get_max_end_date,
-                ),
-                width="100%",
-                spacing="1"
-            ),
-            width="100%",
-            spacing="3"
-        ),
-
-        # Priority and Status (Status only shown in create mode)
-        rx.cond(
-            TaskFormDialogState.is_update_mode,
-            # Update mode: only show priority
-            rx.vstack(
-                rx.text("Priority", size="2", weight="bold"),
-                rx.select(
-                    [priority.value for priority in TaskPriority],
-                    name="priority",
-                    default_value=TaskFormDialogState.form_priority,
-                    width="100%",
-                ),
-                width="100%",
-                spacing="1"
-            ),
-            # Create mode: show both status and priority
-            rx.hstack(
-                rx.vstack(
-                    rx.text("Status", size="2", weight="bold"),
-                    rx.select(
-                        [status.value for status in TaskStatus],
-                        name="status",
-                        default_value=TaskFormDialogState.form_status,
-                        width="100%",
-                    ),
-                    width="100%",
-                    spacing="1"
-                ),
-
-                rx.vstack(
-                    rx.text("Priority", size="2", weight="bold"),
-                    rx.select(
-                        [priority.value for priority in TaskPriority],
-                        name="priority",
-                        default_value=TaskFormDialogState.form_priority,
-                        width="100%",
-                    ),
-                    width="100%",
-                    spacing="1"
-                ),
-                width="100%",
-                spacing="3"
-            )
-        ),
-
-        # Allow subtasks checkbox (only in create root mode, not in create sub or update mode)
+        # Task type radio buttons (only in create root mode, not in create sub or update mode)
         rx.cond(
             ~TaskFormDialogState.is_update_mode & ~TaskFormDialogState.is_create_sub_mode,
             rx.vstack(
-                rx.hstack(
-                    rx.checkbox(
-                        name="allow_subtasks",
-                        default_checked=TaskFormDialogState.form_allow_subtasks,
-                        value="true"
+                rx.text("Task Type", size="2", weight="bold"),
+                rx.radio.root(
+                    rx.hstack(
+                        rx.radio.item(
+                            rx.hstack(
+                                rx.icon(tag="file", size=16),
+                                rx.text("Single task", size="2"),
+                                spacing="2",
+                                align="center"
+                            ),
+                            value="without_children"
+                        ),
+                        rx.radio.item(
+                            rx.hstack(
+                                rx.icon(tag="folder", size=16),
+                                rx.text("Task with subtasks", size="2"),
+                                spacing="2",
+                                align="center"
+                            ),
+                            value="with_children"
+                        ),
+                        spacing="4"
                     ),
-                    rx.text("Allow subtasks", size="2"),
-                    spacing="2",
-                    align="center"
+                    default_value=TaskFormDialogState.selected_task_type,
+                    value=TaskFormDialogState.selected_task_type,
+                    on_change=TaskFormDialogState.set_selected_task_type,
+                    name="allow_subtasks"
+                ),
+                width="100%",
+                spacing="1"
+            )
+        ),
+
+        # Date fields and Priority/Status (conditionally shown)
+        rx.cond(
+            TaskFormDialogState.should_show_dates_and_priority,
+            rx.vstack(
+                # Date fields
+                rx.hstack(
+                    rx.vstack(
+                        rx.text("Start Date", size="2", weight="bold"),
+                        rx.input(
+                            type="date",
+                            name="start_date",
+                            required=True,
+                            width="100%",
+                            default_value=TaskFormDialogState.form_start_date,
+                            min=TaskFormDialogState.get_min_start_date,
+                            max=TaskFormDialogState.get_max_end_date,
+                        ),
+                        width="100%",
+                        spacing="1"
+                    ),
+
+                    rx.vstack(
+                        rx.text("End Date", size="2", weight="bold"),
+                        rx.input(
+                            type="date",
+                            name="end_date",
+                            required=True,
+                            width="100%",
+                            default_value=TaskFormDialogState.form_end_date,
+                            min=TaskFormDialogState.get_min_start_date,
+                            max=TaskFormDialogState.get_max_end_date,
+                        ),
+                        width="100%",
+                        spacing="1"
+                    ),
+                    width="100%",
+                    spacing="3"
+                ),
+
+                # Priority and Status (Status only shown in create mode)
+                rx.cond(
+                    TaskFormDialogState.is_update_mode,
+                    # Update mode: only show priority
+                    rx.vstack(
+                        rx.text("Priority", size="2", weight="bold"),
+                        rx.select(
+                            [priority.value for priority in TaskPriority],
+                            name="priority",
+                            default_value=TaskFormDialogState.form_priority,
+                            width="100%",
+                        ),
+                        width="100%",
+                        spacing="1"
+                    ),
+                    # Create mode: show both status and priority
+                    rx.hstack(
+                        rx.vstack(
+                            rx.text("Status", size="2", weight="bold"),
+                            rx.select(
+                                [status.value for status in TaskStatus],
+                                name="status",
+                                default_value=TaskFormDialogState.form_status,
+                                width="100%",
+                            ),
+                            width="100%",
+                            spacing="1"
+                        ),
+
+                        rx.vstack(
+                            rx.text("Priority", size="2", weight="bold"),
+                            rx.select(
+                                [priority.value for priority in TaskPriority],
+                                name="priority",
+                                default_value=TaskFormDialogState.form_priority,
+                                width="100%",
+                            ),
+                            width="100%",
+                            spacing="1"
+                        ),
+                        width="100%",
+                        spacing="3"
+                    )
+                ),
+                width="100%",
+                spacing="3"
+            ),
+            # When dates and priority are hidden, show a message explaining auto-calculation
+            rx.vstack(
+                rx.callout.root(
+                    rx.callout.icon(
+                        rx.icon(tag="info", size=16)
+                    ),
+                    rx.callout.text(
+                        rx.cond(
+                            TaskFormDialogState.is_create_sub_mode,
+                            "Dates, status, and priority will be managed by the parent task and calculated based on subtask values.",
+                            rx.cond(
+                                TaskFormDialogState.is_parent_task_in_update_mode,
+                                "Dates, status, and priority are automatically calculated from subtasks.",
+                                "Dates, status, and priority will be automatically calculated from subtasks once you add them."
+                            )
+                        ),
+                        size="2"
+                    ),
                 ),
                 width="100%",
                 spacing="1"
@@ -168,25 +217,17 @@ def task_form_dialog() -> rx.Component:
     :rtype: rx.Component
     """
     return form_dialog_component(
-        state=TaskFormDialogState,
-        title=rx.cond(
-            TaskFormDialogState.is_update_mode,
-            "Update Task",
-            rx.cond(
-                TaskFormDialogState.is_create_sub_mode,
-                "Create New Subtask",
-                "Create New Task"
-            )
-        ),
+        state=TaskFormDialogState, title=rx.cond(
+            TaskFormDialogState.is_update_mode, "Update Task", rx.cond(
+                TaskFormDialogState.is_create_sub_mode, "Create New Subtask", "Create New Task")),
         description=rx.cond(
-            TaskFormDialogState.is_update_mode,
-            "Update the task details below.",
+            TaskFormDialogState.is_update_mode, rx.cond(
+                TaskFormDialogState.is_parent_task_in_update_mode,
+                "Update the task details below. Dates, status, and priority are automatically calculated from subtasks.",
+                "Update the task details below."),
             rx.cond(
                 TaskFormDialogState.is_create_sub_mode,
-                "Fill in the details below to create a new subtask under the parent task.",
-                "Fill in the details below to create a new task for this project."
-            )
-        ),
+                "Fill in the details below to create a new subtask. Dates, status, and priority will be managed by the parent task.",
+                "Fill in the details below to create a new task for this project.")),
         form_content=_form_content(),
-        max_width="600px"
-    )
+        max_width="600px")

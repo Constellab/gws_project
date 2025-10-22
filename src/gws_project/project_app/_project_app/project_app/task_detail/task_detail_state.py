@@ -83,7 +83,14 @@ class TaskDetailState(ReflexMainState):
     async def open_update_task_dialog(self):
         """Open the update task dialog for this task."""
         form_state = await self.get_state(TaskFormDialogState)
-        task = await self.task
+
+        # Get the Task object (not DTO) from ProjectPageState
+        project_page_state = await self.get_state(ProjectPageState)
+        task = await project_page_state.task()
+
+        if not task:
+            yield rx.toast.error("Task not found")
+            return
 
         await form_state.open_update_dialog(
             task=task,
