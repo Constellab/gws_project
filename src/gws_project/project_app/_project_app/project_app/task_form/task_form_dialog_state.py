@@ -1,15 +1,14 @@
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import reflex as rx
 from gws_core import UserDTO
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
-from gws_project.task.task_dto import (CreateRootTaskDTO, CreateSubTaskDTO,
-                                       TaskDTO, TaskPriority, TaskStatus,
-                                       UpdateTaskDTO)
+from gws_project.task.task_dto import (CreateTaskDTO, TaskDTO, TaskPriority,
+                                       TaskStatus, UpdateTaskDTO)
 from gws_project.task.task_service import TaskService
 from gws_reflex_main import (FormDialogState, ReflexDialogCloseEvent,
                              ReflexMainState)
@@ -53,7 +52,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
     form_assign_to_id: str = ""
 
     # Track selected task type in create root mode
-    selected_task_type: str = "without_children"
+    selected_task_type: Literal['with_children', 'without_children'] = "without_children"
 
     _callback_after_close: Optional[ReflexDialogCloseEvent[Task]] = None
 
@@ -95,16 +94,8 @@ class TaskFormDialogState(FormDialogState, rx.State):
         Returns:
             True if dates and priority should be shown, False otherwise
         """
-        # Hide for create subtask mode
-        if self.is_create_sub_mode:
-            return False
-
-        # Hide for update mode if it's a parent task
-        if self.is_parent_task_in_update_mode:
-            return False
-
         # Hide in create root mode if "Task with subtasks" is selected
-        if self._form_mode == TaskFormMode.CREATE_ROOT.value and self.selected_task_type == "with_children":
+        if self.selected_task_type == "with_children":
             return False
 
         # Show for all other cases (create root without subtasks, update regular task, update subtask)
@@ -139,8 +130,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
             self.form_assign_to_id = ""
             self.selected_task_type = "without_children"
 
-    def _validate_and_extract_common_fields(self, form_data: dict, require_dates: bool = True,
-                                           require_priority: bool = True) -> dict:
+    def _validate_and_extract_common_fields(self, form_data: dict) -> dict:
         """Validate and extract common fields from form data.
 
         Args:
@@ -172,8 +162,10 @@ class TaskFormDialogState(FormDialogState, rx.State):
             'assign_to_id': assign_to_id
         }
 
-        # Only process dates if required
-        if require_dates:
+        # if there is no child, the dates, priority and status are required
+        if self.selected_task_type == "without_children":
+
+            # Only process dates if required
             start_date_str = form_data.get('start_date', '').strip()
             end_date_str = form_data.get('end_date', '').strip()
 
@@ -187,10 +179,11 @@ class TaskFormDialogState(FormDialogState, rx.State):
             result['start_date'] = datetime.fromisoformat(start_date_str).date()
             result['end_date'] = datetime.fromisoformat(end_date_str).date()
 
-        # Only process priority if required
-        if require_priority:
             priority_str = form_data.get('priority', TaskPriority.MEDIUM.value)
             result['priority'] = TaskPriority(priority_str)
+
+            status_str = form_data.get('status', TaskStatus.TODO.value)
+            result['status'] = TaskStatus(status_str)
 
         return result
 
@@ -271,60 +264,35 @@ class TaskFormDialogState(FormDialogState, rx.State):
         # Open the dialog
         await self.open_dialog()
 
-    def _validate_and_parse_create_root_task_form_data(self, form_data: dict) -> Optional[CreateRootTaskDTO]:
-        """Validate and parse form data into a CreateRootTaskDTO.
+    def _validate_and_parse_create_task_form_data(self, form_data: dict) -> Optional[CreateTaskDTO]:
+        """Validate and parse form data into a CreateTaskDTO for create operations.
 
         Args:
             form_data: Dictionary containing form fields
 
         Returns:
-            CreateRootTaskDTO if validation succeeds, None otherwise (error toast is shown)
+            CreateTaskDTO if validation succeeds, None otherwise (error toast is shown)
         """
         # Validate and extract common fields
         common_fields = self._validate_and_extract_common_fields(form_data)
-
-        # Get root task specific fields
-        status_str = form_data.get('status', TaskStatus.TODO.value)
         # Handle radio button value: "with_children" or "without_children"
         allow_subtasks_value = form_data.get('allow_subtasks', 'without_children')
         allow_subtasks = allow_subtasks_value == 'with_children'
 
-        # Parse status
-        status = TaskStatus(status_str)
-
-        # Create and return the CreateRootTaskDTO
-        return CreateRootTaskDTO(
+        # Create and return CreateTaskDTO for root task
+        return CreateTaskDTO(
             title=common_fields['title'],
             description=common_fields['description'],
-            start_date=common_fields['start_date'],
-            end_date=common_fields['end_date'],
-            status=status,
-            priority=common_fields['priority'],
+            start_date=common_fields.get('start_date'),
+            end_date=common_fields.get('end_date'),
+            status=common_fields.get('status'),
+            priority=common_fields.get('priority'),
             allow_subtasks=allow_subtasks,
-            assign_to_id=common_fields['assign_to_id']
+            assign_to_id=common_fields.get('assign_to_id')
         )
 
-    def _validate_and_parse_create_sub_task_form_data(self, form_data: dict) -> Optional[CreateSubTaskDTO]:
-        """Validate and parse form data into a CreateSubTaskDTO.
-
-        Args:
-            form_data: Dictionary containing form fields
-
-        Returns:
-            CreateSubTaskDTO if validation succeeds, None otherwise (error toast is shown)
-        """
-        # Validate and extract common fields (no dates, status, or priority for subtasks)
-        common_fields = self._validate_and_extract_common_fields(form_data, require_dates=False, require_priority=False)
-
-        # Create and return the CreateSubTaskDTO
-        return CreateSubTaskDTO(
-            title=common_fields['title'],
-            description=common_fields['description'],
-            assign_to_id=common_fields['assign_to_id']
-        )
-
-    def _validate_and_parse_update_form_data(self, form_data: dict) -> Optional[UpdateTaskDTO]:
-        """Validate and parse form data into an UpdateTaskDTO.
+    def _validate_and_parse_update_task_form_data(self, form_data: dict) -> Optional[UpdateTaskDTO]:
+        """Validate and parse form data into an UpdateTaskDTO for update operations.
 
         Args:
             form_data: Dictionary containing form fields
@@ -332,28 +300,17 @@ class TaskFormDialogState(FormDialogState, rx.State):
         Returns:
             UpdateTaskDTO if validation succeeds, None otherwise (error toast is shown)
         """
-        # Check if this is a parent task (has subtasks)
-        is_parent_task = self._editing_task and self._editing_task.allow_subtasks
-
-        # For parent tasks, only validate title and description (dates and priority are auto-calculated)
-        # For regular tasks and subtasks, validate all fields
-        require_dates = not is_parent_task
-        require_priority = not is_parent_task
-
         # Validate and extract common fields
-        common_fields = self._validate_and_extract_common_fields(
-            form_data,
-            require_dates=require_dates,
-            require_priority=require_priority
-        )
+        common_fields = self._validate_and_extract_common_fields(form_data)
 
-        # Create and return the UpdateTaskDTO
+        # Create and return UpdateTaskDTO
         return UpdateTaskDTO(
             title=common_fields['title'],
             description=common_fields['description'],
             start_date=common_fields.get('start_date'),
             end_date=common_fields.get('end_date'),
-            priority=common_fields.get('priority')
+            priority=common_fields.get('priority'),
+            status=common_fields.get('status')
         )
 
     async def _create(self, form_data: dict):
@@ -370,14 +327,14 @@ class TaskFormDialogState(FormDialogState, rx.State):
         async with self:
             main_state = await self.get_state(ReflexMainState)
 
+        # Validate and parse form data for create operations
+        task_dto = self._validate_and_parse_create_task_form_data(form_data)
+        if task_dto is None:
+            return  # Validation error already shown
+
         task: Task = None
         # Create the task based on the form mode
         if self._form_mode == TaskFormMode.CREATE_ROOT.value:
-            # Validate and parse form data for root task
-            task_dto = self._validate_and_parse_create_root_task_form_data(form_data)
-            if task_dto is None:
-                return  # Validation error already shown
-
             # Create the root task
             with await main_state.authenticate_user():
                 task_service = TaskService()
@@ -387,11 +344,6 @@ class TaskFormDialogState(FormDialogState, rx.State):
             yield rx.toast.success("Task created successfully")
 
         elif self._form_mode == TaskFormMode.CREATE_SUB.value:
-            # Validate and parse form data for subtask
-            task_dto = self._validate_and_parse_create_sub_task_form_data(form_data)
-            if task_dto is None:
-                return  # Validation error already shown
-
             # Create the subtask
             with await main_state.authenticate_user():
                 task_service = TaskService()
@@ -417,8 +369,8 @@ class TaskFormDialogState(FormDialogState, rx.State):
         async with self:
             main_state = await self.get_state(ReflexMainState)
 
-        # Validate and parse form data
-        task_dto = self._validate_and_parse_update_form_data(form_data)
+        # Validate and parse form data for update operations
+        task_dto = self._validate_and_parse_update_task_form_data(form_data)
         if task_dto is None:
             return  # Validation error already shown
 

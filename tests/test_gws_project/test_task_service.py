@@ -7,7 +7,7 @@ from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectUserRole, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
-from gws_project.task.task_dto import (CreateRootTaskDTO, CreateSubTaskDTO,
+from gws_project.task.task_dto import (CreateSubTaskDTO, CreateTaskDTO,
                                        TaskPriority, TaskStatus, UpdateTaskDTO)
 from gws_project.task.task_service import TaskService
 from gws_project.user.user import User
@@ -58,7 +58,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create root task DTO
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='Test Root Task',
             description='Test root task description',
             start_date=date(2025, 2, 1),
@@ -96,7 +96,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Test start date before project start date
-        invalid_dto = CreateRootTaskDTO(
+        invalid_dto = CreateTaskDTO(
             title='Invalid Task',
             description='Task with invalid dates',
             start_date=date(2024, 12, 31),  # Before project start
@@ -132,7 +132,7 @@ class TestTaskService(BaseTestCase):
         project = self._create_test_project(project_service)
         external_user = self._create_test_user("external@example.com")
 
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='Test Task',
             description='Test description',
             start_date=date(2025, 2, 1),
@@ -152,7 +152,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # First create a root task that allows subtasks
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='Parent Task',
             description='Parent task description',
             start_date=date(2025, 2, 1),
@@ -200,7 +200,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create a root task that does NOT allow subtasks
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='No Subtasks Parent',
             description='Parent that does not allow subtasks',
             start_date=date(2025, 2, 1),
@@ -232,7 +232,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create parent task
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='Parent Task',
             description='Parent task',
             start_date=date(2025, 2, 1),
@@ -264,7 +264,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create a task to update
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='Original Title',
             description='Original description',
             start_date=date(2025, 2, 1),
@@ -307,7 +307,7 @@ class TestTaskService(BaseTestCase):
         project_service.add_group_to_project(project.id, second_user.id, ProjectUserRole.USER)
 
         # Create a task
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='Test Task',
             description='Test description',
             start_date=date(2025, 2, 1),
@@ -336,7 +336,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create a task without subtasks
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='Test Task',
             description='Test description',
             start_date=date(2025, 2, 1),
@@ -352,7 +352,7 @@ class TestTaskService(BaseTestCase):
         self.assertEqual(updated_task.status, TaskStatus.DONE)
 
         # Test failure when task allows subtasks
-        task_with_subtasks_dto = CreateRootTaskDTO(
+        task_with_subtasks_dto = CreateTaskDTO(
             title='Parent Task',
             description='Parent with subtasks',
             start_date=date(2025, 3, 1),
@@ -375,7 +375,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create a root task with subtasks
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='Parent Task',
             description='Parent task to delete',
             start_date=date(2025, 2, 1),
@@ -418,7 +418,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create parent and subtask
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='Parent Task',
             description='Parent task',
             start_date=date(2025, 2, 1),
@@ -460,7 +460,7 @@ class TestTaskService(BaseTestCase):
         project_service.add_group_to_project(project.id, second_user.id, ProjectUserRole.USER)
 
         # 1. Create root task with subtasks allowed
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='Main Development Task',
             description='Main task for development work',
             start_date=date(2025, 3, 1),
@@ -536,7 +536,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create parent task with allow_subtasks=True
-        parent_dto = CreateRootTaskDTO(
+        parent_dto = CreateTaskDTO(
             title='Parent Task',
             description='Parent task that allows subtasks',
             start_date=date(2025, 3, 1),
@@ -574,7 +574,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create parent task
-        parent_dto = CreateRootTaskDTO(
+        parent_dto = CreateTaskDTO(
             title='Parent Task',
             description='Parent task',
             start_date=date(2025, 3, 1),
@@ -629,7 +629,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create parent task
-        parent_dto = CreateRootTaskDTO(
+        parent_dto = CreateTaskDTO(
             title='Parent Task',
             description='Parent task',
             start_date=date(2025, 3, 1),
@@ -696,7 +696,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create parent task
-        parent_dto = CreateRootTaskDTO(
+        parent_dto = CreateTaskDTO(
             title='Parent Task',
             description='Parent task',
             start_date=date(2025, 3, 1),
@@ -749,7 +749,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create a root task without subtasks (leaf task)
-        root_task_dto = CreateRootTaskDTO(
+        root_task_dto = CreateTaskDTO(
             title='Leaf Task',
             description='Task without subtasks',
             start_date=date(2025, 3, 1),
@@ -773,7 +773,7 @@ class TestTaskService(BaseTestCase):
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create parent task that allows subtasks but has none yet
-        parent_dto = CreateRootTaskDTO(
+        parent_dto = CreateTaskDTO(
             title='Parent Task',
             description='Parent task with no subtasks',
             start_date=date(2025, 3, 1),

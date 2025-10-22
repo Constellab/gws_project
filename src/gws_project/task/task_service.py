@@ -10,8 +10,8 @@ from gws_project.project.project_security_service import (
     ProjectSecurityService, ProjectUserRole)
 from gws_project.project.project_user import ProjectUser
 from gws_project.task.task import Task
-from gws_project.task.task_dto import (CreateRootTaskDTO, CreateSubTaskDTO,
-                                       TaskPriority, TaskStatus, UpdateTaskDTO)
+from gws_project.task.task_dto import (CreateTaskDTO, TaskPriority, TaskStatus,
+                                       UpdateTaskDTO)
 from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.user.user import User
 
@@ -99,13 +99,13 @@ class TaskService:
         return search_builder.search_all()
 
     @ProjectDbManager.transaction()
-    def create_root_task(self, project_id: str, task_dto: CreateRootTaskDTO) -> Task:
+    def create_root_task(self, project_id: str, task_dto: CreateTaskDTO) -> Task:
         """Create a root task (task without parent) and sync it with Space by creating a child folder.
 
         :param project_id: The ID of the project
         :type project_id: str
         :param task_dto: The task data to create
-        :type task_dto: CreateRootTaskDTO
+        :type task_dto: CreateTaskDTO
         :return: The created task with space_folder_id populated
         :rtype: Task
         :raises BadRequestException: If dates are outside project bounds or user is not in project
@@ -115,20 +115,12 @@ class TaskService:
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
         # Validate task dates are within project dates
-        self._validate_task_dates_within_project(project, task_dto.start_date, task_dto.end_date)
+        start_date = task_dto.start_date or project.start_date
+        end_date = task_dto.end_date or project.end_date
+        self._validate_task_dates_within_project(project, start_date, end_date)
 
-        # Create the task model from DTO
-        task = Task()
-        task.project = project
-        task.parent_task = None  # Root task has no parent
-        task.title = task_dto.title
-        task.description = task_dto.description
-        task.start_date = task_dto.start_date
-        task.end_date = task_dto.end_date
-        task.status = task_dto.status
-        task.priority = task_dto.priority
-        task.allow_subtasks = task_dto.allow_subtasks
-        task.assign_to = self._validate_assign_to_in_project(project.id, task_dto.assign_to_id)
+        # Create the task model from DTO using common method
+        task = self._build_task_from_dto(task_dto, project, parent_task=None)
 
         # Save the task to the database
         task.save()
@@ -153,7 +145,7 @@ class TaskService:
         return task
 
     @ProjectDbManager.transaction()
-    def create_sub_task(self, parent_task_id: str, task_dto: CreateSubTaskDTO) -> Task:
+    def create_sub_task(self, parent_task_id: str, task_dto: CreateTaskDTO) -> Task:
         """Create a subtask under a parent task. Does not create a folder in Space.
         Only allows creating subtasks under root tasks (no nested subtasks).
         Parent task dates, status, and priority are automatically updated based on all subtasks.
@@ -161,7 +153,7 @@ class TaskService:
         :param parent_task_id: The ID of the parent task
         :type parent_task_id: str
         :param task_dto: The subtask data to create
-        :type task_dto: CreateSubTaskDTO
+        :type task_dto: CreateTaskDTO
         :return: The created subtask
         :rtype: Task
         :raises BadRequestException: If parent task doesn't allow subtasks, is not a root task,
@@ -185,20 +177,14 @@ class TaskService:
                 "Subtasks can only be created under root tasks (tasks without a parent)."
             )
 
-        # Create the subtask model from DTO
-        # Dates, status, and priority will use default values initially
-        subtask = Task()
-        subtask.project = parent_task.project
-        subtask.parent_task = parent_task
-        subtask.title = task_dto.title
-        subtask.description = task_dto.description
-        # Set default values for subtask
-        subtask.start_date = parent_task.start_date  # Default to parent's current start date
-        subtask.end_date = parent_task.end_date  # Default to parent's current end date
-        subtask.status = TaskStatus.TODO  # Default status
-        subtask.priority = TaskPriority.MEDIUM  # Default priority
-        subtask.allow_subtasks = False  # Subtasks cannot have their own subtasks
-        subtask.assign_to = self._validate_assign_to_in_project(parent_task.project.id, task_dto.assign_to_id)
+        # Create the subtask model from DTO using common method
+        # Force allow_subtasks to False and use project dates as defaults
+        subtask = self._build_task_from_dto(
+            task_dto,
+            parent_task.project,
+            parent_task=parent_task,
+            force_allow_subtasks=False
+        )
 
         # Save the subtask to the database
         subtask.save()
@@ -267,9 +253,14 @@ class TaskService:
         # Update the task fields from DTO
         task.title = task_dto.title
         task.description = task_dto.description
-        task.start_date = task_dto.start_date
-        task.end_date = task_dto.end_date
-        task.priority = task_dto.priority
+        if task_dto.start_date:
+            task.start_date = task_dto.start_date
+        if task_dto.end_date:
+            task.end_date = task_dto.end_date
+        if task_dto.status:
+            task.status = task_dto.status
+        if task_dto.priority:
+            task.priority = task_dto.priority
 
         # Save the task to the database
         task.save()
@@ -477,6 +468,51 @@ class TaskService:
             )
 
         return User.get_by_id_and_check(user_id)
+
+    def _build_task_from_dto(
+        self,
+        task_dto: CreateTaskDTO,
+        project: Project,
+        parent_task: Optional[Task] = None,
+        force_allow_subtasks: Optional[bool] = None
+    ) -> Task:
+        """Build a Task model from a CreateTaskDTO.
+
+        :param task_dto: The task data transfer object
+        :type task_dto: CreateTaskDTO
+        :param project: The project this task belongs to
+        :type project: Project
+        :param parent_task: The parent task if this is a subtask (optional)
+        :type parent_task: Optional[Task]
+        :param force_allow_subtasks: Force allow_subtasks to a specific value (optional)
+        :type force_allow_subtasks: Optional[bool]
+        :return: The created task (not yet saved to database)
+        :rtype: Task
+        """
+        task = Task()
+        task.project = project
+        task.parent_task = parent_task
+        task.title = task_dto.title
+        task.description = task_dto.description
+
+        # Set dates with defaults from project
+        task.start_date = task_dto.start_date or project.start_date
+        task.end_date = task_dto.end_date or project.end_date
+
+        # Set status and priority with defaults
+        task.status = task_dto.status or TaskStatus.TODO
+        task.priority = task_dto.priority or TaskPriority.MEDIUM
+
+        # Set allow_subtasks - can be forced (for subtasks) or from DTO
+        if force_allow_subtasks is not None:
+            task.allow_subtasks = force_allow_subtasks
+        else:
+            task.allow_subtasks = task_dto.allow_subtasks
+
+        # Validate and set assigned user
+        task.assign_to = self._validate_assign_to_in_project(project.id, task_dto.assign_to_id)
+
+        return task
 
     def _update_parent_task_from_subtasks(self, parent_task: Task) -> None:
         """Update parent task information (dates, status, priority) based on all its subtasks.

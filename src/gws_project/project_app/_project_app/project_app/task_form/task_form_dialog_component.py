@@ -131,10 +131,21 @@ def _form_content() -> rx.Component:
                     spacing="3"
                 ),
 
-                # Priority and Status (Status only shown in create mode)
-                rx.cond(
-                    TaskFormDialogState.is_update_mode,
-                    # Update mode: only show priority
+
+                # Create mode: show both status and priority
+                rx.hstack(
+                    rx.vstack(
+                        rx.text("Status", size="2", weight="bold"),
+                        rx.select(
+                            [status.value for status in TaskStatus],
+                            name="status",
+                            default_value=TaskFormDialogState.form_status,
+                            width="100%",
+                        ),
+                        width="100%",
+                        spacing="1"
+                    ),
+
                     rx.vstack(
                         rx.text("Priority", size="2", weight="bold"),
                         rx.select(
@@ -146,38 +157,12 @@ def _form_content() -> rx.Component:
                         width="100%",
                         spacing="1"
                     ),
-                    # Create mode: show both status and priority
-                    rx.hstack(
-                        rx.vstack(
-                            rx.text("Status", size="2", weight="bold"),
-                            rx.select(
-                                [status.value for status in TaskStatus],
-                                name="status",
-                                default_value=TaskFormDialogState.form_status,
-                                width="100%",
-                            ),
-                            width="100%",
-                            spacing="1"
-                        ),
-
-                        rx.vstack(
-                            rx.text("Priority", size="2", weight="bold"),
-                            rx.select(
-                                [priority.value for priority in TaskPriority],
-                                name="priority",
-                                default_value=TaskFormDialogState.form_priority,
-                                width="100%",
-                            ),
-                            width="100%",
-                            spacing="1"
-                        ),
-                        width="100%",
-                        spacing="3"
-                    )
+                    width="100%",
+                    spacing="3"
                 ),
                 width="100%",
-                spacing="3"
             ),
+
             # When dates and priority are hidden, show a message explaining auto-calculation
             rx.vstack(
                 rx.callout.root(

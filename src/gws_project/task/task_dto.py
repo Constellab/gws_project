@@ -19,13 +19,13 @@ class TaskPriority(Enum):
     LOW = 'LOW'
 
 
-class CreateRootTaskDTO(BaseModelDTO):
+class CreateTaskDTO(BaseModelDTO):
     title: str
     description: str
-    start_date: date
-    end_date: date
-    status: TaskStatus = TaskStatus.TODO
-    priority: TaskPriority = TaskPriority.MEDIUM
+    start_date: date | None
+    end_date: date | None
+    status: TaskStatus | None = TaskStatus.TODO
+    priority: TaskPriority | None = TaskPriority.MEDIUM
     allow_subtasks: bool = False
     assign_to_id: Optional[str] = None
 
@@ -39,9 +39,10 @@ class CreateSubTaskDTO(BaseModelDTO):
 class UpdateTaskDTO(BaseModelDTO):
     title: str
     description: str
-    start_date: date
-    end_date: date
-    priority: TaskPriority
+    start_date: date | None
+    end_date: date | None
+    status: TaskStatus | None
+    priority: TaskPriority | None
 
 
 class TaskDTO(ModelDTO):

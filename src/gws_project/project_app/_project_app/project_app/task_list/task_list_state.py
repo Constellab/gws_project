@@ -59,7 +59,7 @@ class TaskListState(ReflexMainState):
         :param updated_task: The updated TaskDTO
         :type updated_task: TaskDTO
         """
-        if not self._tasks:
+        if self._tasks is None:
             return
 
         for i, task_ in enumerate(self._tasks):
