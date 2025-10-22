@@ -32,6 +32,7 @@ interface Card {
   assignee?: string;
   parent_task_title?: string;
   is_leaf?: boolean;
+  project_name?: string;
 }
 
 interface Column {
@@ -53,7 +54,7 @@ interface CardMoveEvent {
 interface SortableCardProps {
   id: string;
   card: Card;
-  onCardClick?: (card: Card) => void;
+  onCardClick?: (cardId: string) => void;
   customRenderer?: (card: Card) => React.ReactNode;
 }
 
@@ -61,11 +62,13 @@ interface ColumnProps {
   column: Column;
   cards: Card[];
   cardRenderer?: (card: Card) => React.ReactNode;
+  onCardClick?: (cardId: string) => void;
 }
 
 interface KanbanBoardProps {
   boardData: BoardData;
   onCardMove?: (event: CardMoveEvent) => void;
+  onCardClick?: (cardId: string) => void;
   disableColumnDrag?: boolean;
   superTest?: any;
   cardRenderer?: (card: Card) => React.ReactNode;
@@ -91,8 +94,16 @@ function SortableCard({ id, card, onCardClick, customRenderer }: SortableCardPro
     marginBottom: '8px',
     borderRadius: '8px',
     border: '1px solid #e0e0e0',
-    cursor: 'grab',
+    cursor: onCardClick ? 'pointer' : 'grab',
     boxShadow: isDragging ? '0 4px 8px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Only trigger click if not dragging
+    if (!isDragging && onCardClick) {
+      e.stopPropagation();
+      onCardClick(card.id);
+    }
   };
 
   const priorityColors: Record<'LOW' | 'MEDIUM' | 'HIGH', string> = {
@@ -102,16 +113,11 @@ function SortableCard({ id, card, onCardClick, customRenderer }: SortableCardPro
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={handleClick}>
       {customRenderer ? (
         customRenderer(card)
       ) : (
         <>
-          {card.parent_task_title && (
-            <div style={{ marginBottom: '4px', fontSize: '10px', color: '#888', fontStyle: 'italic' }}>
-              📁 {card.parent_task_title}
-            </div>
-          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ fontSize: '14px' }}>
@@ -134,8 +140,28 @@ function SortableCard({ id, card, onCardClick, customRenderer }: SortableCardPro
               </span>
             )}
           </div>
+          {card.project_name && (
+            <div style={{ marginBottom: '8px', fontSize: '11px', color: '#888', fontWeight: '500' }}>
+              📦 {card.project_name}
+            </div>
+          )}
+          {card.parent_task_title && (
+            <div style={{ marginBottom: '8px', fontSize: '11px', color: '#666' }}>
+              📁 {card.parent_task_title}
+            </div>
+          )}
           {card.description && (
-            <p style={{ margin: '4px 0', fontSize: '12px', color: '#666' }}>
+            <p style={{
+              margin: '4px 0',
+              fontSize: '12px',
+              color: '#666',
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              lineHeight: '1.4'
+            }}>
               {card.description}
             </p>
           )}
@@ -151,7 +177,7 @@ function SortableCard({ id, card, onCardClick, customRenderer }: SortableCardPro
 }
 
 // Column Component
-function Column({ column, cards, cardRenderer }: ColumnProps) {
+function Column({ column, cards, cardRenderer, onCardClick }: ColumnProps) {
   const cardIds = cards.map((card) => card.id);
   const { setNodeRef } = useDroppable({
     id: column.id,
@@ -175,7 +201,13 @@ function Column({ column, cards, cardRenderer }: ColumnProps) {
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
         <div style={{ minHeight: '100px' }}>
           {cards.map((card) => (
-            <SortableCard key={card.id} id={card.id} card={card} customRenderer={cardRenderer} />
+            <SortableCard
+              key={card.id}
+              id={card.id}
+              card={card}
+              customRenderer={cardRenderer}
+              onCardClick={onCardClick}
+            />
           ))}
         </div>
       </SortableContext>
@@ -184,7 +216,7 @@ function Column({ column, cards, cardRenderer }: ColumnProps) {
 }
 
 // Main Kanban Board Component
-export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, disableColumnDrag = true }: KanbanBoardProps) {
+export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, onCardClick, disableColumnDrag = true }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [columns, setColumns] = useState<Column[]>(boardData?.columns || []);
   const [originalContainer, setOriginalContainer] = useState<string | null>(null);
@@ -269,14 +301,7 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, di
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    console.log('=== DRAG END START ===');
-    console.log('Event:', event);
-    console.log('Active ID:', active?.id);
-    console.log('Over ID:', over?.id);
-    console.log('Current columns state:', columns);
-
     if (!over) {
-      console.log('No over target - drag cancelled');
       setActiveId(null);
       setOriginalContainer(null);
       return;
@@ -287,11 +312,7 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, di
     const activeContainer = originalContainer;
     const overContainer = findContainer(over.id as string) || (over.id as string);
 
-    console.log('Active container (from drag start):', activeContainer);
-    console.log('Over container:', overContainer);
-
     if (!activeContainer || !overContainer) {
-      console.log('Missing container - activeContainer:', activeContainer, 'overContainer:', overContainer);
       setActiveId(null);
       setOriginalContainer(null);
       return;
@@ -300,34 +321,24 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, di
     const activeColumn = columns.find((col) => col.id === activeContainer);
     const overColumn = columns.find((col) => col.id === overContainer);
 
-    console.log('Active column:', activeColumn);
-    console.log('Over column:', overColumn);
-
     if (!activeColumn || !overColumn) {
-      console.log('Column not found - activeColumn:', activeColumn, 'overColumn:', overColumn);
       setActiveId(null);
       setOriginalContainer(null);
       return;
     }
 
     if (activeContainer === overContainer) {
-      console.log('Same container - reordering within column');
       // Reorder within the same column - update local state only
       const activeCardIndex = activeColumn.cards.findIndex((card) => card.id === active.id);
       const overCardIndex = overColumn.cards.findIndex((card) => card.id === over.id);
 
-      console.log('Active card index:', activeCardIndex);
-      console.log('Over card index:', overCardIndex);
-
       if (activeCardIndex === -1) {
-        console.log('Active card not found in column');
         setActiveId(null);
         setOriginalContainer(null);
         return;
       }
 
       if (activeCardIndex !== overCardIndex) {
-        console.log('Reordering from index', activeCardIndex, 'to', overCardIndex);
         setColumns((prevColumns) => {
           const newColumns = prevColumns.map(col => ({
             ...col,
@@ -337,21 +348,15 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, di
           if (column) {
             column.cards = arrayMove(column.cards, activeCardIndex, overCardIndex);
           }
-          console.log('New columns after reorder:', newColumns);
           return newColumns;
         });
-      } else {
-        console.log('Same position - no reorder needed');
       }
     } else {
-      console.log('Different container - moving card between columns');
       // Moved to a different column - find the card (it's already been moved by handleDragOver)
       // So we need to find it across all columns, not just the original column
       const card = columns.flatMap(col => col.cards).find(c => c.id === active.id);
-      console.log('Card being moved:', card);
 
       if (!card) {
-        console.error('Card not found in any column!');
         setActiveId(null);
         setOriginalContainer(null);
         return;
@@ -359,34 +364,19 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, di
 
       if (onCardMove) {
         // Call the event handler with the required data
-        console.log('onCardMove handler available, type:', typeof onCardMove);
-        console.log('Moving card from', activeContainer, 'to', overContainer);
-
         // Reflex event handlers are functions that send data to the backend
         // They expect to be called with the event data object
-        try {
-          const eventPayload = {
-            card_id: card.id,
-            from_column_id: activeContainer,
-            to_column_id: overContainer,
-          };
-          console.log('Event payload:', JSON.stringify(eventPayload, null, 2));
-          console.log('Calling onCardMove...');
-          onCardMove(eventPayload);
-          console.log('onCardMove called successfully');
-        } catch (error) {
-          console.error('Error calling onCardMove:', error);
-          console.error('Error stack:', error.stack);
-        }
-      } else {
-        console.warn('onCardMove handler is not defined');
+        const eventPayload = {
+          card_id: card.id,
+          from_column_id: activeContainer,
+          to_column_id: overContainer,
+        };
+        onCardMove(eventPayload);
       }
     }
 
-    console.log('Setting activeId to null');
     setActiveId(null);
     setOriginalContainer(null);
-    console.log('=== DRAG END COMPLETE ===');
   };
 
   const activeCard = activeId
@@ -400,7 +390,7 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, di
   }
 
   return (
-    <div style={{ width: '100%' }}>
+    <div className="kanban-board-container" style={{ width: '100%', height: '100%' }}>
       {/* Test component display area */}
       {superTest && (
         <div style={{
@@ -427,13 +417,14 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, di
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div style={{ display: 'flex', padding: '20px', overflowX: 'auto', width: '100%' }}>
+        <div style={{ display: 'flex', overflowX: 'auto', width: '100%', height: '100%' }}>
           {columns.map((column) => (
             <Column
               key={column.id}
               column={column}
               cards={column.cards}
               cardRenderer={cardRenderer}
+              onCardClick={onCardClick}
             />
           ))}
         </div>

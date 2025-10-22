@@ -1,8 +1,14 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import reflex as rx
+from gws_core import CurrentUserService, UserDTO
+from gws_project.project.project import Project
+from gws_project.project.project_dto import ProjectDTO
+from gws_project.project.project_user import ProjectUser
 from gws_project.task.task_dto import TaskDTO, TaskStatus
+from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.task.task_service import TaskService
+from gws_project.user.user import User
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import Task
@@ -21,54 +27,124 @@ class KanbanState(ReflexMainState):
     tasks: List[TaskDTO] = []
     _is_loaded: bool = False
 
+    # Filter state
+    search_text: str = ""
+    selected_project_id: str = ""
+    selected_user_id: str = ""
+
+    # Data for filters
+    available_projects: List[ProjectDTO] = []
+    available_users: List[UserDTO] = []
+
+    async def load_projects(self):
+        """Load the list of projects for the current user."""
+        with await self.authenticate_user():
+            current_user = CurrentUserService.get_and_check_current_user()
+            user_projects = ProjectUser.get_projects_of_user(current_user.id)
+            self.available_projects = [project.to_dto() for project in user_projects]
+
+    async def load_users(self):
+        """Load the list of all real users (excluding SYSUSER)."""
+        users = User.get_real_users()
+        self.available_users = [user.to_dto() for user in users]
+
     async def load_tasks(self):
-        """Fetch all tasks accessible to the current user.
+        """Fetch all tasks accessible to the current user with applied filters.
 
-        Uses the task_service.search method without parameters to get all tasks
-        from all projects the user has access to.
+        Applies text search, project filter, and user filter using the TaskSearchBuilder.
+        If no project filter is selected, returns tasks from all user's projects.
 
-        :return: List of all tasks as DTOs
+        :return: List of filtered tasks as DTOs
         :rtype: List[TaskDTO]
         """
-        task_service = TaskService()
-
         tasks: List[Task]
         with await self.authenticate_user():
-            tasks = task_service.search()
+            current_user = CurrentUserService.get_and_check_current_user()
+
+            # Build the search with filters
+            search_builder = TaskSearchBuilder()
+
+            # Project filter: if no specific project is selected, filter by all user projects
+            if self.selected_project_id:
+                search_builder.add_project_filter(self.selected_project_id)
+            else:
+                user_projects = ProjectUser.get_projects_of_user(current_user.id)
+                project_ids = [project.id for project in user_projects]
+                if project_ids:
+                    search_builder.add_projects_filter(project_ids)
+
+            # User/assignee filter
+            if self.selected_user_id:
+                search_builder.add_user_filter(self.selected_user_id)
+
+            # Text search filter
+            if self.search_text:
+                search_builder.add_text_search(self.search_text)
+
+            tasks = search_builder.search_all()
 
         self.tasks = [task.to_dto() for task in tasks]
 
     async def on_load(self):
         """Event handler called when the page loads.
 
-        Resets the loaded state to force a fresh fetch of tasks.
+        Loads projects, users, and tasks on page load.
         """
+        await self.load_projects()
+        await self.load_users()
         await self.load_tasks()
 
-    def delete_task(self, task_id: str):
-        """Delete a task and its subtasks from the state.
+    async def handle_search_change(self, value: str):
+        """Handle text search filter change.
 
-        :param task_id: The ID of the task to delete
-        :type task_id: str
+        :param value: The search text
+        :type value: str
         """
-        if self.tasks:
-            self.tasks = [task for task in self.tasks if task.id != task_id]
+        self.search_text = value
+        await self.load_tasks()
 
-    def add_or_update_task(self, task: Task):
-        """Update a task in the state or add it if it doesn't exist.
+    async def handle_project_change(self, value: str):
+        """Handle project filter change.
 
-        :param task: The updated Task entity
-        :type task: Task
+        :param value: The selected project ID (empty string for "All Projects")
+        :type value: str
         """
-        if not self.tasks:
-            return
+        self.selected_project_id = value
+        await self.load_tasks()
 
-        for i, task_ in enumerate(self.tasks):
-            if task_.id == task.id:
-                self.tasks[i] = task
-                return
+    async def handle_user_change(self, value: str):
+        """Handle user/assignee filter change.
 
-        self.tasks.append(task)
+        :param value: The selected user ID (empty string for "All Users")
+        :type value: str
+        """
+        self.selected_user_id = value
+        await self.load_tasks()
+
+    async def clear_filters(self):
+        """Clear all filters and reload tasks."""
+        self.search_text = ""
+        self.selected_project_id = ""
+        self.selected_user_id = ""
+        await self.load_tasks()
+
+    @rx.var
+    def project_options(self) -> List[tuple[str, str]]:
+        """Get project options for select component (excluding the 'All Projects' option).
+
+        :return: List of (id, title) tuples
+        :rtype: List[tuple[str, str]]
+        """
+        return [(p.id, p.title) for p in self.available_projects]
+
+    @rx.var
+    def user_options(self) -> List[tuple[str, str]]:
+        """Get user options for select component (excluding the 'All Users' option).
+
+        :return: List of (id, full_name) tuples
+        :rtype: List[tuple[str, str]]
+        """
+        return [(u.id, f"{u.first_name} {u.last_name}") for u in self.available_users]
 
     @rx.var
     async def kanban_board_data(self) -> BoardDataDTO:
@@ -106,6 +182,16 @@ class KanbanState(ReflexMainState):
     def _task_to_card(self, task: TaskDTO) -> CardDTO:
         """Convert a TaskDTO to a Kanban card format."""
         assignee = task.assign_to.first_name + ' ' + task.assign_to.last_name if task.assign_to else "Unassigned"
+
+        # Get project name from project_id
+        project_name = None
+        if task.project_id:
+            try:
+                project = Project.get_by_id(task.project_id)
+                project_name = project.title
+            except Exception:
+                pass
+
         return CardDTO(
             id=task.id,
             title=task.title,
@@ -113,7 +199,8 @@ class KanbanState(ReflexMainState):
             priority=task.priority.value,
             assignee=assignee,
             parent_task_title=task.parent_task_title,
-            is_leaf=not task.allow_subtasks
+            is_leaf=not task.allow_subtasks,
+            project_name=project_name
         )
 
     @rx.event(background=True)  # type: ignore
@@ -162,68 +249,14 @@ class KanbanState(ReflexMainState):
 
         for i, t in enumerate(self.tasks):
             if t.id == task.id:
-                self.tasks[i] = task
+                self.tasks[i] = task.to_dto()
                 break
 
-    async def handle_card_click(self, card_id: str, metadata: Dict, lane_id: str):
+    async def handle_card_click(self, card_id: str):
         """Handle card click in the Kanban board.
 
         :param card_id: The ID of the clicked card
-        :param metadata: Card metadata
-        :param lane_id: The column ID
+        :type card_id: str
         """
         # Navigate to task detail page
         return rx.redirect(f"/task/{card_id}")
-
-    async def open_update_task_dialog(self, task: TaskDTO):
-        """Open the update task dialog.
-
-        :param task: The task to update
-        :type task: TaskDTO
-        """
-        form_state = await self.get_state(TaskFormDialogState)
-
-        await form_state.open_update_dialog(
-            task=task,
-            callback_after_close=self._on_update_task_dialog_close
-        )
-
-    async def _on_update_task_dialog_close(self, task: Task):
-        """Callback after the update task dialog is closed to refresh the task list.
-
-        :param task: The updated task
-        :type task: Task
-        """
-        self.add_or_update_task(task)
-
-    @rx.event
-    async def open_delete_task_dialog(self, task: TaskDTO):
-        """Open the delete task confirmation dialog.
-
-        :param task: The task to delete
-        :type task: TaskDTO
-        """
-        delete_dialog_state = await self.get_state(ConfirmDialogState)
-
-        # Build confirmation message
-        warning = ""
-        if task.allow_subtasks:
-            warning = " This will also delete all its subtasks."
-
-        delete_dialog_state.open_dialog(
-            title="Delete Task",
-            content=f"Are you sure you want to delete this task?{warning}",
-            action=lambda: self._delete_action(task.id)
-        )
-
-    async def _delete_action(self, task_id: str):
-        """Delete the task from the list."""
-        with await self.authenticate_user():
-            task_service = TaskService()
-            task_service.delete_task(task_id)
-
-        # Show success toast
-        yield rx.toast.success("Task deleted successfully")
-
-        # Remove from list
-        self.delete_task(task_id)

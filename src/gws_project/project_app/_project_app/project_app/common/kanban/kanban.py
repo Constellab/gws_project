@@ -22,6 +22,7 @@ class CardDTO(BaseModelDTO):
         assignee: Optional card assignee
         parent_task_title: Optional parent task title
         is_leaf: Whether the task is a leaf task (no children)
+        project_name: Optional project name
     """
     id: str
     title: str
@@ -30,6 +31,7 @@ class CardDTO(BaseModelDTO):
     assignee: Optional[str] = None
     parent_task_title: Optional[str] = None
     is_leaf: bool = True
+    project_name: Optional[str] = None
 
 
 class ColumnDTO(BaseModelDTO):
@@ -97,12 +99,14 @@ class KanbanBoard(rx.Component):
                 ]
             },
             on_card_move=MyState.handle_card_move,
+            on_card_click=MyState.handle_card_click,
         )
 
         # With custom card template
         kanban_board(
             board_data=MyState.board_data,
             on_card_move=MyState.handle_card_move,
+            on_card_click=MyState.handle_card_click,
             card_template={
                 "title": lambda card: f"🎯 {card.title}",
                 "description": lambda card: card.description.upper() if card.description else "",
@@ -123,6 +127,9 @@ class KanbanBoard(rx.Component):
 
     # Event handler for card movement
     on_card_move: rx.EventHandler[rx.event.passthrough_event_spec(dict)]
+
+    # Event handler for card click
+    on_card_click: rx.EventHandler[rx.event.passthrough_event_spec(str)]
 
 
 # Convenience function to create the component

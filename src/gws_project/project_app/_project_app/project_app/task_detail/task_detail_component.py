@@ -197,6 +197,24 @@ def details_sidebar() -> rx.Component:
     )
 
 
+def task_detail() -> rx.Component:
+    """Create the task detail page component.
+
+    This component displays all details of a single task using a Jira-like layout
+    with main content on the left and a details sidebar on the right.
+
+    :return: The task detail page component
+    :rtype: rx.Component
+    """
+    return rx.cond(
+        TaskDetailState.task,
+        detail_page_layout(
+            main_content=main_content_area(),
+            sidebar_content=details_sidebar()
+        ),
+    )
+
+
 def task_detail_page() -> rx.Component:
     """Create the task detail page component.
 
@@ -210,13 +228,7 @@ def task_detail_page() -> rx.Component:
         page_layout(
             rx.vstack(
                 # Task details in two-column layout with breadcrumb
-                rx.cond(
-                    TaskDetailState.task,
-                    detail_page_layout(
-                        main_content=main_content_area(),
-                        sidebar_content=details_sidebar()
-                    ),
-                ),
+                task_detail(),
                 width="100%",
             )
         ),

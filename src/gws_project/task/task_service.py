@@ -3,8 +3,7 @@ from datetime import date
 from typing import List, Optional
 
 from gws_core import (BadRequestException, CurrentUserService,
-                      ExternalSpaceCreateFolder, Paginator, SearchParams,
-                      SpaceService)
+                      ExternalSpaceCreateFolder, SearchParams, SpaceService)
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
 from gws_project.project.project_security_service import (

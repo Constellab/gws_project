@@ -3,7 +3,7 @@
 import reflex as rx
 
 
-def page_layout(content: rx.Component) -> rx.Component:
+def page_layout(content: rx.Component, height: str = None) -> rx.Component:
     """Create a common page layout with left sidebar menu and main content area.
 
     This component provides a layout with:
@@ -79,11 +79,14 @@ def page_layout(content: rx.Component) -> rx.Component:
             content,
             flex="1",
             width="100%",
+            height="100%",
             overflow_y="auto",
             padding="2em",
         ),
 
         width="100%",
+        height=height,
         spacing="0",
         align_items="start",
+        class_name="page-layout-container",
     )

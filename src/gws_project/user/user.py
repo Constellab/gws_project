@@ -1,5 +1,7 @@
 
 
+from typing import List
+
 from gws_core import EnumField, Model, UserDTO, UserGroup
 from gws_project.core.project_db_manager import ProjectDbManager
 from peewee import BooleanField, CharField
@@ -24,6 +26,18 @@ class User(Model):
             last_name=self.last_name,
             photo=self.photo
         )
+
+    @classmethod
+    def get_real_users(cls) -> List['User']:
+        """Get all real users (excluding SYSUSER) that are active.
+
+        :return: Query of real users ordered by first and last name
+        :rtype: ModelSelect
+        """
+        return list(User.select().where(
+            (User.group != UserGroup.SYSUSER) &
+            (User.is_active == True)
+        ).order_by(User.first_name, User.last_name))
 
     class Meta:
         table_name = 'gws_project_user'
