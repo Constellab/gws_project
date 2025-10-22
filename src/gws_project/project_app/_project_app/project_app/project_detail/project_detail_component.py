@@ -16,6 +16,8 @@ from ..task_list.task_list_component import task_list_component
 from .manage_users_dialog_component import (ManageUsersDialogState,
                                             manage_users_dialog)
 from .project_detail_state import ProjectDetailState
+from .project_documents_component import project_documents_component
+from .project_documents_state import ProjectDocumentsState
 
 
 def main_content_area() -> rx.Component:
@@ -81,12 +83,16 @@ def main_content_area() -> rx.Component:
             align_items="start"
         ),
 
-        # Tasks section
+        # Tasks and Documents section with view toggle
         rx.vstack(
             # Header with title, view toggle, and create button
             rx.hstack(
                 rx.heading(
-                    "Tasks",
+                    rx.cond(
+                        ProjectDetailState.view_mode == "documents",
+                        "Documents",
+                        "Tasks"
+                    ),
                     size="4",
                     weight="bold",
                     margin_top="1.5rem"
@@ -94,6 +100,10 @@ def main_content_area() -> rx.Component:
                 rx.spacer(),
                 # View mode toggle buttons
                 rx.segmented_control.root(
+                    rx.segmented_control.item(
+                        rx.icon("folder-open", size=16),
+                        value="documents",
+                    ),
                     rx.segmented_control.item(
                         rx.icon("list", size=16),
                         value="list",
@@ -106,21 +116,47 @@ def main_content_area() -> rx.Component:
                     on_change=ProjectDetailState.set_view_mode,
                     size="2",
                 ),
-                rx.button(
-                    rx.icon("plus", size=16),
-                    "Create Task",
-                    variant="soft",
-                    size="2",
-                    on_click=ProjectDetailState.open_create_task_dialog
+                # Show create task button only in task views
+                rx.cond(
+                    ProjectDetailState.view_mode != "documents",
+                    rx.button(
+                        rx.icon("plus", size=16),
+                        "Create Task",
+                        variant="soft",
+                        size="2",
+                        on_click=ProjectDetailState.open_create_task_dialog
+                    ),
+                ),
+                # Show upload button only in documents view
+                rx.cond(
+                    ProjectDetailState.view_mode == "documents",
+                    rx.upload.root(
+                        rx.button(
+                            rx.spinner(loading=ProjectDocumentsState.is_uploading),
+                            rx.icon("upload", size=16),
+                            "Upload File",
+                            variant="soft",
+                            size="2",
+                        ),
+                        id="document_upload",
+                        multiple=True,
+                        on_drop=ProjectDocumentsState.handle_upload(
+                            rx.upload_files("document_upload",
+                                            on_upload_progress=ProjectDocumentsState.handle_upload_progress)
+                        ),
+
+                    ),
                 ),
                 width="100%",
                 align="center",
             ),
             # Conditional rendering based on view mode
-            rx.cond(
-                ProjectDetailState.view_mode == "list",
-                task_list_component(),
-                task_kanban_component()
+            rx.match(
+                ProjectDetailState.view_mode,
+                ("documents", project_documents_component()),
+                ("list", task_list_component()),
+                ("kanban", task_kanban_component()),
+                task_list_component(),  # default
             ),
             width="100%",
             spacing="3",

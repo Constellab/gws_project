@@ -4,6 +4,7 @@ from gws_reflex_main import add_unauthorized_page, get_theme
 from .kanban.kanban_component import kanban_page
 from .kanban.kanban_state import KanbanState
 from .project_detail.project_detail_component import project_detail_page
+from .project_detail.project_documents_state import ProjectDocumentsState
 from .project_list.project_list_component import project_list_page
 from .project_list.project_list_state import ProjectListState
 from .task_detail.task_detail_component import task_detail_page
@@ -25,7 +26,7 @@ def index():
 
 
 # Declare the project detail page with URL parameter
-@rx.page(route="/project/[project_id_param]")
+@rx.page(route="/project/[project_id_param]", on_load=[ProjectDocumentsState.load_documents])
 def project_detail():
     """Project detail page displaying all information about a specific project.
 

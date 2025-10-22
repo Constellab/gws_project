@@ -18,7 +18,7 @@ class ProjectDetailState(ReflexMainState):
     based on the project ID from the URL.
     """
 
-    view_mode: str = "list"  # "list" or "kanban"
+    view_mode: str = "documents"  # "list", "kanban", or "documents"
 
     _project_id: Optional[str] = None
     _project_users: List[ProjectUserDTO] = []
