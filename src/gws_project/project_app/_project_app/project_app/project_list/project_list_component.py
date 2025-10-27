@@ -3,7 +3,7 @@ import reflex as rx
 from gws_reflex_main import ReflexUtils, main_component, user_inline_component
 
 from ..common.page_layout import page_layout
-from ..create_project_dialog.project_form_dialog_component import \
+from ..project_form_dialog.project_form_dialog_component import \
     create_project_dialog
 from .project_list_state import ProjectDTO, ProjectListState
 
@@ -56,7 +56,6 @@ def project_list_page() -> rx.Component:
                             rx.table.header(
                                 rx.table.row(
                                     rx.table.column_header_cell("Title"),
-                                    rx.table.column_header_cell("Description"),
                                     rx.table.column_header_cell("Start Date"),
                                     rx.table.column_header_cell("End Date"),
                                     rx.table.column_header_cell("Project Manager"),
@@ -103,13 +102,6 @@ def _row(project: ProjectDTO) -> rx.Component:
     return rx.table.row(
         rx.table.cell(
             rx.text(project.title),
-        ),
-        rx.table.cell(
-            rx.text(
-                project.description,
-                style=ReflexUtils.multiline_ellipsis_css(lines=3)
-            ),
-            max_width="300px"
         ),
         rx.table.cell(rx.moment(project.start_date, format="MMM D, YYYY")),
         rx.table.cell(rx.moment(project.end_date, format="MMM D, YYYY")),

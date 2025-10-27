@@ -3,7 +3,10 @@
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.user.user import User
-from peewee import CharField, DateField, ForeignKeyField, TextField
+from peewee import CharField, DateField, ForeignKeyField
+
+from gws_core.impl.rich_text.rich_text_field import RichTextField
+from gws_core.impl.rich_text.rich_text_types import RichTextDTO
 
 from ..core.model_with_user import ModelWithUser
 
@@ -16,7 +19,7 @@ class Project(ModelWithUser):
     """
 
     title = CharField(max_length=255, null=False)
-    description = TextField(null=True)
+    description: RichTextDTO = RichTextField(null=True)
     start_date = DateField(null=False, index=True)
     end_date = DateField(null=False, index=True)
     project_manager: User = ForeignKeyField(User, null=False)

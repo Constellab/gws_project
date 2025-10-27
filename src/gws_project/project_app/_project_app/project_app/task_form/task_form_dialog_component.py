@@ -22,21 +22,6 @@ def _form_content() -> rx.Component:
             spacing="1"
         ),
 
-        # Description field
-        rx.vstack(
-            rx.text("Description", size="2", weight="bold"),
-            rx.text_area(
-                placeholder="Enter task description",
-                name="description",
-                required=True,
-                width="100%",
-                rows="4",
-                default_value=TaskFormDialogState.form_description
-            ),
-            width="100%",
-            spacing="1"
-        ),
-
         rx.cond(
             TaskFormDialogState.is_create_mode,
             # Assign to field

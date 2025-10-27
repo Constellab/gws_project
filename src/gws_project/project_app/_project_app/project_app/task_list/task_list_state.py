@@ -79,37 +79,12 @@ class TaskListState(ReflexMainState):
         tasks = await self.get_tasks
         return build_kanban_board_data(tasks, self._task_to_card)
 
-    @rx.var
-    async def kanban_cards(self) -> Dict[str, List[CardDTO]]:
-        """Get the list of Kanban cards from the current tasks as dict where key is the status.
-
-        :return: List of CardDTOs representing the tasks
-        :rtype: Dict[str, CardDTO]
-        """
-        tasks = await self.get_tasks
-        return {
-            TaskStatus.TODO.value: [self._task_to_card(task) for task in tasks if task.status == TaskStatus.TODO],
-            TaskStatus.DOING.value: [self._task_to_card(task) for task in tasks if task.status == TaskStatus.DOING],
-            TaskStatus.DONE.value: [self._task_to_card(task) for task in tasks if task.status == TaskStatus.DONE],
-        }
-
-    @rx.var
-    async def kanban_cards2(self) -> List[CardDTO]:
-        """Get the list of Kanban cards from the current tasks.
-
-        :return: List of CardDTOs representing the tasks
-        :rtype: List[CardDTO]
-        """
-        tasks = await self.get_tasks
-        return [self._task_to_card(task) for task in tasks]
-
     def _task_to_card(self, task: TaskDTO) -> CardDTO:
         """Convert a TaskDTO to a Kanban card format."""
         assignee = task.assign_to.first_name + ' ' + task.assign_to.last_name if task.assign_to else "Unassigned"
         return CardDTO(
             id=task.id,
             title=task.title,
-            description=(task.description or '').strip(),
             priority=task.priority.value,
             assignee=assignee,
             parent_task_title=task.parent_task_title,

@@ -59,7 +59,7 @@ class ProjectListState(ReflexMainState):
     @rx.event
     def open_create_dialog(self):
         """Open the create project dialog."""
-        from ..create_project_dialog.project_form_dialog_state import \
+        from ..project_form_dialog.project_form_dialog_state import \
             ProjectFormDialogState
 
         ProjectFormDialogState.open_dialog(on_close=self.load_projects)

@@ -17,7 +17,6 @@ class ProjectFormDialogState(FormDialogState, rx.State):
 
     # Form field default values
     form_name: str = ""
-    form_description: str = ""
     form_start_date: str = ""
     form_end_date: str = ""
 
@@ -34,7 +33,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
 
         # Initialize form fields with project data
         self.form_name = project.title
-        self.form_description = project.description or ""
+
         # set data to format 'YYYY-MM-DD' for date input
         self.form_start_date = project.start_date.strftime('%Y-%m-%d')
         self.form_end_date = project.end_date.strftime('%Y-%m-%d')
@@ -49,23 +48,19 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         """Validate and parse form data into a SaveProjectDTO.
 
         Args:
-            form_data: Dictionary containing form fields (name, description, start_date, end_date)
+            form_data: Dictionary containing form fields (name, start_date, end_date)
 
         Returns:
             SaveProjectDTO if validation succeeds, None otherwise (error toast is shown)
         """
         # Get values from form data
         name = form_data.get('name', '').strip()
-        description = form_data.get('description', '').strip()
         start_date_str = form_data.get('start_date', '').strip()
         end_date_str = form_data.get('end_date', '').strip()
 
         # Validate required fields
         if not name:
             raise Exception("Project name is required")
-
-        if not description:
-            raise Exception("Project description is required")
 
         if not start_date_str:
             raise Exception("Start date is required")
@@ -80,7 +75,6 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         # Create and return the SaveProjectDTO
         return SaveProjectDTO(
             name=name,
-            description=description,
             start_date=start_date,
             end_date=end_date,
             project_manager_id=None  # Using current user as project manager
@@ -90,7 +84,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         """Create a new project using the form data.
 
         Args:
-            form_data: Dictionary containing form fields (name, description, start_date, end_date)
+            form_data: Dictionary containing form fields (name, start_date, end_date)
 
         Yields:
             Reflex events (rx.toast, rx.redirect)
@@ -120,12 +114,11 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         """Update an existing project using the form data.
 
         Args:
-            form_data: Dictionary containing form fields (name, description, start_date, end_date)
+            form_data: Dictionary containing form fields (name, start_date, end_date)
 
         Yields:
             Reflex events (rx.toast)
         """
-        from ..project_detail.project_detail_state import ProjectDetailState
 
         main_state: ReflexMainState
         project_page_state: ProjectPageState
@@ -155,7 +148,6 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         """Clear all form state after successful operation."""
         self._editing_project = None
         self.form_name = ""
-        self.form_description = ""
         self.form_start_date = ""
         self.form_end_date = ""
         self.is_update_mode = False

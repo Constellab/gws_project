@@ -31,7 +31,6 @@ def task_table_component(
             rx.table.header(
                 rx.table.row(
                     rx.table.column_header_cell("Title"),
-                    rx.table.column_header_cell("Description"),
                     rx.table.column_header_cell("Dates"),
                     rx.table.column_header_cell("Status"),
                     rx.table.column_header_cell("Priority"),
@@ -86,13 +85,6 @@ def _task_row(task: TaskDTO) -> rx.Component:
                 spacing="2",
                 align="center"
             )
-        ),
-        rx.table.cell(
-            rx.text(
-                task.description,
-                style=ReflexUtils.multiline_ellipsis_css(lines=3, max_width="300px")
-            ),
-            max_width="300px"
         ),
         rx.table.cell(
             rx.vstack(

@@ -3,12 +3,17 @@ import reflex as rx
 from gws_project.project.project_dto import ProjectUserDTO
 from gws_reflex_main import (main_component, user_inline_component,
                              user_profile_picture)
+from gws_reflex_main.gws_components import rich_text_component
 
 from ..common.detail_page_layout import detail_page_layout
 from ..common.page_layout import page_layout
-from ..create_project_dialog.project_form_dialog_component import \
+from ..project_description_dialog.project_description_dialog_component import \
+    project_description_dialog
+from ..project_description_dialog.project_description_dialog_state import \
+    ProjectDescriptionDialogState
+from ..project_form_dialog.project_form_dialog_component import \
     project_update_dialog
-from ..create_project_dialog.project_form_dialog_state import \
+from ..project_form_dialog.project_form_dialog_state import \
     ProjectFormDialogState
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_list.task_kanban_component import task_kanban_component
@@ -51,6 +56,12 @@ def main_content_area() -> rx.Component:
                         on_click=lambda: ProjectFormDialogState.open_update_dialog(ProjectDetailState.project)
                     ),
                     rx.menu.item(
+                        rx.icon("file-text", size=16),
+                        "Update Description",
+                        on_click=lambda: ProjectDescriptionDialogState.open_dialog_with_project(
+                            ProjectDetailState.project)
+                    ),
+                    rx.menu.item(
                         rx.icon("users", size=16),
                         "Manage Users",
                         on_click=ManageUsersDialogState.open_dialog
@@ -72,11 +83,20 @@ def main_content_area() -> rx.Component:
         # Description section
         rx.vstack(
             rx.heading("Description", size="4", weight="bold", margin_top="1.5rem"),
-            rx.text(
+            rx.cond(
                 ProjectDetailState.project.description,
-                size="3",
-                color="gray",
-                white_space="pre-wrap"
+                rich_text_component(
+                    initial_value=ProjectDetailState.project.description,
+                    placeholder="No description provided",
+                    disabled=True,
+                    min_height="100px",
+                ),
+                rx.text(
+                    "No description provided",
+                    size="3",
+                    color="gray",
+                    font_style="italic"
+                )
             ),
             width="100%",
             spacing="2",
@@ -101,15 +121,24 @@ def main_content_area() -> rx.Component:
                 # View mode toggle buttons
                 rx.segmented_control.root(
                     rx.segmented_control.item(
-                        rx.icon("folder-open", size=16),
+                        rx.tooltip(
+                            rx.icon("folder-open", size=16),
+                            content="View documents"
+                        ),
                         value="documents",
                     ),
                     rx.segmented_control.item(
-                        rx.icon("list", size=16),
+                        rx.tooltip(
+                            rx.icon("list", size=16),
+                            content="View tasks as list"
+                        ),
                         value="list",
                     ),
                     rx.segmented_control.item(
-                        rx.icon("kanban", size=16),
+                        rx.tooltip(
+                            rx.icon("kanban", size=16),
+                            content="View tasks as kanban board"
+                        ),
                         value="kanban",
                     ),
                     value=ProjectDetailState.view_mode,
@@ -274,6 +303,8 @@ def project_detail_page() -> rx.Component:
         ),
         # Add the update dialog
         project_update_dialog(),
+        # Add the description dialog
+        project_description_dialog(),
         # Add the manage users dialog
         manage_users_dialog(),
         # Add the task form dialog

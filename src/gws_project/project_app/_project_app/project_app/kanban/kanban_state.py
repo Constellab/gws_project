@@ -248,7 +248,6 @@ class KanbanState(ReflexMainState):
         return CardDTO(
             id=task.id,
             title=task.title,
-            description=(task.description or '').strip(),
             priority=task.priority.value,
             assignee=assignee,
             parent_task_title=task.parent_task_title,

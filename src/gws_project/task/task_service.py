@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from gws_core import (BadRequestException, CurrentUserService,
                       ExternalSpaceCreateFolder, SearchParams, SpaceService)
+from gws_core.impl.rich_text.rich_text_types import RichTextDTO
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
 from gws_project.project.project_security_service import (
@@ -220,10 +221,9 @@ class TaskService:
 
         # Check if this task has subtasks (is a parent task)
         if task.allow_subtasks:
-            # For parent tasks, only allow updating title and description
+            # For parent tasks, only allow updating title
             # Dates, status, and priority are calculated from subtasks
             task.title = task_dto.title
-            task.description = task_dto.description
             task.save()
 
             # Recalculate parent task information from subtasks
@@ -252,7 +252,6 @@ class TaskService:
 
         # Update the task fields from DTO
         task.title = task_dto.title
-        task.description = task_dto.description
         if task_dto.start_date:
             task.start_date = task_dto.start_date
         if task_dto.end_date:
@@ -493,7 +492,6 @@ class TaskService:
         task.project = project
         task.parent_task = parent_task
         task.title = task_dto.title
-        task.description = task_dto.description
 
         # Set dates with defaults from project
         task.start_date = task_dto.start_date or project.start_date
@@ -546,3 +544,24 @@ class TaskService:
                     ending_date=parent_task.end_date
                 )
                 self._space_service.update_folder(parent_task.space_folder_id, space_folder)
+
+    @ProjectDbManager.transaction()
+    def update_task_description(self, task_id: str, description: RichTextDTO) -> Task:
+        """Update a task's description.
+
+        :param task_id: The ID of the task
+        :type task_id: str
+        :param description: The new rich text description
+        :type description: RichTextDTO
+        :return: The updated task
+        :rtype: Task
+        """
+        # Get the task and check permissions
+        security_service = ProjectSecurityService()
+        task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
+
+        # Update the description
+        task.description = description
+        task.save()
+
+        return task

@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Optional
 
 from gws_core import BaseModelDTO, ModelDTO, UserDTO
+from gws_core.impl.rich_text.rich_text_types import RichTextDTO
 
 
 class TaskStatus(Enum):
@@ -21,7 +22,6 @@ class TaskPriority(Enum):
 
 class CreateTaskDTO(BaseModelDTO):
     title: str
-    description: str
     start_date: date | None
     end_date: date | None
     status: TaskStatus | None = TaskStatus.TODO
@@ -32,13 +32,11 @@ class CreateTaskDTO(BaseModelDTO):
 
 class CreateSubTaskDTO(BaseModelDTO):
     title: str
-    description: str
     assign_to_id: Optional[str] = None
 
 
 class UpdateTaskDTO(BaseModelDTO):
     title: str
-    description: str
     start_date: date | None
     end_date: date | None
     status: TaskStatus | None
@@ -48,7 +46,7 @@ class UpdateTaskDTO(BaseModelDTO):
 class TaskDTO(ModelDTO):
     """DTO for displaying task information in the frontend."""
     title: str
-    description: Optional[str]
+    description: Optional[RichTextDTO]
     start_date: date
     end_date: date
     status: TaskStatus

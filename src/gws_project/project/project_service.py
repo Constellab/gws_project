@@ -5,6 +5,7 @@ from typing import List, Optional
 from gws_core import (BadRequestException, CurrentUserService,
                       ExternalSpaceCreateFolder, SpaceRootFolderUserRole,
                       SpaceService)
+from gws_core.impl.rich_text.rich_text_types import RichTextDTO
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectUserRole, SaveProjectDTO
@@ -103,7 +104,6 @@ class ProjectService:
             project_dto.project_manager_id) if project_dto.project_manager_id else current_user
         project = Project()
         project.title = project_dto.name
-        project.description = project_dto.description
         project.start_date = project_dto.start_date
         project.end_date = project_dto.end_date
         project.project_manager = project_manager
@@ -161,7 +161,6 @@ class ProjectService:
 
         # Update the project fields from DTO
         project.title = project_dto.name
-        project.description = project_dto.description
         project.start_date = project_dto.start_date
         project.end_date = project_dto.end_date
         if project_dto.project_manager_id:
@@ -345,3 +344,25 @@ class ProjectService:
             self._space_service.update_folder_user_role(project.space_folder_id, user_id, space_role)
 
         return project_user
+
+    @ProjectDbManager.transaction()
+    def update_project_description(self, project_id: str, description: RichTextDTO) -> Project:
+        """Update a project's description.
+
+        :param project_id: The ID of the project
+        :type project_id: str
+        :param description: The new rich text description
+        :type description: RichTextDTO
+        :return: The updated project
+        :rtype: Project
+        """
+        # Get the project and check permissions
+        security_service = ProjectSecurityService()
+        project = security_service.get_and_check_role_for_project(
+            project_id, ProjectUserRole.USER)
+
+        # Update the description
+        project.description = description
+        project.save()
+
+        return project

@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Optional
 
 from gws_core import BaseModelDTO, ModelDTO, UserDTO
+from gws_core.impl.rich_text.rich_text_types import RichTextDTO
 
 
 class ProjectUserRole(Enum):
@@ -37,7 +38,6 @@ class ProjectUserDTO(BaseModelDTO):
 
 class SaveProjectDTO(BaseModelDTO):
     name: str
-    description: str
     start_date: datetime
     end_date: datetime
     project_manager_id: Optional[str] = None
@@ -46,7 +46,7 @@ class SaveProjectDTO(BaseModelDTO):
 class ProjectDTO(ModelDTO):
     """DTO for displaying project information in the frontend."""
     title: str
-    description: Optional[str]
+    description: Optional[RichTextDTO]
     start_date: datetime
     end_date: datetime
     project_manager: UserDTO

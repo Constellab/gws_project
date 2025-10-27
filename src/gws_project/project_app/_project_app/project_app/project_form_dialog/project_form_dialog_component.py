@@ -21,20 +21,6 @@ def _form_content() -> rx.Component:
             spacing="1"
         ),
 
-        rx.vstack(
-            rx.text("Description", size="2", weight="bold"),
-            rx.text_area(
-                placeholder="Enter project description",
-                name="description",
-                required=True,
-                width="100%",
-                rows="4",
-                default_value=ProjectFormDialogState.form_description
-            ),
-            width="100%",
-            spacing="1"
-        ),
-
         rx.hstack(
             rx.vstack(
                 rx.text("Start Date", size="2", weight="bold"),

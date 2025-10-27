@@ -43,7 +43,6 @@ class TaskFormDialogState(FormDialogState, rx.State):
 
     # Form field default values
     form_title: str = ""
-    form_description: str = ""
     form_start_date: str = ""
     form_end_date: str = ""
     form_status: str = TaskStatus.TODO.value
@@ -110,7 +109,6 @@ class TaskFormDialogState(FormDialogState, rx.State):
         if task:
             # Update mode - populate from task
             self.form_title = task.title
-            self.form_description = task.description or ""
             self.form_start_date = task.start_date.strftime('%Y-%m-%d')
             self.form_end_date = task.end_date.strftime('%Y-%m-%d')
             self.form_status = task.status.value if hasattr(task.status, 'value') else task.status
@@ -121,7 +119,6 @@ class TaskFormDialogState(FormDialogState, rx.State):
         else:
             # Create mode - clear/default values
             self.form_title = ""
-            self.form_description = ""
             self.form_start_date = ""
             self.form_end_date = ""
             self.form_status = TaskStatus.TODO.value
@@ -146,19 +143,14 @@ class TaskFormDialogState(FormDialogState, rx.State):
         """
         # Get values from form data
         title = form_data.get('title', '').strip()
-        description = form_data.get('description', '').strip()
         assign_to_id = form_data.get('assign_to_id', '').strip() or None
 
         # Validate required fields
         if not title:
             raise Exception("Task title is required")
 
-        if not description:
-            raise Exception("Task description is required")
-
         result = {
             'title': title,
-            'description': description,
             'assign_to_id': assign_to_id
         }
 
@@ -282,7 +274,6 @@ class TaskFormDialogState(FormDialogState, rx.State):
         # Create and return CreateTaskDTO for root task
         return CreateTaskDTO(
             title=common_fields['title'],
-            description=common_fields['description'],
             start_date=common_fields.get('start_date'),
             end_date=common_fields.get('end_date'),
             status=common_fields.get('status'),
@@ -306,7 +297,6 @@ class TaskFormDialogState(FormDialogState, rx.State):
         # Create and return UpdateTaskDTO
         return UpdateTaskDTO(
             title=common_fields['title'],
-            description=common_fields['description'],
             start_date=common_fields.get('start_date'),
             end_date=common_fields.get('end_date'),
             priority=common_fields.get('priority'),
@@ -395,7 +385,6 @@ class TaskFormDialogState(FormDialogState, rx.State):
         self._form_mode = TaskFormMode.CREATE_ROOT.value
         self.users = []
         self.form_title = ""
-        self.form_description = ""
         self.form_start_date = ""
         self.form_end_date = ""
         self.form_status = TaskStatus.TODO.value
