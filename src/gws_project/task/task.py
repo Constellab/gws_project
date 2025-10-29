@@ -2,15 +2,14 @@
 
 from typing import List
 
-from gws_core import EnumField
-from gws_core.impl.rich_text.rich_text_field import RichTextField
-from gws_core.impl.rich_text.rich_text_types import RichTextDTO
+from gws_core import EnumField, RichTextDTO, RichTextField
+from peewee import BooleanField, CharField, DateField, ForeignKeyField
+
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
 from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from gws_project.user.user import User
-from peewee import (BooleanField, CharField, DateField, ForeignKeyField)
 
 
 class Task(ModelWithUser):

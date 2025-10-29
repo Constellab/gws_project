@@ -3,9 +3,10 @@
 from typing import Callable, List, Optional
 
 import reflex as rx
-from gws_core.core.model.model_dto import BaseModelDTO
-from gws_project.task.task_dto import TaskDTO, TaskStatus
+from gws_core import BaseModelDTO
 from reflex.vars import Var
+
+from gws_project.task.task_dto import TaskDTO, TaskStatus
 
 # Path to the custom TSX component
 kanban_path = rx.asset("kanban_board.tsx", shared=True)

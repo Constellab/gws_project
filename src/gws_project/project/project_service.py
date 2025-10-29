@@ -3,9 +3,9 @@
 from typing import List, Optional
 
 from gws_core import (BadRequestException, CurrentUserService,
-                      ExternalSpaceCreateFolder, SpaceRootFolderUserRole,
-                      SpaceService)
-from gws_core.impl.rich_text.rich_text_types import RichTextDTO
+                      ExternalSpaceCreateFolder, RichTextDTO,
+                      SpaceRootFolderUserRole, SpaceService)
+
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectUserRole, SaveProjectDTO

@@ -1,6 +1,8 @@
 # File to describe the pylint rules
 
 [MASTER]
+# call the pylint_init.py file so pylint is aware of the bricks
+init-hook="import imp, os;imp.load_source('pylint_init', '/lab/user/pylint_init.py')"
 disable=
     missing-function-docstring,
     missing-module-docstring,
@@ -16,9 +18,7 @@ disable=
     too-few-public-methods,
 
     bare-except,
-    raise-missing-from,
-    broad-exception-raised,
-    broad-exception-caught
+    raise-missing-from
 
 # White list pydantic to prevent warnings on imports 
 # https://github.com/samuelcolvin/pydantic/issues/1961#issuecomment-759522422

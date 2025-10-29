@@ -1,5 +1,5 @@
 import reflex as rx
-from gws_core.space.space_dto import SpaceHierarchyObjectDTO
+from gws_core import SpaceHierarchyObjectDTO
 
 from .project_documents_state import ProjectDocumentsState
 

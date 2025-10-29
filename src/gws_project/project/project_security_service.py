@@ -2,6 +2,7 @@
 
 from gws_core import (CurrentUserService, NotFoundException,
                       UnauthorizedException)
+
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectUserRole
 from gws_project.project.project_user import ProjectUser

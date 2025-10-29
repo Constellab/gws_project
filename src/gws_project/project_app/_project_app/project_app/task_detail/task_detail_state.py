@@ -1,12 +1,13 @@
 from typing import Optional
 
 import reflex as rx
-from gws_core.impl.rich_text.rich_text_types import RichTextDTO
+from gws_core import RichTextDTO
+from gws_reflex_main import ConfirmDialogState, ReflexMainState
+
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.task.task import Task
 from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from gws_project.task.task_service import TaskService
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.project_page_state import ProjectPageState
 from ..task_form.task_form_dialog_state import TaskFormDialogState

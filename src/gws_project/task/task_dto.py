@@ -4,8 +4,7 @@ from datetime import date
 from enum import Enum
 from typing import Optional
 
-from gws_core import BaseModelDTO, ModelDTO, UserDTO
-from gws_core.impl.rich_text.rich_text_types import RichTextDTO
+from gws_core import BaseModelDTO, ModelDTO, RichTextDTO, UserDTO
 
 
 class TaskStatus(Enum):

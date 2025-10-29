@@ -1,0 +1,46 @@
+{
+  "workbench.editor.enablePreview": false,
+  "git.ignoreMissingGitWarning": true,
+  "diffEditor.ignoreTrimWhitespace": false,
+  "workbench.editor.revealIfOpen": true,
+  "editor.minimap.enabled": false,
+  "python.defaultInterpreterPath": "/usr/bin/python3",
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+    "files.trimTrailingWhitespace": true
+  },
+  "autopep8.path": [
+    "/home/labuser/.local/bin/autopep8"
+  ],
+  "autopep8.args": [
+    "--max-line-length",
+    "120",
+    "--experimental"
+  ],
+  "pylint.path": [
+    "/home/labuser/.local/bin/pylint"
+  ],
+  "pylint.args": [
+    "--rcfile=${workspaceFolder}/.pylintrc"
+  ],
+  "mypy-type-checker.path": [
+    "/home/labuser/.local/bin/mypy"
+  ],
+  "mypy-type-checker.args": [
+    "--config-file=${workspaceFolder}/.mypy.ini"
+  ],
+  "git-graph.maxDepthOfRepoSearch": 2,
+  "python.autoComplete.extraPaths": [
+    "/lab/user/bricks/gws_core/src",
+    "/lab/user/bricks/gws_project/src",
+    "/lab/user/bricks/gws_core/src/gws_core/apps/reflex/_gws_reflex"
+  ],
+  "python.analysis.extraPaths": [
+    "/lab/user/bricks/gws_core/src",
+    "/lab/user/bricks/gws_project/src",
+    "/lab/user/bricks/gws_core/src/gws_core/apps/reflex/_gws_reflex"
+  ]
+}
