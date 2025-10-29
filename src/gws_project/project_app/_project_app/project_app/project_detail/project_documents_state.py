@@ -2,14 +2,20 @@ import os
 from typing import List, Optional
 
 import reflex as rx
-from anyio import sleep
-from gws_core.core.classes.search_builder import SearchOperator, SearchParams
-from gws_core.space.space_dto import (DocumentUploadOverrideMode,
-                                      SpaceHierarchyObjectDTO)
-from gws_core.space.space_service import SpaceService
-from gws_reflex_main import ReflexMainState
+from gws_core import (BaseModelDTO, DocumentUploadOverrideMode, SearchOperator,
+                      SearchParams, SpaceFrontService, SpaceHierarchyObjectDTO,
+                      SpaceHierarchyObjectType, SpaceService)
+from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.project_page_state import ProjectPageState
+
+
+class ProjectDocumentInfo(BaseModelDTO):
+    """DTO for project document information."""
+    id: str
+    name: str
+    url: str
+    type: SpaceHierarchyObjectType
 
 
 class ProjectDocumentsState(ReflexMainState):
@@ -30,14 +36,32 @@ class ProjectDocumentsState(ReflexMainState):
     _is_uploading_big_file: bool = False
     progress: int = 0
 
+    # ===== Rename Document Dialog =====
+    rename_dialog_open: bool = False
+    rename_document_id: Optional[str] = None
+    rename_document_name: str = ""
+    is_renaming: bool = False
+
     @rx.var
-    def documents(self) -> List[SpaceHierarchyObjectDTO]:
+    def documents(self) -> List[ProjectDocumentInfo]:
         """Return the current list of documents.
 
-        :return: List of SpaceHierarchyObjectDTOs
-        :rtype: List[SpaceHierarchyObjectDTO]
+        :return: List of ProjectDocumentInfo
+        :rtype: List[ProjectDocumentInfo]
         """
-        return self._documents
+        space_front_service = SpaceFrontService()
+        return [
+            ProjectDocumentInfo(
+                id=doc.id,
+                name=doc.name,
+                url=space_front_service.get_hierarchy_object_url(
+                    object_id=doc.id,
+                    object_type=doc.objectType
+                ),
+                type=doc.objectType
+            )
+            for doc in self._documents
+        ]
 
     @rx.var
     def is_loading(self) -> bool:
@@ -252,3 +276,128 @@ class ProjectDocumentsState(ReflexMainState):
         else:
             self._is_uploading_big_file = True
             self.is_uploading = True
+
+    def open_rename_dialog(self, document_id: str, current_name: str):
+        """Open the rename dialog for a document.
+
+        :param document_id: The ID of the document to rename
+        :type document_id: str
+        :param current_name: The current name of the document
+        :type current_name: str
+        """
+        self.rename_document_id = document_id
+        self.rename_document_name = current_name
+        self.rename_dialog_open = True
+
+    def close_rename_dialog(self):
+        """Close the rename dialog."""
+        self.rename_dialog_open = False
+        self.rename_document_id = None
+        self.rename_document_name = ""
+
+    @rx.event(background=True)  # type: ignore
+    async def handle_rename_document(self):
+        """Handle the rename document action."""
+        if not self.rename_document_id or not self.rename_document_name.strip():
+            yield rx.toast.error("Document name cannot be empty")
+            return
+
+        document_id = self.rename_document_id
+        document_name = self.rename_document_name.strip()
+        async with self:
+            self.is_renaming = True
+
+        try:
+            with await self.authenticate_user():
+                space_service = SpaceService()
+                space_service.rename_document(
+                    document_id=document_id,
+                    name=document_name
+                )
+
+            # Update the document name in the local list
+            async with self:
+                for doc in self._documents:
+                    if doc.id == document_id:
+                        doc.name = document_name
+                        break
+
+                self.close_rename_dialog()
+            yield rx.toast.success("Document renamed successfully")
+
+        except Exception as e:
+            yield rx.toast.error(f"Failed to rename document: {str(e)}")
+        finally:
+            async with self:
+                self.is_renaming = False
+
+    # ===== Download Document =====
+    @rx.event()
+    async def handle_download_document(self, document_id: str, document_name: str):
+        """Handle document download using SpaceService.
+
+        :param document_id: The ID of the document to download
+        :type document_id: str
+        :param document_name: The name of the document
+        :type document_name: str
+        """
+        try:
+            with await self.authenticate_user():
+                space_service = SpaceService()
+                # Download document bytes directly
+                file_data = space_service.download_document_bytes(
+                    document_id=document_id,
+                    filename=document_name
+                )
+
+            # Trigger download with raw bytes
+            yield rx.download(data=file_data, filename=document_name)
+
+        except Exception as e:
+            yield rx.toast.error(f"Failed to download document: {str(e)}")
+
+    # ===== Delete Document =====
+    @rx.event
+    async def open_delete_document_dialog(self, document_id: str, document_name: str):
+        """Open the delete document confirmation dialog.
+
+        :param document_id: The ID of the document to delete
+        :type document_id: str
+        :param document_name: The name of the document to delete
+        :type document_name: str
+        """
+        delete_dialog_state = await self.get_state(ConfirmDialogState)
+
+        delete_dialog_state.open_dialog(
+            title="Delete Document",
+            content=f"Are you sure you want to delete '{document_name}'? This will move it to trash.",
+            action=lambda: self._delete_document_action(document_id)
+        )
+
+    async def _delete_document_action(self, document_id: str):
+        """Action to delete the document after confirmation.
+
+        :param document_id: The ID of the document to delete
+        :type document_id: str
+        """
+        try:
+            with await self.authenticate_user():
+                space_service = SpaceService()
+                space_service.delete_document(document_id)
+
+            # Remove the document from the local list
+            self._documents = [doc for doc in self._documents if doc.id != document_id]
+
+            yield rx.toast.success("Document deleted successfully")
+
+        except Exception as e:
+            yield rx.toast.error(f"Failed to delete document: {str(e)}")
+
+    @rx.event
+    def set_rename_document_name(self, name: str):
+        """Set the new name for the document being renamed.
+
+        :param name: The new document name
+        :type name: str
+        """
+        self.rename_document_name = name
