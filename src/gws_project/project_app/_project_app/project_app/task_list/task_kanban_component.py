@@ -4,6 +4,7 @@
 import reflex as rx
 
 from ..common.kanban.kanban import kanban_board
+from ..project_detail.project_detail_state import ProjectDetailState
 from .task_list_state import TaskListState
 
 
@@ -43,6 +44,35 @@ def task_kanban_component() -> rx.Component:
             )
         ),
 
+        width="100%",
+        spacing="3",
+        align_items="start",
+    )
+
+
+def task_kanban_view() -> rx.Component:
+    """Create the tasks kanban view with header and content.
+
+    :return: The tasks kanban view component
+    :rtype: rx.Component
+    """
+    return rx.vstack(
+        # Tasks header with create button
+        rx.hstack(
+            rx.heading("Tasks", size="4", weight="bold"),
+            rx.spacer(),
+            rx.button(
+                rx.icon("plus", size=16),
+                "Create Task",
+                variant="soft",
+                size="2",
+                on_click=ProjectDetailState.open_create_task_dialog
+            ),
+            width="100%",
+            align="center"
+        ),
+        # Tasks kanban content
+        task_kanban_component(),
         width="100%",
         spacing="3",
         align_items="start",

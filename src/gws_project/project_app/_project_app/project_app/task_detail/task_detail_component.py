@@ -62,7 +62,7 @@ def main_content_area() -> rx.Component:
         rx.vstack(
             # Description header with edit toggle
             rx.hstack(
-                rx.heading("Description", size="4", weight="bold", margin_top="1.5rem"),
+                rx.heading("Description", size="4", weight="bold"),
                 rx.spacer(),
                 rx.button(
                     rx.icon(

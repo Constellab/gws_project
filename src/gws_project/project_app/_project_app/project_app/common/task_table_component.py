@@ -2,7 +2,7 @@ from typing import List
 
 import reflex as rx
 from gws_project.task.task_dto import TaskDTO
-from gws_reflex_main import ReflexUtils, user_inline_component
+from gws_reflex_main import user_inline_component
 
 from ..common.task_components import task_icon_component
 from .priority_chip_component import priority_chip

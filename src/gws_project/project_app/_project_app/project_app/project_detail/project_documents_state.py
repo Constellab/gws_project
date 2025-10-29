@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import reflex as rx
 from anyio import sleep
-from gws_core.core.classes.search_builder import SearchParams
+from gws_core.core.classes.search_builder import SearchOperator, SearchParams
 from gws_core.space.space_dto import (DocumentUploadOverrideMode,
                                       SpaceHierarchyObjectDTO)
 from gws_core.space.space_service import SpaceService
@@ -57,6 +57,46 @@ class ProjectDocumentsState(ReflexMainState):
         """
         return self._has_more
 
+    async def _fetch_documents_page(self, folder_id: str, page: int, append: bool = False):
+        """Fetch a page of documents from the space service.
+
+        :param folder_id: The folder ID to fetch documents from
+        :type folder_id: str
+        :param page: The page number to fetch
+        :type page: int
+        :param append: Whether to append to existing documents or replace them
+        :type append: bool
+        :return: Number of documents loaded
+        :rtype: int
+        """
+        self._is_loading = True
+
+        try:
+            with await self.authenticate_user():
+                space_service = SpaceService()
+                search_params = SearchParams()
+                search_params.add_filter_criteria("objectType", SearchOperator.NEQ, "FOLDER")
+
+                # Get paginated documents
+                page_result = space_service.get_project_children_objects_paginated(
+                    folder_id=folder_id,
+                    search_params=search_params,
+                    page=page,
+                    size=self._page_size
+                )
+
+                if append:
+                    self._documents.extend(page_result.objects)
+                else:
+                    self._documents = page_result.objects
+
+                self._has_more = len(page_result.objects) >= self._page_size
+
+                return len(page_result.objects)
+
+        finally:
+            self._is_loading = False
+
     async def load_documents(self):
         """Load the first page of documents for the current project."""
         project_page_state = await self.get_state(ProjectPageState)
@@ -82,30 +122,16 @@ class ProjectDocumentsState(ReflexMainState):
         if self._documents and self._page == 0:
             return
 
-        self._is_loading = True
-
         try:
-            with await self.authenticate_user():
-                space_service = SpaceService()
-                search_params = SearchParams()
-
-                # Get paginated documents
-                page_result = space_service.get_project_children_objects_paginated(
-                    folder_id=current_project.space_folder_id,
-                    search_params=search_params,
-                    page=self._page,
-                    size=self._page_size
-                )
-
-                self._documents = page_result.objects
-                self._has_more = len(page_result.objects) >= self._page_size
+            await self._fetch_documents_page(
+                folder_id=current_project.space_folder_id,
+                page=self._page,
+                append=False
+            )
         except Exception as e:
-            # Log error and show toast
-            yield rx.toast.error(f"Error loading documents: {str(e)}")
             self._documents = []
             self._has_more = False
-        finally:
-            self._is_loading = False
+            raise e
 
     async def load_more_documents(self):
         """Load the next page of documents."""
@@ -118,33 +144,13 @@ class ProjectDocumentsState(ReflexMainState):
         if not current_project or not current_project.space_folder_id:
             return
 
-        self._is_loading = True
+        await self._fetch_documents_page(
+            folder_id=current_project.space_folder_id,
+            page=self._page + 1,
+            append=True
+        )
+
         self._page += 1
-
-        try:
-            with await self.authenticate_user():
-                space_service = SpaceService()
-                search_params = SearchParams()
-
-                # Get next page of documents
-                page_result = space_service.get_project_children_objects_paginated(
-                    folder_id=current_project.space_folder_id,
-                    search_params=search_params,
-                    page=self._page,
-                    size=self._page_size
-                )
-
-                # Append new documents to existing list
-                self._documents.extend(page_result.objects)
-                self._has_more = len(page_result.objects) >= self._page_size
-
-                yield rx.toast.success(f"Loaded {len(page_result.objects)} more documents")
-        except Exception as e:
-            # Revert page increment on error
-            self._page -= 1
-            yield rx.toast.error(f"Error loading more documents: {str(e)}")
-        finally:
-            self._is_loading = False
 
     async def reset_documents(self):
         """Reset documents list when project changes."""

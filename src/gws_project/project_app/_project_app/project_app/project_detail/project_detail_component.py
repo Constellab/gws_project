@@ -1,7 +1,6 @@
 
 import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
-from gws_reflex_main.gws_components import rich_text_component
 
 from ..common.detail_page_layout import detail_page_layout
 from ..common.page_layout import page_layout
@@ -10,13 +9,90 @@ from ..project_form_dialog.project_form_dialog_component import \
 from ..project_form_dialog.project_form_dialog_state import \
     ProjectFormDialogState
 from ..task_form.task_form_dialog_component import task_form_dialog
-from ..task_list.task_kanban_component import task_kanban_component
-from ..task_list.task_list_component import task_list_component
+from ..task_list.task_kanban_component import task_kanban_view
+from ..task_list.task_list_component import task_list_view
 from .manage_users_dialog_component import (ManageUsersDialogState,
                                             manage_users_dialog)
+from .project_description_component import project_description_component
 from .project_detail_state import ProjectDetailState
-from .project_documents_component import project_documents_component
-from .project_documents_state import ProjectDocumentsState
+from .project_documents_component import project_documents_view
+
+
+def view_mode_segmented_control() -> rx.Component:
+    """Create the view mode segmented control for switching between views.
+
+    :return: The segmented control component
+    :rtype: rx.Component
+    """
+    return rx.segmented_control.root(
+        rx.segmented_control.item(
+            rx.tooltip(
+                rx.icon("file-text", size=16),
+                content="View description"
+            ),
+            value="description",
+        ),
+        rx.segmented_control.item(
+            rx.tooltip(
+                rx.icon("folder-open", size=16),
+                content="View documents"
+            ),
+            value="documents",
+        ),
+        rx.segmented_control.item(
+            rx.tooltip(
+                rx.icon("list", size=16),
+                content="View tasks as list"
+            ),
+            value="list",
+        ),
+        rx.segmented_control.item(
+            rx.tooltip(
+                rx.icon("kanban", size=16),
+                content="View tasks as kanban board"
+            ),
+            value="kanban",
+        ),
+        value=ProjectDetailState.view_mode,
+        on_change=ProjectDetailState.set_view_mode,
+        size="2",
+    )
+
+
+def project_action_menu() -> rx.Component:
+    """Create the project action menu with update, manage users, and delete options.
+
+    :return: The action menu component
+    :rtype: rx.Component
+    """
+    return rx.menu.root(
+        rx.menu.trigger(
+            rx.button(
+                rx.icon("ellipsis-vertical", size=18),
+                variant="soft",
+                color_scheme="gray"
+            )
+        ),
+        rx.menu.content(
+            rx.menu.item(
+                rx.icon("pencil", size=16),
+                "Update Project",
+                on_click=lambda: ProjectFormDialogState.open_update_dialog(ProjectDetailState.project)
+            ),
+            rx.menu.item(
+                rx.icon("users", size=16),
+                "Manage Users",
+                on_click=ManageUsersDialogState.open_dialog
+            ),
+            rx.menu.separator(),
+            rx.menu.item(
+                rx.icon("trash_2", size=16),
+                "Delete Project",
+                color="red",
+                on_click=ProjectDetailState.open_delete_project_dialog
+            ),
+        ),
+    )
 
 
 def main_content_area() -> rx.Component:
@@ -26,7 +102,7 @@ def main_content_area() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        # Title row with action menu
+        # Title row with segmented control and action menu
         rx.hstack(
             # Title
             rx.heading(
@@ -34,184 +110,32 @@ def main_content_area() -> rx.Component:
                 size="8",
             ),
             rx.spacer(),
+            # View mode toggle buttons
+            view_mode_segmented_control(),
             # Action menu
-            rx.menu.root(
-                rx.menu.trigger(
-                    rx.button(
-                        rx.icon("ellipsis-vertical", size=18),
-                        variant="soft",
-                        color_scheme="gray"
-                    )
-                ),
-                rx.menu.content(
-                    rx.menu.item(
-                        rx.icon("pencil", size=16),
-                        "Update Project",
-                        on_click=lambda: ProjectFormDialogState.open_update_dialog(ProjectDetailState.project)
-                    ),
-                    rx.menu.item(
-                        rx.icon("users", size=16),
-                        "Manage Users",
-                        on_click=ManageUsersDialogState.open_dialog
-                    ),
-                    rx.menu.separator(),
-                    rx.menu.item(
-                        rx.icon("trash_2", size=16),
-                        "Delete Project",
-                        color="red",
-                        on_click=ProjectDetailState.open_delete_project_dialog
-                    ),
-                ),
-            ),
+            project_action_menu(),
             width="100%",
             align="center",
             spacing="2"
         ),
 
-        # Description section
-        rx.vstack(
-            # Description header with edit toggle
-            rx.hstack(
-                rx.heading("Description", size="4", weight="bold", margin_top="1.5rem"),
-                rx.spacer(),
-                rx.button(
-                    rx.icon(
-                        rx.cond(
-                            ProjectDetailState.description_edit_mode,
-                            "eye",
-                            "pencil"
-                        ),
-                        size=16,
-                    ),
-                    rx.cond(
-                        ProjectDetailState.description_edit_mode,
-                        "View",
-                        "Edit"
-                    ),
-                    variant="soft",
-                    size="2",
-                    on_click=ProjectDetailState.toggle_description_edit_mode
-                ),
-                width="100%",
-                align="center"
-            ),
-            rx.cond(
-                ProjectDetailState.project.description,
-                rich_text_component(
-                    value=ProjectDetailState.project.description,
-                    disabled=~ProjectDetailState.description_edit_mode,
-                    output_event=ProjectDetailState.handle_description_change,
-                    custom_style=rx.cond(
-                        ProjectDetailState.description_edit_mode,
-                        {"minHeight": "750px"},
-                        {"padding": "0"}
-                    )
-                ),
-                rx.text(
-                    "No description provided",
-                    size="3",
-                    color="gray",
-                    font_style="italic"
-                )
-            ),
-            width="100%",
-            spacing="2",
-            align_items="start"
-        ),
-
-        # Tasks and Documents section with view toggle
-        rx.vstack(
-            # Header with title, view toggle, and create button
-            rx.hstack(
-                rx.heading(
-                    rx.cond(
-                        ProjectDetailState.view_mode == "documents",
-                        "Documents",
-                        "Tasks"
-                    ),
-                    size="4",
-                    weight="bold",
-                    margin_top="1.5rem"
-                ),
-                rx.spacer(),
-                # View mode toggle buttons
-                rx.segmented_control.root(
-                    rx.segmented_control.item(
-                        rx.tooltip(
-                            rx.icon("folder-open", size=16),
-                            content="View documents"
-                        ),
-                        value="documents",
-                    ),
-                    rx.segmented_control.item(
-                        rx.tooltip(
-                            rx.icon("list", size=16),
-                            content="View tasks as list"
-                        ),
-                        value="list",
-                    ),
-                    rx.segmented_control.item(
-                        rx.tooltip(
-                            rx.icon("kanban", size=16),
-                            content="View tasks as kanban board"
-                        ),
-                        value="kanban",
-                    ),
-                    value=ProjectDetailState.view_mode,
-                    on_change=ProjectDetailState.set_view_mode,
-                    size="2",
-                ),
-                # Show create task button only in task views
-                rx.cond(
-                    ProjectDetailState.view_mode != "documents",
-                    rx.button(
-                        rx.icon("plus", size=16),
-                        "Create Task",
-                        variant="soft",
-                        size="2",
-                        on_click=ProjectDetailState.open_create_task_dialog
-                    ),
-                ),
-                # Show upload button only in documents view
-                rx.cond(
-                    ProjectDetailState.view_mode == "documents",
-                    rx.upload.root(
-                        rx.button(
-                            rx.spinner(loading=ProjectDocumentsState.is_uploading),
-                            rx.icon("upload", size=16),
-                            "Upload File",
-                            variant="soft",
-                            size="2",
-                        ),
-                        id="document_upload",
-                        multiple=True,
-                        on_drop=ProjectDocumentsState.handle_upload(
-                            rx.upload_files("document_upload",
-                                            on_upload_progress=ProjectDocumentsState.handle_upload_progress)
-                        ),
-
-                    ),
-                ),
-                width="100%",
-                align="center",
-            ),
-            # Conditional rendering based on view mode
-            rx.match(
-                ProjectDetailState.view_mode,
-                ("documents", project_documents_component()),
-                ("list", task_list_component()),
-                ("kanban", task_kanban_component()),
-                task_list_component(),  # default
-            ),
-            width="100%",
-            spacing="3",
-            align_items="start",
+        # Conditional rendering based on view mode
+        rx.match(
+            ProjectDetailState.view_mode,
+            ("description", project_description_component()),
+            ("documents", project_documents_view()),
+            ("list", task_list_view()),
+            ("kanban", task_kanban_view()),
+            project_description_component(),  # default
         ),
 
         width="100%",
         spacing="3",
         align_items="start",
-        flex="1"
+        # full height but not overflow parent
+        flex="1",
+        min_height="0",
+        class_name="project-main-content-area",
     )
 
 
@@ -316,6 +240,7 @@ def project_detail_page() -> rx.Component:
                     sidebar_content=details_sidebar()
                 ),
             ),
+            height='100vh'
         ),
         # Add the update dialog
         project_update_dialog(),

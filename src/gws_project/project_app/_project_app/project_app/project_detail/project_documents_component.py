@@ -4,6 +4,46 @@ from gws_core.space.space_dto import SpaceHierarchyObjectDTO
 from .project_documents_state import ProjectDocumentsState
 
 
+def project_documents_view() -> rx.Component:
+    """Create the documents view with header and content.
+
+    :return: The documents view component
+    :rtype: rx.Component
+    """
+    return rx.vstack(
+        # Documents header with upload button
+        rx.hstack(
+            rx.heading("Documents", size="4", weight="bold"),
+            rx.spacer(),
+            rx.upload.root(
+                rx.button(
+                    rx.spinner(loading=ProjectDocumentsState.is_uploading),
+                    rx.icon("upload", size=16),
+                    "Upload File",
+                    variant="soft",
+                    size="2",
+                ),
+                id="document_upload",
+                multiple=True,
+                on_drop=ProjectDocumentsState.handle_upload(
+                    rx.upload_files("document_upload",
+                                    on_upload_progress=ProjectDocumentsState.handle_upload_progress)
+                ),
+            ),
+            width="100%",
+            align="center"
+        ),
+        # Documents content
+        project_documents_component(),
+        width="100%",
+        spacing="3",
+        align_items="start",
+        # full height but not overflow parent
+        flex="1",
+        min_height="0",
+    )
+
+
 def project_documents_component() -> rx.Component:
     """Create the project documents component with a table and load more functionality.
 
@@ -48,6 +88,11 @@ def project_documents_component() -> rx.Component:
             width="100%",
             spacing="0",
             align_items="stretch",
+            class_name="project-documents-component",
+            # full height but not overflow parent
+            flex="1",
+            min_height="0",
+            overflow_y="auto",
         ),
         # Empty state
         rx.center(

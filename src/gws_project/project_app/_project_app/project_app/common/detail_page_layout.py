@@ -23,40 +23,33 @@ def detail_page_layout(
     :return: The detail page layout component
     :rtype: rx.Component
     """
-    return rx.vstack(
-        # Two-column content layout
-        rx.box(
-            rx.hstack(
-                # Main content area (center, max width 1000px)
-                rx.box(
-                    rx.box(breadcrumb_component(),
-                           margin_bottom="1em"
-                           ),
-                    main_content,
-                    max_width="1200px",
-                    width="100%",
-                    flex="1"
-                ),
-
-                # Sidebar (right, fixed width with styling)
-                rx.vstack(
-                    sidebar_content,
-                    width="450px",
-                    min_width="450px",
-                    padding="1.5rem",
-                    background="var(--gray-2)",
-                    border_radius="8px",
-                    align_items="start"
-                ),
-
-                width="100%",
-                spacing="4",
-                align_items="start",
-                justify="center"
-            ),
-            width="100%"
+    return rx.hstack(
+        # Main content area (center, max width 1000px)
+        rx.vstack(
+            rx.box(breadcrumb_component(),
+                   margin_bottom="1em"
+                   ),
+            main_content,
+            max_width="1200px",
+            width="100%",
+            height="100%",
+            flex="1"
         ),
 
+        # Sidebar (right, fixed width with styling)
+        rx.vstack(
+            sidebar_content,
+            width="450px",
+            min_width="450px",
+            padding="1.5rem",
+            background="var(--gray-2)",
+            border_radius="8px",
+            align_items="start"
+        ),
+
+        height="100%",
         width="100%",
-        spacing="4"
+        spacing="4",
+        align_items="start",
+        justify="center"
     )
