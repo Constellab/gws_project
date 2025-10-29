@@ -1,6 +1,7 @@
 from typing import Optional
 
 import reflex as rx
+from gws_core.impl.rich_text.rich_text_types import RichTextDTO
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.task.task import Task
 from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
@@ -18,6 +19,8 @@ class TaskDetailState(ReflexMainState):
     This state handles fetching and displaying the details of a single task
     based on the task ID from the URL.
     """
+
+    description_edit_mode: bool = False  # Track if description is in edit mode
 
     @rx.var
     async def task(self) -> Optional[TaskDTO]:
@@ -104,6 +107,37 @@ class TaskDetailState(ReflexMainState):
         :type task: Task
         """
         # Refresh the current task by reloading from the page state
+        project_page_state = await self.get_state(ProjectPageState)
+        await project_page_state.refresh_object()
+
+    def toggle_description_edit_mode(self):
+        """Toggle the description edit mode."""
+        self.description_edit_mode = not self.description_edit_mode
+
+    @rx.event
+    async def handle_description_change(self, event_data: dict):
+        """Handle changes from the rich text component and update the task description.
+
+        Args:
+            event_data: Dictionary containing the RichTextDTO data
+        """
+        # Convert event data to RichTextDTO
+        description_dto = RichTextDTO.from_json(event_data)
+
+        # Get current task
+        task = await self.task
+        if not task:
+            return
+
+        # Update the task description
+        with await self.authenticate_user():
+            task_service = TaskService()
+            task_service.update_task_description(
+                task.id,
+                description_dto
+            )
+
+        # Reload the task to reflect changes
         project_page_state = await self.get_state(ProjectPageState)
         await project_page_state.refresh_object()
 

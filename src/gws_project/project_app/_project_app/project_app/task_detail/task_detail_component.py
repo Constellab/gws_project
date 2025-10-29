@@ -7,10 +7,6 @@ from ..common.page_layout import page_layout
 from ..common.priority_chip_component import priority_chip
 from ..common.status_chip_component import status_chip
 from ..common.task_components import task_icon_component
-from ..task_description_dialog.task_description_dialog_component import \
-    task_description_dialog
-from ..task_description_dialog.task_description_dialog_state import \
-    TaskDescriptionDialogState
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_list.task_list_component import task_list_component
 from .task_detail_state import TaskDetailState
@@ -48,11 +44,6 @@ def main_content_area() -> rx.Component:
                         "Update Task",
                         on_click=TaskDetailState.open_update_task_dialog
                     ),
-                    rx.menu.item(
-                        rx.icon("file-text", size=16),
-                        "Update Description",
-                        on_click=lambda: TaskDescriptionDialogState.open_dialog_with_task(TaskDetailState.task)
-                    ),
                     rx.menu.separator(),
                     rx.menu.item(
                         rx.icon("trash_2", size=16),
@@ -69,13 +60,42 @@ def main_content_area() -> rx.Component:
 
         # Description section
         rx.vstack(
-            rx.heading("Description", size="4", weight="bold", margin_top="1.5rem"),
+            # Description header with edit toggle
+            rx.hstack(
+                rx.heading("Description", size="4", weight="bold", margin_top="1.5rem"),
+                rx.spacer(),
+                rx.button(
+                    rx.icon(
+                        rx.cond(
+                            TaskDetailState.description_edit_mode,
+                            "eye",
+                            "pencil"
+                        ),
+                        size=16
+                    ),
+                    rx.cond(
+                        TaskDetailState.description_edit_mode,
+                        "View",
+                        "Edit"
+                    ),
+                    variant="soft",
+                    size="2",
+                    on_click=TaskDetailState.toggle_description_edit_mode
+                ),
+                width="100%",
+                align="center"
+            ),
             rx.cond(
                 TaskDetailState.task.description,
                 rich_text_component(
-                    initial_value=TaskDetailState.task.description,
-                    disabled=True,
-                    min_height="100px",
+                    value=TaskDetailState.task.description,
+                    disabled=~TaskDetailState.description_edit_mode,
+                    output_event=TaskDetailState.handle_description_change,
+                    custom_style=rx.cond(
+                        TaskDetailState.description_edit_mode,
+                        {"minHeight": "750px"},
+                        {"padding": "0"}
+                    )
                 ),
                 rx.text(
                     "No description provided",
@@ -260,6 +280,4 @@ def task_detail_page() -> rx.Component:
         ),
         # Add the task form dialog
         task_form_dialog(),
-        # Add the description dialog
-        task_description_dialog(),
     )

@@ -1,6 +1,7 @@
 from typing import List, Optional, Union
 
 import reflex as rx
+from gws_core.impl.rich_text.rich_text_types import RichTextDTO
 from gws_project.project.project_dto import ProjectDTO, ProjectUserDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
@@ -19,6 +20,7 @@ class ProjectDetailState(ReflexMainState):
     """
 
     view_mode: str = "documents"  # "list", "kanban", or "documents"
+    description_edit_mode: bool = False  # Track if description is in edit mode
 
     _project_id: Optional[str] = None
     _project_users: List[ProjectUserDTO] = []
@@ -88,6 +90,37 @@ class ProjectDetailState(ReflexMainState):
             self.view_mode = value[0] if value else "list"
         else:
             self.view_mode = value
+
+    def toggle_description_edit_mode(self):
+        """Toggle the description edit mode."""
+        self.description_edit_mode = not self.description_edit_mode
+
+    @rx.event
+    async def handle_description_change(self, event_data: dict):
+        """Handle changes from the rich text component and update the project description.
+
+        Args:
+            event_data: Dictionary containing the RichTextDTO data
+        """
+        # Convert event data to RichTextDTO
+        description_dto = RichTextDTO.from_json(event_data)
+
+        # Get current project
+        project = await self.project
+        if not project:
+            return
+
+        # Update the project description
+        with await self.authenticate_user():
+            project_service = ProjectService()
+            project_service.update_project_description(
+                project.id,
+                description_dto
+            )
+
+        # Reload the project to reflect changes
+        project_page_state = await self.get_state(ProjectPageState)
+        await project_page_state.refresh_object()
 
     async def open_create_task_dialog(self):
         """Open the create task dialog for this project."""

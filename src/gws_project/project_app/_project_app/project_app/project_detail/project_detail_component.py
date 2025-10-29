@@ -1,16 +1,10 @@
 
 import reflex as rx
-from gws_project.project.project_dto import ProjectUserDTO
-from gws_reflex_main import (main_component, user_inline_component,
-                             user_profile_picture)
+from gws_reflex_main import main_component, user_inline_component
 from gws_reflex_main.gws_components import rich_text_component
 
 from ..common.detail_page_layout import detail_page_layout
 from ..common.page_layout import page_layout
-from ..project_description_dialog.project_description_dialog_component import \
-    project_description_dialog
-from ..project_description_dialog.project_description_dialog_state import \
-    ProjectDescriptionDialogState
 from ..project_form_dialog.project_form_dialog_component import \
     project_update_dialog
 from ..project_form_dialog.project_form_dialog_state import \
@@ -56,12 +50,6 @@ def main_content_area() -> rx.Component:
                         on_click=lambda: ProjectFormDialogState.open_update_dialog(ProjectDetailState.project)
                     ),
                     rx.menu.item(
-                        rx.icon("file-text", size=16),
-                        "Update Description",
-                        on_click=lambda: ProjectDescriptionDialogState.open_dialog_with_project(
-                            ProjectDetailState.project)
-                    ),
-                    rx.menu.item(
                         rx.icon("users", size=16),
                         "Manage Users",
                         on_click=ManageUsersDialogState.open_dialog
@@ -82,14 +70,42 @@ def main_content_area() -> rx.Component:
 
         # Description section
         rx.vstack(
-            rx.heading("Description", size="4", weight="bold", margin_top="1.5rem"),
+            # Description header with edit toggle
+            rx.hstack(
+                rx.heading("Description", size="4", weight="bold", margin_top="1.5rem"),
+                rx.spacer(),
+                rx.button(
+                    rx.icon(
+                        rx.cond(
+                            ProjectDetailState.description_edit_mode,
+                            "eye",
+                            "pencil"
+                        ),
+                        size=16,
+                    ),
+                    rx.cond(
+                        ProjectDetailState.description_edit_mode,
+                        "View",
+                        "Edit"
+                    ),
+                    variant="soft",
+                    size="2",
+                    on_click=ProjectDetailState.toggle_description_edit_mode
+                ),
+                width="100%",
+                align="center"
+            ),
             rx.cond(
                 ProjectDetailState.project.description,
                 rich_text_component(
-                    initial_value=ProjectDetailState.project.description,
-                    placeholder="No description provided",
-                    disabled=True,
-                    min_height="100px",
+                    value=ProjectDetailState.project.description,
+                    disabled=~ProjectDetailState.description_edit_mode,
+                    output_event=ProjectDetailState.handle_description_change,
+                    custom_style=rx.cond(
+                        ProjectDetailState.description_edit_mode,
+                        {"minHeight": "750px"},
+                        {"padding": "0"}
+                    )
                 ),
                 rx.text(
                     "No description provided",
@@ -303,8 +319,6 @@ def project_detail_page() -> rx.Component:
         ),
         # Add the update dialog
         project_update_dialog(),
-        # Add the description dialog
-        project_description_dialog(),
         # Add the manage users dialog
         manage_users_dialog(),
         # Add the task form dialog

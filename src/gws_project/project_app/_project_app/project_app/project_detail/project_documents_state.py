@@ -233,7 +233,6 @@ class ProjectDocumentsState(ReflexMainState):
 
     @rx.event
     def handle_upload_progress(self, progress: dict):
-        print(progress)
 
         # For small file the progress is set to 1 directly, it will be set to false by upload method
         # for big file, the progress is set to 1 once the upload method is complete
