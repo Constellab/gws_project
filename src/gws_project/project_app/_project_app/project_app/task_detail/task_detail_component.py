@@ -200,6 +200,26 @@ def details_sidebar() -> rx.Component:
             rx.text("Assigned to", size="2", color="gray", weight="medium"),
             user_inline_component(TaskDetailState.task.assign_to),
 
+            # Subtask members (conditional row - only show if task has subtasks)
+            rx.cond(
+                TaskDetailState.task.allow_subtasks,
+                rx.fragment(
+                    rx.text("Subtask members", size="2", color="gray", weight="medium"),
+                    rx.cond(
+                        TaskDetailState.subtask_members.length() > 0,
+                        rx.flex(
+                            rx.foreach(
+                                TaskDetailState.subtask_members,
+                                lambda user: user_inline_component(user)
+                            ),
+                            direction="column",
+                            spacing="1"
+                        ),
+                        rx.text("No members assigned", size="2", color="gray", font_style="italic")
+                    ),
+                )
+            ),
+
             # Status
             rx.text("Status", size="2", color="gray", weight="medium"),
             rx.box(status_chip(

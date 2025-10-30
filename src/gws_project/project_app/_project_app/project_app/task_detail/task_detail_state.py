@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import List, Optional
 
 import reflex as rx
-from gws_core import RichTextDTO
+from gws_core import RichTextDTO, UserDTO
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from gws_project.project.project_dto import ProjectDTO
@@ -63,6 +63,24 @@ class TaskDetailState(ReflexMainState):
             return None
 
         return current_task.parent_task.to_dto()
+
+    @rx.var
+    async def subtask_members(self) -> List[UserDTO]:
+        """Return the list of unique users assigned to subtasks of this task.
+
+        Only returns data if the task allows subtasks.
+
+        :return: List of unique user DTOs assigned to subtasks
+        :rtype: List[UserDTO]
+        """
+        task = await self.task
+        if not task or not task.allow_subtasks:
+            return []
+
+        with await self.authenticate_user():
+            task_service = TaskService()
+            users = task_service.get_subtask_assigned_users(task.id)
+            return [user.to_dto() for user in users]
 
     async def open_create_subtask_dialog(self):
         """Open the create subtask dialog."""

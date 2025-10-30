@@ -577,3 +577,33 @@ class TaskService:
         task.save()
 
         return task
+
+    def get_subtask_assigned_users(self, task_id: str) -> List[User]:
+        """Get the list of unique users assigned to subtasks of a task.
+
+        Returns an empty list if the task has no subtasks or if no users are assigned.
+
+        :param task_id: The ID of the parent task
+        :type task_id: str
+        :return: List of unique users assigned to the subtasks
+        :rtype: List[User]
+        :raises NotFoundException: If the task is not found
+        :raises UnauthorizedException: If the user doesn't have access to the task
+        """
+        # Get the task and check permissions
+        security_service = ProjectSecurityService()
+        task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
+
+        # Get all subtasks of the task
+        subtasks = Task.get_subtasks_of_task(task.id)
+
+        # Extract unique users using a dictionary to preserve order and avoid duplicates
+        seen_user_ids = set()
+        unique_users = []
+
+        for subtask in subtasks:
+            if subtask.assign_to and subtask.assign_to.id not in seen_user_ids:
+                seen_user_ids.add(subtask.assign_to.id)
+                unique_users.append(subtask.assign_to)
+
+        return unique_users
