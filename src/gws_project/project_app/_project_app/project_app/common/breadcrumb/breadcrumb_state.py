@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import List
 
 import reflex as rx
@@ -8,7 +9,8 @@ from gws_reflex_main import ReflexMainState
 from ..project_page_state import ProjectPageState
 
 
-class BreadcrumbItem(rx.Base):
+@dataclass
+class BreadcrumbItem():
     """Represents a single item in the breadcrumb trail.
 
     :param label: The display text for this breadcrumb item

@@ -2,14 +2,13 @@
 
 from typing import List
 
-from gws_core import EnumField, RichTextDTO, RichTextField
-from peewee import BooleanField, CharField, DateField, ForeignKeyField
-
+from gws_core import EnumField, RichTextDbField, RichTextDTO, Tag
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
 from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from gws_project.user.user import User
+from peewee import BooleanField, CharField, DateField, ForeignKeyField
 
 
 class Task(ModelWithUser):
@@ -25,19 +24,25 @@ class Task(ModelWithUser):
     - The allow_subtasks field cannot be modified after creation
     """
 
-    project = ForeignKeyField(Project, on_delete='CASCADE', null=False, backref='+')
-    parent_task: 'Task' = ForeignKeyField('self', on_delete='CASCADE', null=True, backref='subtasks')
+    project = ForeignKeyField(
+        Project, on_delete='CASCADE', null=False, backref='+')
+    parent_task: 'Task' = ForeignKeyField(
+        'self', on_delete='CASCADE', null=True, backref='subtasks')
     title = CharField(max_length=255, null=False)
-    description: RichTextDTO = RichTextField(null=True)
+    description: RichTextDTO = RichTextDbField(null=True)
     start_date = DateField(null=False)
     end_date = DateField(null=False)
-    status = EnumField(choices=TaskStatus, max_length=20, default=TaskStatus.TODO, null=False)
-    priority = EnumField(choices=TaskPriority, max_length=10, default=TaskPriority.MEDIUM, null=False)
+    status = EnumField(choices=TaskStatus, max_length=20,
+                       default=TaskStatus.TODO, null=False)
+    priority = EnumField(choices=TaskPriority, max_length=10,
+                         default=TaskPriority.MEDIUM, null=False)
     allow_subtasks = BooleanField(default=False)
     assign_to = ForeignKeyField(User, null=False, backref='+')
-    space_folder_id = CharField(max_length=36, unique=True, null=True)
+    space_folder_id = CharField(max_length=36, null=True)
 
     subtasks: List['Task']
+
+    SPACE_TASK_NAME: str = 'task'
 
     def is_root_task(self) -> bool:
         """Check if the task is a root task (i.e., has no parent task)"""
@@ -99,11 +104,13 @@ class Task(ModelWithUser):
             new_priority = TaskPriority.MEDIUM
         else:
             # Define priority order
-            priority_order = {TaskPriority.HIGH: 3, TaskPriority.MEDIUM: 2, TaskPriority.LOW: 1}
+            priority_order = {TaskPriority.HIGH: 3,
+                              TaskPriority.MEDIUM: 2, TaskPriority.LOW: 1}
             subtask_priorities = [subtask.priority for subtask in subtasks]
 
             # Get the highest priority
-            new_priority = max(subtask_priorities, key=lambda p: priority_order[p])
+            new_priority = max(subtask_priorities,
+                               key=lambda p: priority_order[p])
 
         # Check if priority changed
         if self.priority != new_priority:
@@ -129,12 +136,16 @@ class Task(ModelWithUser):
             new_end_date = self.project.end_date
         else:
             # Calculate start date: earliest start date from subtasks
-            start_dates = [subtask.start_date for subtask in subtasks if subtask.start_date]
-            new_start_date = min(start_dates) if start_dates else self.project.start_date
+            start_dates = [
+                subtask.start_date for subtask in subtasks if subtask.start_date]
+            new_start_date = min(
+                start_dates) if start_dates else self.project.start_date
 
             # Calculate end date: latest end date from subtasks
-            end_dates = [subtask.end_date for subtask in subtasks if subtask.end_date]
-            new_end_date = max(end_dates) if end_dates else self.project.end_date
+            end_dates = [
+                subtask.end_date for subtask in subtasks if subtask.end_date]
+            new_end_date = max(
+                end_dates) if end_dates else self.project.end_date
 
         # Check if dates changed
         dates_changed = False
@@ -213,6 +224,9 @@ class Task(ModelWithUser):
         :rtype: int
         """
         return cls.select().where((cls.assign_to == user_id) & (cls.project == project_id)).count()
+
+    def get_space_tag(self) -> Tag:
+        return Tag(key=self.SPACE_TASK_NAME, value=self.id)
 
     def to_dto(self) -> TaskDTO:
         """Convert the Task model to a TaskDTO for display in the frontend.

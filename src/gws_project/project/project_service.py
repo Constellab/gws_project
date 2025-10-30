@@ -2,10 +2,9 @@
 
 from typing import List, Optional
 
-from gws_core import (BadRequestException, CurrentUserService,
-                      ExternalSpaceCreateFolder, RichTextDTO,
-                      SpaceRootFolderUserRole, SpaceService)
-
+from gws_core import (BadRequestException, BaseHTTPException,
+                      CurrentUserService, ExternalSpaceCreateFolder, Logger,
+                      RichTextDTO, SpaceRootFolderUserRole, SpaceService)
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectUserRole, SaveProjectDTO
@@ -191,13 +190,22 @@ class ProjectService:
         :param project: The project to delete
         :type project: Project
         """
-
         security_service = ProjectSecurityService()
         project = security_service.get_and_check_role_for_project(
             project_id, ProjectUserRole.OWNER)
+
         # If the project has a space folder ID, delete the folder in Space first
         if project.space_folder_id:
-            self._space_service.delete_folder(project.space_folder_id)
+            try:
+                self._space_service.delete_folder(project.space_folder_id)
+            except BaseHTTPException as e:
+                if e.status_code == 404:
+                    # Folder not found in Space, proceed with project deletion
+                    Logger.warning(
+                        f"Space folder {project.space_folder_id} not found. Proceeding with project deletion.")
+                else:
+                    # Reraise other exceptions
+                    raise e
 
         # Delete the project from the database
         project.delete_instance()
@@ -366,3 +374,4 @@ class ProjectService:
         project.save()
 
         return project
+

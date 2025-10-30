@@ -3,6 +3,8 @@ import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
 
 from ..common.detail_page_layout import detail_page_layout
+from ..common.documents_list.documents_list_component import \
+    documents_list_view
 from ..common.page_layout import page_layout
 from ..project_form_dialog.project_form_dialog_component import \
     project_update_dialog
@@ -15,7 +17,6 @@ from .manage_users_dialog_component import (ManageUsersDialogState,
                                             manage_users_dialog)
 from .project_description_component import project_description_component
 from .project_detail_state import ProjectDetailState
-from .project_documents_component import project_documents_view
 
 
 def view_mode_segmented_control() -> rx.Component:
@@ -123,7 +124,7 @@ def main_content_area() -> rx.Component:
         rx.match(
             ProjectDetailState.view_mode,
             ("description", project_description_component()),
-            ("documents", project_documents_view()),
+            ("documents", documents_list_view()),
             ("list", task_list_view()),
             ("kanban", task_kanban_view()),
             project_description_component(),  # default

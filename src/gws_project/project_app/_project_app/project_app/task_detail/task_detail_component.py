@@ -3,6 +3,8 @@ from gws_reflex_main import main_component, user_inline_component
 from gws_reflex_main.gws_components import rich_text_component
 
 from ..common.detail_page_layout import detail_page_layout
+from ..common.documents_list.documents_list_component import \
+    documents_list_view
 from ..common.page_layout import page_layout
 from ..common.priority_chip_component import priority_chip
 from ..common.status_chip_component import status_chip
@@ -12,6 +14,146 @@ from ..task_list.task_list_component import task_list_component
 from .task_detail_state import TaskDetailState
 
 
+def task_header() -> rx.Component:
+    """Create the task header with icon, title, and action menu.
+
+    :return: The task header component
+    :rtype: rx.Component
+    """
+    return rx.hstack(
+        # Icon indicating if task allows subtasks
+        task_icon_component(TaskDetailState.task, size=24),
+        # Title
+        rx.heading(
+            TaskDetailState.task.title,
+            size="8",
+        ),
+        rx.spacer(),
+        # Action menu (Update and Delete)
+        rx.menu.root(
+            rx.menu.trigger(
+                rx.button(
+                    rx.icon("ellipsis-vertical", size=18),
+                    variant="soft",
+                    color_scheme="gray"
+                )
+            ),
+            rx.menu.content(
+                rx.menu.item(
+                    rx.icon("pencil", size=16),
+                    "Update Task",
+                    on_click=TaskDetailState.open_update_task_dialog
+                ),
+                rx.menu.separator(),
+                rx.menu.item(
+                    rx.icon("trash_2", size=16),
+                    "Delete",
+                    color="red",
+                    on_click=TaskDetailState.open_delete_task_dialog
+                ),
+            ),
+        ),
+        width="100%",
+        align="center",
+        spacing="2"
+    )
+
+
+def task_description() -> rx.Component:
+    """Create the task description section with edit/view toggle.
+
+    :return: The task description component
+    :rtype: rx.Component
+    """
+    return rx.vstack(
+        # Description header with edit toggle
+        rx.hstack(
+            rx.heading("Description", size="4", weight="bold"),
+            rx.spacer(),
+            rx.button(
+                rx.icon(
+                    rx.cond(
+                        TaskDetailState.description_edit_mode,
+                        "eye",
+                        "pencil"
+                    ),
+                    size=16
+                ),
+                rx.cond(
+                    TaskDetailState.description_edit_mode,
+                    "View",
+                    "Edit"
+                ),
+                variant="soft",
+                size="2",
+                on_click=TaskDetailState.toggle_description_edit_mode
+            ),
+            width="100%",
+            align="center"
+        ),
+        rx.cond(
+            TaskDetailState.task.description,
+            rich_text_component(
+                value=TaskDetailState.task.description,
+                disabled=~TaskDetailState.description_edit_mode,
+                output_event=TaskDetailState.handle_description_change,
+                custom_style=rx.cond(
+                    TaskDetailState.description_edit_mode,
+                    {"minHeight": "750px"},
+                    {"padding": "0"}
+                )
+            ),
+            rx.text(
+                "No description provided",
+                size="3",
+                color="gray",
+                font_style="italic"
+            )
+        ),
+        width="100%",
+        spacing="2",
+        align_items="start"
+    )
+
+
+def task_subtasks() -> rx.Component:
+    """Create the subtasks section with header and list.
+
+    Only displayed if the task allows subtasks.
+
+    :return: The task subtasks component
+    :rtype: rx.Component
+    """
+    return rx.cond(
+        TaskDetailState.task.allow_subtasks,
+        rx.vstack(
+            # Header with title and create button
+            rx.hstack(
+                rx.heading(
+                    "Subtasks",
+                    size="5",
+                    margin_top="1.5rem"
+                ),
+                rx.spacer(),
+                rx.button(
+                    rx.icon("plus", size=16),
+                    "Create Subtask",
+                    variant="soft",
+                    size="2",
+                    on_click=TaskDetailState.open_create_subtask_dialog
+                ),
+                width="100%",
+                align="center",
+            ),
+            # Subtask list component
+            task_list_component(),
+            width="100%",
+            spacing="3",
+            align_items="start",
+        )
+    )
+
+
 def main_content_area() -> rx.Component:
     """Create the main content area (left side) with title, description, and subtasks.
 
@@ -19,126 +161,10 @@ def main_content_area() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        # Title row with icon and action menu
-        rx.hstack(
-            # Icon indicating if task allows subtasks
-            task_icon_component(TaskDetailState.task, size=24),
-            # Title
-            rx.heading(
-                TaskDetailState.task.title,
-                size="8",
-            ),
-            rx.spacer(),
-            # Action menu (Update and Delete)
-            rx.menu.root(
-                rx.menu.trigger(
-                    rx.button(
-                        rx.icon("ellipsis-vertical", size=18),
-                        variant="soft",
-                        color_scheme="gray"
-                    )
-                ),
-                rx.menu.content(
-                    rx.menu.item(
-                        rx.icon("pencil", size=16),
-                        "Update Task",
-                        on_click=TaskDetailState.open_update_task_dialog
-                    ),
-                    rx.menu.separator(),
-                    rx.menu.item(
-                        rx.icon("trash_2", size=16),
-                        "Delete",
-                        color="red",
-                        on_click=TaskDetailState.open_delete_task_dialog
-                    ),
-                ),
-            ),
-            width="100%",
-            align="center",
-            spacing="2"
-        ),
-
-        # Description section
-        rx.vstack(
-            # Description header with edit toggle
-            rx.hstack(
-                rx.heading("Description", size="4", weight="bold"),
-                rx.spacer(),
-                rx.button(
-                    rx.icon(
-                        rx.cond(
-                            TaskDetailState.description_edit_mode,
-                            "eye",
-                            "pencil"
-                        ),
-                        size=16
-                    ),
-                    rx.cond(
-                        TaskDetailState.description_edit_mode,
-                        "View",
-                        "Edit"
-                    ),
-                    variant="soft",
-                    size="2",
-                    on_click=TaskDetailState.toggle_description_edit_mode
-                ),
-                width="100%",
-                align="center"
-            ),
-            rx.cond(
-                TaskDetailState.task.description,
-                rich_text_component(
-                    value=TaskDetailState.task.description,
-                    disabled=~TaskDetailState.description_edit_mode,
-                    output_event=TaskDetailState.handle_description_change,
-                    custom_style=rx.cond(
-                        TaskDetailState.description_edit_mode,
-                        {"minHeight": "750px"},
-                        {"padding": "0"}
-                    )
-                ),
-                rx.text(
-                    "No description provided",
-                    size="3",
-                    color="gray",
-                    font_style="italic"
-                )
-            ),
-            width="100%",
-            spacing="2",
-            align_items="start"
-        ),
-
-        # Subtasks section (only if task allows subtasks)
-        rx.cond(
-            TaskDetailState.task.allow_subtasks,
-            rx.vstack(
-                # Header with title and create button
-                rx.hstack(
-                    rx.heading(
-                        "Subtasks",
-                        size="5",
-                        margin_top="1.5rem"
-                    ),
-                    rx.spacer(),
-                    rx.button(
-                        rx.icon("plus", size=16),
-                        "Create Subtask",
-                        variant="soft",
-                        size="2",
-                        on_click=TaskDetailState.open_create_subtask_dialog
-                    ),
-                    width="100%",
-                    align="center",
-                ),
-                # Subtask list component
-                task_list_component(),
-                width="100%",
-                spacing="3",
-                align_items="start",
-            )
-        ),
-
+        task_header(),
+        task_description(),
+        task_subtasks(),
+        documents_list_view(),
         width="100%",
         spacing="3",
         align_items="start",

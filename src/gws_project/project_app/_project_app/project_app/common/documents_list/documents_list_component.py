@@ -1,10 +1,9 @@
 import reflex as rx
-from gws_core import SpaceHierarchyObjectDTO
 
-from .project_documents_state import ProjectDocumentsState
+from .documents_list_state import DocumentInfo, DocumentsListState
 
 
-def project_documents_view() -> rx.Component:
+def documents_list_view() -> rx.Component:
     """Create the documents view with header and content.
 
     :return: The documents view component
@@ -17,7 +16,7 @@ def project_documents_view() -> rx.Component:
             rx.spacer(),
             rx.upload.root(
                 rx.button(
-                    rx.spinner(loading=ProjectDocumentsState.is_uploading),
+                    rx.spinner(loading=DocumentsListState.is_uploading),
                     rx.icon("upload", size=16),
                     "Upload File",
                     variant="soft",
@@ -25,16 +24,16 @@ def project_documents_view() -> rx.Component:
                 ),
                 id="document_upload",
                 multiple=True,
-                on_drop=ProjectDocumentsState.handle_upload(
+                on_drop=DocumentsListState.handle_upload(
                     rx.upload_files("document_upload",
-                                    on_upload_progress=ProjectDocumentsState.handle_upload_progress)
+                                    on_upload_progress=DocumentsListState.handle_upload_progress)
                 ),
             ),
             width="100%",
             align="center"
         ),
         # Documents content
-        project_documents_component(),
+        _documents_content(),
         # Rename dialog
         _rename_document_dialog(),
         width="100%",
@@ -46,27 +45,27 @@ def project_documents_view() -> rx.Component:
     )
 
 
-def project_documents_component() -> rx.Component:
-    """Create the project documents component with a table and load more functionality.
+def _documents_content() -> rx.Component:
+    """Create the documents content with a table and load more functionality.
 
-    This component displays documents from the project's folder in a table format
+    This component displays documents in a table format
     with pagination support through a "Load More" button.
 
-    :return: The project documents component
+    :return: The documents content component
     :rtype: rx.Component
     """
     return rx.cond(
-        ProjectDocumentsState.documents.length() > 0,
+        DocumentsListState.pagination_state.documents.length() > 0,
         rx.vstack(
             # Table
             _documents_table(),
             # Load more button
             rx.cond(
-                ProjectDocumentsState.has_more,
+                DocumentsListState.pagination_state.has_more,
                 rx.center(
                     rx.button(
                         rx.cond(
-                            ProjectDocumentsState.is_loading,
+                            DocumentsListState.pagination_state.is_loading,
                             rx.hstack(
                                 rx.spinner(size="2"),
                                 "Loading...",
@@ -80,8 +79,8 @@ def project_documents_component() -> rx.Component:
                         ),
                         variant="soft",
                         size="2",
-                        on_click=ProjectDocumentsState.load_more_documents,
-                        disabled=ProjectDocumentsState.is_loading,
+                        on_click=DocumentsListState.load_more_documents,
+                        disabled=DocumentsListState.pagination_state.is_loading,
                     ),
                     width="100%",
                     padding="1rem",
@@ -131,7 +130,7 @@ def _documents_table() -> rx.Component:
         ),
         rx.table.body(
             rx.foreach(
-                ProjectDocumentsState.documents,
+                DocumentsListState.pagination_state.documents,
                 _document_row
             )
         ),
@@ -140,11 +139,11 @@ def _documents_table() -> rx.Component:
     )
 
 
-def _document_row(document: SpaceHierarchyObjectDTO) -> rx.Component:
+def _document_row(document: DocumentInfo) -> rx.Component:
     """Create a table row for a single document.
 
-    :param document: The document hierarchy object
-    :type document: SpaceHierarchyObjectDTO
+    :param document: The document info object
+    :type document: DocumentInfo
     :return: The document row component
     :rtype: rx.Component
     """
@@ -208,11 +207,11 @@ def _document_icon(object_type) -> rx.Component:
     )
 
 
-def _document_menu(document: SpaceHierarchyObjectDTO) -> rx.Component:
+def _document_menu(document: DocumentInfo) -> rx.Component:
     """Create a dropdown menu for document actions.
 
-    :param document: The document hierarchy object
-    :type document: SpaceHierarchyObjectDTO
+    :param document: The document info object
+    :type document: DocumentInfo
     :return: The menu component
     :rtype: rx.Component
     """
@@ -228,19 +227,19 @@ def _document_menu(document: SpaceHierarchyObjectDTO) -> rx.Component:
             rx.menu.item(
                 rx.icon("download", size=14),
                 "Download",
-                on_click=ProjectDocumentsState.handle_download_document(document.id, document.name),
+                on_click=DocumentsListState.handle_download_document(document.id, document.name),
             ),
             rx.menu.item(
                 rx.icon("pencil", size=14),
                 "Rename",
-                on_click=ProjectDocumentsState.open_rename_dialog(document.id, document.name),
+                on_click=DocumentsListState.open_rename_dialog(document.id, document.name),
             ),
             rx.menu.separator(),
             rx.menu.item(
                 rx.icon("trash-2", size=14),
                 "Delete",
                 color="red",
-                on_click=ProjectDocumentsState.open_delete_document_dialog(document.id, document.name),
+                on_click=DocumentsListState.open_delete_document_dialog(document.id, document.name),
             ),
         ),
     )
@@ -269,8 +268,8 @@ def _rename_document_dialog() -> rx.Component:
                     weight="bold",
                 ),
                 rx.input(
-                    value=ProjectDocumentsState.rename_document_name,
-                    on_change=ProjectDocumentsState.set_rename_document_name,
+                    value=DocumentsListState.rename_document_name,
+                    on_change=DocumentsListState.set_rename_document_name,
                     placeholder="Enter document name",
                 ),
                 direction="column",
@@ -282,13 +281,13 @@ def _rename_document_dialog() -> rx.Component:
                         "Cancel",
                         variant="soft",
                         color_scheme="gray",
-                        on_click=ProjectDocumentsState.close_rename_dialog,
-                        disabled=ProjectDocumentsState.is_renaming,
+                        on_click=DocumentsListState.close_rename_dialog,
+                        disabled=DocumentsListState.is_renaming,
                     ),
                 ),
                 rx.button(
                     rx.cond(
-                        ProjectDocumentsState.is_renaming,
+                        DocumentsListState.is_renaming,
                         rx.hstack(
                             rx.spinner(size="2"),
                             "Renaming...",
@@ -296,8 +295,8 @@ def _rename_document_dialog() -> rx.Component:
                         ),
                         "Rename",
                     ),
-                    on_click=ProjectDocumentsState.handle_rename_document,
-                    disabled=ProjectDocumentsState.is_renaming,
+                    on_click=DocumentsListState.handle_rename_document,
+                    disabled=DocumentsListState.is_renaming,
                 ),
                 padding_top="16px",
                 spacing="3",
@@ -306,5 +305,5 @@ def _rename_document_dialog() -> rx.Component:
             ),
             style={"max_width": 450},
         ),
-        open=ProjectDocumentsState.rename_dialog_open,
+        open=DocumentsListState.rename_dialog_open,
     )

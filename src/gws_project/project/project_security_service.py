@@ -2,7 +2,6 @@
 
 from gws_core import (CurrentUserService, NotFoundException,
                       UnauthorizedException)
-
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectUserRole
 from gws_project.project.project_user import ProjectUser
@@ -67,7 +66,7 @@ class ProjectSecurityService:
         current_user = CurrentUserService.get_and_check_current_user()
 
         if not project:
-            raise NotFoundException(f"Project not found")
+            raise NotFoundException("Project not found")
 
         # Check if the current user is a member of the project
         if not ProjectUser.user_has_role(project.id, current_user.id, role):

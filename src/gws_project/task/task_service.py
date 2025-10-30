@@ -2,10 +2,9 @@
 from datetime import date
 from typing import List, Optional
 
-from gws_core import (BadRequestException, CurrentUserService,
-                      ExternalSpaceCreateFolder, RichTextDTO, SearchParams,
-                      SpaceService)
-
+from gws_core import (BadRequestException, BaseHTTPException,
+                      CurrentUserService, ExternalSpaceCreateFolder, Logger,
+                      RichTextDTO, SearchParams, SpaceService)
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
 from gws_project.project.project_security_service import (
@@ -187,6 +186,9 @@ class TaskService:
             parent_task=parent_task,
             force_allow_subtasks=False
         )
+
+        # Use the parent space folder id
+        subtask.space_folder_id = parent_task.space_folder_id
 
         # Save the subtask to the database
         subtask.save()
@@ -422,7 +424,16 @@ class TaskService:
 
         # If this is a root task with a space folder, delete the folder in Space
         if task.is_root_task() and task.space_folder_id:
-            self._space_service.delete_folder(task.space_folder_id)
+            try:
+                self._space_service.delete_folder(task.space_folder_id)
+            except BaseHTTPException as e:
+                if e.status_code == 404:
+                    # Folder not found in Space, proceed with project deletion
+                    Logger.warning(
+                        f"Space folder {task.space_folder_id} not found. Proceeding with project deletion.")
+                else:
+                    # Reraise other exceptions
+                    raise e
 
     def _validate_task_dates_within_project(self, project: Project, task_start_date: date, task_end_date: date) -> None:
         """Validate that task dates are within project dates.

@@ -1,18 +1,14 @@
 import reflex as rx
-from gws_reflex_main import add_unauthorized_page, get_theme
+from gws_reflex_main import register_gws_reflex_app
 
 from .kanban.kanban_component import kanban_page
 from .kanban.kanban_state import KanbanState
 from .project_detail.project_detail_component import project_detail_page
-from .project_detail.project_documents_state import ProjectDocumentsState
 from .project_list.project_list_component import project_list_page
 from .project_list.project_list_state import ProjectListState
 from .task_detail.task_detail_component import task_detail_page
 
-app = rx.App(
-    theme=get_theme(),
-    stylesheets=["/style.css"],
-)
+app = register_gws_reflex_app()
 
 
 # Declare the project list page as the index page
@@ -26,7 +22,7 @@ def index():
 
 
 # Declare the project detail page with URL parameter
-@rx.page(route="/project/[project_id_param]", on_load=[ProjectDocumentsState.load_documents])
+@rx.page(route="/project/[project_id_param]")
 def project_detail():
     """Project detail page displaying all information about a specific project.
 
@@ -53,8 +49,3 @@ def kanban():
     This page shows a kanban view of all tasks accessible to the current user.
     """
     return kanban_page()
-
-
-# Add the unauthorized page to the app.
-# This page will be displayed if the user is not authenticated
-add_unauthorized_page(app)
