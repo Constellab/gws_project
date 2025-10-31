@@ -6,6 +6,8 @@ from gws_project.project.project_dto import ProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_reflex_main import ReflexMainState
 
+from ..common.project_app_router import ProjectAppRouter
+
 
 class ProjectListState(ReflexMainState):
     """State for managing the project list page.
@@ -42,10 +44,6 @@ class ProjectListState(ReflexMainState):
             # Convert projects to DTOs
             self.projects = [project.to_dto() for project in projects]
 
-        except Exception as e:
-            self.error_message = f"Error loading projects: {str(e)}"
-            self.projects = []
-
         finally:
             self.is_loading = False
 
@@ -71,4 +69,4 @@ class ProjectListState(ReflexMainState):
         :param project_id: The ID of the project to navigate to
         :type project_id: str
         """
-        return rx.redirect(f"/project/{project_id}")
+        return rx.redirect(ProjectAppRouter.get_project_detail_url(project_id))

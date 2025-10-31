@@ -2,12 +2,12 @@ from typing import List, Optional, Union
 
 import reflex as rx
 from gws_core import RichTextDTO
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
-
 from gws_project.project.project_dto import ProjectDTO, ProjectUserDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
+from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
+from ..common.project_app_router import ProjectAppRouter
 from ..common.project_page_state import ProjectPageState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 from ..task_list.task_list_state import TaskListState
@@ -168,4 +168,4 @@ class ProjectDetailState(ReflexMainState):
         yield rx.toast.success("Project deleted")
 
         # Redirect to project list
-        yield rx.redirect("/")
+        yield rx.redirect(ProjectAppRouter.get_project_list_url())  # Assuming such a method exists

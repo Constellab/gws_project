@@ -7,7 +7,8 @@ from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import Task
 from ..common.kanban.kanban import (BoardDataDTO, CardDTO, CardMoveEvent,
-                                    ColumnDTO, build_kanban_board_data)
+                                    build_kanban_board_data)
+from ..common.project_app_router import ProjectAppRouter
 from ..common.project_page_state import ProjectPageState, ProjectUrlParam
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 
@@ -150,7 +151,7 @@ class TaskListState(ReflexMainState):
         :param lane_id: The column ID
         """
         # Navigate to task detail page
-        return rx.redirect(f"/task/{card_id}")
+        return rx.redirect(ProjectAppRouter.get_task_detail_url(card_id))
 
     async def open_update_task_dialog(self, task_id: str):
         """Open the update task dialog.

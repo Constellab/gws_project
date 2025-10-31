@@ -2,6 +2,7 @@
 import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
 
+from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
 from ..common.detail_page_layout import detail_page_layout
 from ..common.documents_list.documents_list_component import \
     documents_list_view
@@ -238,7 +239,8 @@ def project_detail_page() -> rx.Component:
                 ProjectDetailState.project,
                 detail_page_layout(
                     main_content=main_content_area(),
-                    sidebar_content=details_sidebar()
+                    sidebar_content=details_sidebar(),
+                    breadcrumbs=BreadcrumbState.breadcrumbs
                 ),
             ),
             height='100vh'

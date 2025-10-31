@@ -7,6 +7,14 @@ from .project_detail.project_detail_component import project_detail_page
 from .project_list.project_list_component import project_list_page
 from .project_list.project_list_state import ProjectListState
 from .task_detail.task_detail_component import task_detail_page
+from .template.project_template_detail.project_template_detail_component import \
+    project_template_detail_page
+from .template.project_template_list.project_template_list_component import \
+    project_template_list_page
+from .template.project_template_list.project_template_list_state import \
+    ProjectTemplateListState
+from .template.task_template_detail.task_template_detail_component import \
+    task_template_detail_page
 
 app = register_gws_reflex_app()
 
@@ -49,3 +57,34 @@ def kanban():
     This page shows a kanban view of all tasks accessible to the current user.
     """
     return kanban_page()
+
+
+# Declare the template list page
+@rx.page(route="/templates", on_load=[ProjectTemplateListState.on_load])
+def template_list():
+    """Template list page displaying all project templates.
+
+    This page shows a list of all available project templates.
+    """
+    return project_template_list_page()
+
+
+# Declare the template detail page with URL parameter
+@rx.page(route="/template/project/[project_template_id_param]")
+def project_template_detail():
+    """Template detail page displaying all information about a specific template.
+
+    The template_id is extracted from the URL path.
+    """
+    return project_template_detail_page()
+
+# Declare the template detail page with URL parameter
+
+
+@rx.page(route="/template/task/[task_template_id_param]")
+def task_template_detail():
+    """Template detail page displaying all information about a specific template.
+
+    The template_id is extracted from the URL path.
+    """
+    return task_template_detail_page()

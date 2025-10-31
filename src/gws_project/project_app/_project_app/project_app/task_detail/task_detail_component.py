@@ -2,6 +2,7 @@ import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
 from gws_reflex_main.gws_components import rich_text_component
 
+from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
 from ..common.detail_page_layout import detail_page_layout
 from ..common.documents_list.documents_list_component import \
     documents_list_view
@@ -91,25 +92,18 @@ def task_description() -> rx.Component:
             width="100%",
             align="center"
         ),
-        rx.cond(
-            TaskDetailState.task.description,
-            rich_text_component(
-                value=TaskDetailState.task.description,
-                disabled=~TaskDetailState.description_edit_mode,
-                output_event=TaskDetailState.handle_description_change,
-                custom_style=rx.cond(
-                    TaskDetailState.description_edit_mode,
-                    {"minHeight": "750px"},
-                    {"padding": "0"}
-                )
-            ),
-            rx.text(
-                "No description provided",
-                size="3",
-                color="gray",
-                font_style="italic"
+
+        rich_text_component(
+            value=TaskDetailState.task.description,
+            disabled=~TaskDetailState.description_edit_mode,
+            output_event=TaskDetailState.handle_description_change,
+            custom_style=rx.cond(
+                TaskDetailState.description_edit_mode,
+                {"minHeight": "750px"},
+                {"padding": "0"}
             )
         ),
+
         width="100%",
         spacing="2",
         align_items="start"
@@ -302,7 +296,8 @@ def task_detail() -> rx.Component:
         TaskDetailState.task,
         detail_page_layout(
             main_content=main_content_area(),
-            sidebar_content=details_sidebar()
+            sidebar_content=details_sidebar(),
+            breadcrumbs=BreadcrumbState.breadcrumbs
         ),
     )
 

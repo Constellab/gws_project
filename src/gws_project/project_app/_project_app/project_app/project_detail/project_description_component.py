@@ -37,23 +37,14 @@ def project_description_component() -> rx.Component:
             align="center"
         ),
         # Description content
-        rx.cond(
-            ProjectDetailState.project.description,
-            rich_text_component(
-                value=ProjectDetailState.project.description,
-                disabled=~ProjectDetailState.description_edit_mode,
-                output_event=ProjectDetailState.handle_description_change,
-                custom_style=rx.cond(
-                    ProjectDetailState.description_edit_mode,
-                    {"minHeight": "750px", "flex": "1", "display": "block", "minHeight": "0"},
-                    {"padding": "0", "flex": "1", "display": "block", "minHeight": "0"}
-                )
-            ),
-            rx.text(
-                "No description provided",
-                size="3",
-                color="gray",
-                font_style="italic"
+        rich_text_component(
+            value=ProjectDetailState.project.description,
+            disabled=~ProjectDetailState.description_edit_mode,
+            output_event=ProjectDetailState.handle_description_change,
+            custom_style=rx.cond(
+                ProjectDetailState.description_edit_mode,
+                {"minHeight": "750px", "flex": "1", "display": "block"},
+                {"padding": "0", "flex": "1", "display": "block", "minHeight": "0"}
             )
         ),
         width="100%",

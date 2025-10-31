@@ -1,11 +1,18 @@
 from datetime import datetime
-from typing import Optional
+from typing import Dict, List, Optional
 
 import reflex as rx
-from gws_project.project.project_dto import ProjectDTO, SaveProjectDTO
+from gws_core import UserDTO
+from gws_project.project.project_dto import (CreateProjectFromTemplateDTO,
+                                             ProjectDTO, SaveProjectDTO)
 from gws_project.project.project_service import ProjectService
+from gws_project.template.project_template_dto import ProjectTemplateDTO
+from gws_project.template.project_template_service import \
+    ProjectTemplateService
+from gws_project.user.user import User
 from gws_reflex_main import FormDialogState, ReflexMainState
 
+from ..common.project_app_router import ProjectAppRouter
 from ..common.project_page_state import ProjectPageState
 
 
@@ -19,6 +26,73 @@ class ProjectFormDialogState(FormDialogState, rx.State):
     form_name: str = ""
     form_start_date: str = ""
     form_end_date: str = ""
+
+    # Template-related state
+    available_templates: List[ProjectTemplateDTO] = []
+    selected_template_id: str = ""
+    template_roles: List[str] = []
+    role_mapping: Dict[str, str] = {}
+
+    # Available users for role assignment
+    available_users: List[UserDTO] = []
+
+    @rx.event
+    async def open_create_dialog(self):
+        """Open the dialog in create mode and load templates and users."""
+        # Reset to create mode
+        self.is_update_mode = False
+
+        # Load templates and users
+        main_state = await self.get_state(ReflexMainState)
+
+        with await main_state.authenticate_user():
+            # Load templates
+            template_service = ProjectTemplateService()
+            templates = template_service.get_all_templates()
+            self.available_templates = [t.to_dto() for t in templates]
+
+            # Load users (get all real users)
+            users = User.get_real_users()
+            self.available_users = [u.to_dto() for u in users]
+
+        # Open the dialog
+        self.dialog_opened = True
+
+    @rx.event
+    async def handle_template_change(self, template_id: str):
+        """Handle template selection change.
+
+        Args:
+            template_id: The selected template ID (empty string for no template)
+        """
+        self.selected_template_id = template_id
+
+        # Clear role mapping when template changes
+        self.role_mapping = {}
+
+        if template_id:
+            # Load roles for the selected template
+            main_state = await self.get_state(ReflexMainState)
+
+            with await main_state.authenticate_user():
+                template_service = ProjectTemplateService()
+                self.template_roles = template_service.get_all_roles_for_template(template_id)
+        else:
+            self.template_roles = []
+
+    @rx.event
+    def handle_role_user_change(self, role: str, user_id: str):
+        """Handle user assignment change for a specific role.
+
+        Args:
+            role: The role name
+            user_id: The selected user ID for this role
+        """
+        if user_id:
+            self.role_mapping[role] = user_id
+        elif role in self.role_mapping:
+            # Remove from mapping if user is deselected
+            del self.role_mapping[role]
 
     @rx.event
     async def open_update_dialog(self, project: ProjectDTO):
@@ -94,21 +168,74 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         async with self:
             main_state = await self.get_state(ReflexMainState)
 
-        # Validate and parse form data
-        project_dto = self._validate_and_parse_form_data(form_data)
-        if project_dto is None:
-            return  # Validation error already shown
+        # Check if creating from template
+        if self.selected_template_id:
+            # Validate template creation
+            created_project = await self._create_from_template(form_data, main_state)
+        else:
+            # Standard project creation
+            # Validate and parse form data
+            project_dto = self._validate_and_parse_form_data(form_data)
+            if project_dto is None:
+                return  # Validation error already shown
 
-        # Create the project
-        with await main_state.authenticate_user():
-            project_service = ProjectService()
-            created_project = project_service.create_project(project_dto)
+            # Create the project
+            with await main_state.authenticate_user():
+                project_service = ProjectService()
+                created_project = project_service.create_project(project_dto)
 
         # Show success toast
         yield rx.toast.success("Project created successfully")
 
         # Redirect to the project detail page
-        yield rx.redirect(f"/project/{created_project.id}")
+        yield rx.redirect(ProjectAppRouter.get_project_detail_url(created_project.id))
+
+    async def _create_from_template(self, form_data: dict, main_state: ReflexMainState):
+        """Create a project from a template.
+
+        Args:
+            form_data: Dictionary containing form fields
+            main_state: The main state instance
+
+        Returns:
+            The created project
+        """
+        # Get values from form data
+        name = form_data.get('name', '').strip()
+        start_date_str = form_data.get('start_date', '').strip()
+
+        # Validate required fields
+        if not name:
+            raise Exception("Project name is required")
+
+        if not start_date_str:
+            raise Exception("Start date is required")
+
+        # Validate that all roles have been assigned
+        if len(self.role_mapping) != len(self.template_roles):
+            missing_roles = [role for role in self.template_roles if role not in self.role_mapping]
+            raise Exception(f"Please assign users to all roles. Missing: {', '.join(missing_roles)}")
+
+        # Parse start date
+        start_date = datetime.fromisoformat(start_date_str)
+
+        # Create DTO for template-based creation
+        create_dto = CreateProjectFromTemplateDTO(
+            name=name,
+            start_date=start_date,
+            project_manager_id=None,  # Using current user as project manager
+            role_mapping=self.role_mapping
+        )
+
+        # Create the project from template
+        with await main_state.authenticate_user():
+            project_service = ProjectService()
+            created_project = project_service.create_project_from_template(
+                self.selected_template_id,
+                create_dto
+            )
+
+        return created_project
 
     async def _update(self, form_data: dict):
         """Update an existing project using the form data.
@@ -151,3 +278,10 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         self.form_start_date = ""
         self.form_end_date = ""
         self.is_update_mode = False
+
+        # Clear template-related state
+        self.selected_template_id = ""
+        self.template_roles = []
+        self.role_mapping = {}
+        self.available_templates = []
+        self.available_users = []

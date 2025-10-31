@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Dict, Optional
 
 from gws_core import BaseModelDTO, ModelDTO, RichTextDTO, UserDTO
 
@@ -40,6 +40,19 @@ class SaveProjectDTO(BaseModelDTO):
     start_date: datetime
     end_date: datetime
     project_manager_id: Optional[str] = None
+    description: Optional[RichTextDTO] = None
+
+
+class CreateProjectFromTemplateDTO(BaseModelDTO):
+    """DTO for creating a project from a template.
+
+    role_mapping is a dictionary that maps template role names to user IDs.
+    For example: {"project_manager": "user-id-123", "developer": "user-id-456"}
+    """
+    name: str
+    start_date: datetime
+    project_manager_id: Optional[str] = None
+    role_mapping: Optional[Dict[str, str]] = None
 
 
 class ProjectDTO(ModelDTO):

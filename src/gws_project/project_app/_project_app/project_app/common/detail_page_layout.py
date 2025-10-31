@@ -1,11 +1,13 @@
 import reflex as rx
 
 from .breadcrumb.breadcrumb_component import breadcrumb_component
+from .breadcrumb.breadcrumb_state import BreadcrumbItem
 
 
 def detail_page_layout(
     main_content: rx.Component,
-    sidebar_content: rx.Component
+    sidebar_content: rx.Component,
+    breadcrumbs: list[BreadcrumbItem]
 ) -> rx.Component:
     """Create a common layout for detail pages with breadcrumb, main content and sidebar.
 
@@ -26,7 +28,7 @@ def detail_page_layout(
     return rx.hstack(
         # Main content area (center, max width 1000px)
         rx.vstack(
-            rx.box(breadcrumb_component(),
+            rx.box(breadcrumb_component(breadcrumbs),
                    margin_bottom="1em"
                    ),
             main_content,

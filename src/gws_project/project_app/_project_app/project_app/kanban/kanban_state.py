@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import List
 
 import reflex as rx
@@ -15,6 +15,7 @@ from gws_reflex_main import ReflexMainState
 from ..common.breadcrumb.breadcrumb_state import Task
 from ..common.kanban.kanban import (BoardDataDTO, CardDTO, CardMoveEvent,
                                     build_kanban_board_data)
+from ..common.project_app_router import ProjectAppRouter
 
 
 class KanbanState(ReflexMainState):
@@ -311,4 +312,4 @@ class KanbanState(ReflexMainState):
         :type card_id: str
         """
         # Navigate to task detail page
-        return rx.redirect(f"/task/{card_id}")
+        return rx.redirect(ProjectAppRouter.get_task_detail_url(card_id))

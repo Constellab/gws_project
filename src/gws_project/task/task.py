@@ -29,7 +29,7 @@ class Task(ModelWithUser):
     parent_task: 'Task' = ForeignKeyField(
         'self', on_delete='CASCADE', null=True, backref='subtasks')
     title = CharField(max_length=255, null=False)
-    description: RichTextDTO = RichTextDbField(null=True)
+    description: RichTextDTO = RichTextDbField(null=False)
     start_date = DateField(null=False)
     end_date = DateField(null=False)
     status = EnumField(choices=TaskStatus, max_length=20,

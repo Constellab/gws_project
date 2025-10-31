@@ -2,13 +2,13 @@ from typing import List, Optional
 
 import reflex as rx
 from gws_core import RichTextDTO, UserDTO
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
-
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.task.task import Task
 from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from gws_project.task.task_service import TaskService
+from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
+from ..common.project_app_router import ProjectAppRouter
 from ..common.project_page_state import ProjectPageState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 from ..task_list.task_list_state import TaskListState
@@ -36,8 +36,7 @@ class TaskDetailState(ReflexMainState):
             return current_object.to_dto()
         return None
 
-    @rx.var
-    async def project(self) -> Optional[ProjectDTO]:
+    async def _get_project(self) -> Optional[ProjectDTO]:
         """Return the current project DTO.
 
         :return: The current project DTO
@@ -91,7 +90,7 @@ class TaskDetailState(ReflexMainState):
 
         await form_state.open_create_sub_dialog(
             parent_task_id=task.id,
-            project=await self.project,
+            project=await self._get_project(),
             callback_after_close=self._on_create_subtask_dialog_close
         )
 
@@ -203,10 +202,10 @@ class TaskDetailState(ReflexMainState):
         if isinstance(current_object, Task):
             if current_object.parent_task:
                 # If we are on a subtask's detail page, redirect to parent task
-                yield rx.redirect(f"/task/{current_object.parent_task.id}")
+                yield rx.redirect(ProjectAppRouter.get_task_detail_url(current_object.parent_task.id))
             else:
                 # If we are on the deleted task's detail page, redirect to project detail
-                yield rx.redirect(f"/project/{current_object.project.id}")
+                yield rx.redirect(ProjectAppRouter.get_project_detail_url(current_object.project.id))
 
     async def update_status(self, new_status: str):
         """Handle status change for the task.

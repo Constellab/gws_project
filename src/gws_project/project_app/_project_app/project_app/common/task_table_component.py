@@ -4,6 +4,7 @@ import reflex as rx
 from gws_project.task.task_dto import TaskDTO
 from gws_reflex_main import user_inline_component
 
+from ..common.project_app_router import ProjectAppRouter
 from ..common.task_components import task_icon_component
 from .priority_chip_component import priority_chip
 from .status_chip_component import status_chip
@@ -102,7 +103,7 @@ def _task_row(task: TaskDTO) -> rx.Component:
             ":hover": {"background_color": "var(--gray-3)"},
             "cursor": "pointer"
         },
-        on_click=lambda: rx.redirect(f"/task/{task.id}")
+        on_click=lambda: rx.redirect(ProjectAppRouter.get_task_detail_url(task.id))
     )
 
 

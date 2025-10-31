@@ -1,9 +1,9 @@
 import reflex as rx
 
-from .breadcrumb_state import BreadcrumbItem, BreadcrumbState
+from .breadcrumb_state import BreadcrumbItem
 
 
-def breadcrumb_component() -> rx.Component:
+def breadcrumb_component(breadcrumbs: list[BreadcrumbItem]) -> rx.Component:
     """Create the breadcrumb navigation component.
 
     This component displays a clickable breadcrumb trail showing the hierarchy
@@ -14,7 +14,7 @@ def breadcrumb_component() -> rx.Component:
     """
     return rx.hstack(
         rx.foreach(
-            BreadcrumbState.breadcrumbs,
+            breadcrumbs,
             _render_item_with_separator
         ),
         spacing="0",

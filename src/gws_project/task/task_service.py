@@ -1,10 +1,10 @@
 
-from datetime import date
-from typing import List, Optional
+from datetime import date, timedelta
+from typing import Dict, List, Optional
 
 from gws_core import (BadRequestException, BaseHTTPException,
                       CurrentUserService, ExternalSpaceCreateFolder, Logger,
-                      RichTextDTO, SearchParams, SpaceService)
+                      RichText, RichTextDTO, SearchParams, SpaceService)
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
 from gws_project.project.project_security_service import (
@@ -14,6 +14,7 @@ from gws_project.task.task import Task
 from gws_project.task.task_dto import (CreateTaskDTO, TaskPriority, TaskStatus,
                                        UpdateTaskDTO)
 from gws_project.task.task_search_builder import TaskSearchBuilder
+from gws_project.template.task_template import TaskTemplate
 from gws_project.user.user import User
 
 
@@ -504,6 +505,7 @@ class TaskService:
         task.project = project
         task.parent_task = parent_task
         task.title = task_dto.title
+        task.description = RichText().to_dto()  # Initialize with empty rich text
 
         # Set dates with defaults from project
         task.start_date = task_dto.start_date or project.start_date
@@ -607,3 +609,103 @@ class TaskService:
                 unique_users.append(subtask.assign_to)
 
         return unique_users
+
+    def create_task_from_template(
+        self,
+        project: Project,
+        task_template: TaskTemplate,
+        project_start_date: date,
+        role_mapping: Optional[Dict[str, str]] = None,
+        parent_task: Optional[Task] = None
+    ) -> Task:
+        """Create a task from a task template.
+
+        Recursively creates subtasks if the template has subtasks.
+
+        :param project: The project to create the task in
+        :type project: Project
+        :param task_template: The task template to create the task from
+        :type task_template: TaskTemplate
+        :param project_start_date: The project start date for calculating task dates
+        :type project_start_date: date
+        :param role_mapping: Dictionary mapping role names to user IDs
+        :type role_mapping: Optional[Dict[str, str]]
+        :param parent_task: The parent task if this is a subtask
+        :type parent_task: Optional[Task]
+        :return: The created task
+        :rtype: Task
+        """
+        # Calculate task dates based on template offsets
+        task_start_date = project_start_date + timedelta(days=task_template.start_date_offset)
+        # Subtract 1 because duration includes the start day
+        task_end_date = task_start_date + timedelta(days=max(task_template.duration_days - 1, 0))
+
+        # Determine the user to assign the task to using role mapping
+        assign_to_user_id = self._get_assign_to_user_id_from_role(
+            task_template.assign_to_role,
+            role_mapping
+        )
+
+        # Create task DTO
+        task_dto = CreateTaskDTO(
+            title=task_template.title,
+            start_date=task_start_date,
+            end_date=task_end_date,
+            status=TaskStatus.TODO,
+            priority=task_template.priority,
+            allow_subtasks=task_template.allow_subtasks,
+            assign_to_id=assign_to_user_id
+        )
+
+        # Create the task using TaskService methods
+        if parent_task is None:
+            # Create root task
+            task = self.create_root_task(project.id, task_dto)
+        else:
+            # Create subtask
+            task = self.create_sub_task(parent_task.id, task_dto)
+
+        # Copy the description from the template
+        if task_template.description:
+            task.description = task_template.description
+            task.save()
+
+        # Create subtasks recursively
+        subtasks = TaskTemplate.get_subtasks_of_template_task(task_template.id)
+        for subtask_template in subtasks:
+            self.create_task_from_template(
+                project,
+                subtask_template,
+                project_start_date,
+                role_mapping,
+                task
+            )
+
+        return task
+
+    def _get_assign_to_user_id_from_role(
+        self,
+        assign_to_role: Optional[str],
+        role_mapping: Optional[Dict[str, str]] = None
+    ) -> Optional[str]:
+        """Get the user ID to assign a task to based on the template role and role mapping.
+
+        :param project: The project
+        :type project: Project
+        :param assign_to_role: The role from the template
+        :type assign_to_role: Optional[str]
+        :param role_mapping: Dictionary mapping role names to user IDs
+        :type role_mapping: Optional[Dict[str, str]]
+        :return: The user ID to assign the task to, or None to use current user
+        :rtype: Optional[str]
+        """
+        # If no role is specified, use current user
+        if not assign_to_role:
+            return None
+
+        # If role mapping is provided and contains the role, use it
+        if role_mapping and assign_to_role in role_mapping:
+            return role_mapping[assign_to_role]
+
+        # Otherwise, return None to use current user (TaskService default behavior)
+        return None

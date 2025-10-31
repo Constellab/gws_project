@@ -1,13 +1,40 @@
 import reflex as rx
-from gws_reflex_main import form_dialog_component
+from gws_reflex_main import form_dialog_component, user_select
 
 from .project_form_dialog_state import ProjectFormDialogState
+
+
+def _role_assignment_row(role: str) -> rx.Component:
+    """Create a row for assigning a user to a role.
+
+    Args:
+        role: The role name
+
+    Returns:
+        Component with role name and user select dropdown
+    """
+    return rx.hstack(
+        rx.text(
+            role,
+            size="2",
+            weight="medium",
+            min_width="120px",
+        ),
+        user_select(
+            users=ProjectFormDialogState.available_users,
+            placeholder="Select user (required)",
+            on_change=lambda user_id, r=role: ProjectFormDialogState.handle_role_user_change(r, user_id),
+        ),
+        width="100%",
+        spacing="3",
+        align="center",
+    )
 
 
 def _form_content() -> rx.Component:
     """Form content for entering project details."""
     return rx.vstack(
-        # Form fields
+        # Project Name field
         rx.vstack(
             rx.text("Project Name", size="2", weight="bold"),
             rx.input(
@@ -21,6 +48,34 @@ def _form_content() -> rx.Component:
             spacing="1"
         ),
 
+        # Template selection (only in create mode)
+        rx.cond(
+            ~ProjectFormDialogState.is_update_mode,
+            rx.vstack(
+                rx.text("Project Template (Optional)", size="2", weight="bold"),
+                rx.select.root(
+                    rx.select.trigger(
+                        placeholder="Select a template (optional)",
+                        width="100%",
+                    ),
+                    rx.select.content(
+                        rx.foreach(
+                            ProjectFormDialogState.available_templates,
+                            lambda template: rx.select.item(
+                                template.name,
+                                value=template.id,
+                            ),
+                        )
+                    ),
+                    value=ProjectFormDialogState.selected_template_id,
+                    on_change=ProjectFormDialogState.handle_template_change,
+                ),
+                width="100%",
+                spacing="1"
+            ),
+        ),
+
+        # Date fields
         rx.hstack(
             rx.vstack(
                 rx.text("Start Date", size="2", weight="bold"),
@@ -35,20 +90,53 @@ def _form_content() -> rx.Component:
                 spacing="1"
             ),
 
-            rx.vstack(
-                rx.text("End Date", size="2", weight="bold"),
-                rx.input(
-                    type="date",
-                    name="end_date",
-                    required=True,
+            # End Date (hidden when template is selected)
+            rx.cond(
+                ProjectFormDialogState.selected_template_id == "",
+                rx.vstack(
+                    rx.text("End Date", size="2", weight="bold"),
+                    rx.input(
+                        type="date",
+                        name="end_date",
+                        required=True,
+                        width="100%",
+                        default_value=ProjectFormDialogState.form_end_date
+                    ),
                     width="100%",
-                    default_value=ProjectFormDialogState.form_end_date
+                    spacing="1"
+                ),
+            ),
+            width="100%",
+            spacing="3"
+        ),
+
+        # Role assignments (only when template is selected)
+        rx.cond(
+            ProjectFormDialogState.selected_template_id != "",
+            rx.vstack(
+                rx.text("Role Assignments", size="2", weight="bold"),
+                rx.text(
+                    "Assign a user to each role. These users will be added to the project and assigned to the corresponding tasks.",
+                    size="1",
+                    color="gray",
+                ),
+                rx.box(
+                    rx.vstack(
+                        rx.foreach(
+                            ProjectFormDialogState.template_roles,
+                            _role_assignment_row
+                        ),
+                        width="100%",
+                        spacing="2",
+                    ),
+                    padding="0.5rem",
+                    border="1px solid var(--gray-6)",
+                    border_radius="0.5rem",
+                    width="100%",
                 ),
                 width="100%",
                 spacing="1"
             ),
-            width="100%",
-            spacing="3"
         ),
 
         width="100%",
@@ -95,7 +183,7 @@ def create_project_dialog() -> rx.Component:
             rx.icon("plus", size=18),
             "Create New Project",
             size="3",
-            on_click=ProjectFormDialogState.open_dialog
+            on_click=ProjectFormDialogState.open_create_dialog
         ),
         _dialog()
     )
