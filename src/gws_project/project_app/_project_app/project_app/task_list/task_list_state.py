@@ -1,14 +1,11 @@
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import reflex as rx
-from gws_project.task.task_dto import TaskDTO, TaskStatus
+from gws_project.task.task_dto import TaskDTO
 from gws_project.task.task_service import TaskService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import Task
-from ..common.kanban.kanban import (BoardDataDTO, CardDTO, CardMoveEvent,
-                                    build_kanban_board_data)
-from ..common.project_app_router import ProjectAppRouter
 from ..common.project_page_state import ProjectPageState, ProjectUrlParam
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 
@@ -70,65 +67,6 @@ class TaskListState(ReflexMainState):
 
         self._tasks.append(task)
 
-    @rx.var
-    async def kanban_board_data(self) -> BoardDataDTO:
-        """Convert tasks to Kanban board format.
-
-        :return: BoardDataDTO with columns structure for the Kanban board
-        :rtype: BoardDataDTO
-        """
-        tasks = await self.get_tasks
-        return build_kanban_board_data(tasks, self._task_to_card)
-
-    def _task_to_card(self, task: TaskDTO) -> CardDTO:
-        """Convert a TaskDTO to a Kanban card format."""
-        assignee = task.assign_to.first_name + ' ' + task.assign_to.last_name if task.assign_to else "Unassigned"
-        return CardDTO(
-            id=task.id,
-            title=task.title,
-            priority=task.priority.value,
-            assignee=assignee,
-            parent_task_title=task.parent_task_title,
-            is_leaf=not task.allow_subtasks
-        )
-
-    @rx.event(background=True)  # type: ignore
-    async def handle_card_move(self, event_dict: dict):
-        """Handle card movement in the Kanban board.
-
-        :param new_board: The updated board structure
-        :param card: The card that was moved
-        :param source: Source column information
-        :param destination: Destination column information
-        """
-        event = CardMoveEvent.from_json(event_dict)
-        main_state: ReflexMainState
-        async with self:
-            main_state = await self.get_state(ReflexMainState)
-
-        try:
-            # Extract task ID and new status from destination column
-            task_id = event.card_id
-            new_status_str = event.to_column_id
-
-            if not task_id or not new_status_str:
-                yield rx.toast.error("Invalid card move data")
-                return
-
-            # Convert status string to TaskStatus enum
-            new_status = TaskStatus[new_status_str]
-
-            # Update task status
-            with await main_state.authenticate_user():
-                task_service = TaskService()
-                task = task_service.update_status(task_id, new_status)
-
-                async with self:
-                    await self._update_task(task)
-
-        except Exception as e:
-            yield rx.toast.error(f"Error moving task: {str(e)}")
-
     async def _update_task(self, task: Task):
         """Update a task in the state.
 
@@ -142,16 +80,6 @@ class TaskListState(ReflexMainState):
             if t.id == task.id:
                 self._tasks[i] = task
                 break
-
-    async def handle_card_click(self, card_id: str, metadata: Dict, lane_id: str):
-        """Handle card click in the Kanban board.
-
-        :param card_id: The ID of the clicked card
-        :param metadata: Card metadata
-        :param lane_id: The column ID
-        """
-        # Navigate to task detail page
-        return rx.redirect(ProjectAppRouter.get_task_detail_url(card_id))
 
     async def open_update_task_dialog(self, task_id: str):
         """Open the update task dialog.

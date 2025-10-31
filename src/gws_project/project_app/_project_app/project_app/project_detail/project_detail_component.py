@@ -12,7 +12,6 @@ from ..project_form_dialog.project_form_dialog_component import \
 from ..project_form_dialog.project_form_dialog_state import \
     ProjectFormDialogState
 from ..task_form.task_form_dialog_component import task_form_dialog
-from ..task_list.task_kanban_component import task_kanban_view
 from ..task_list.task_list_component import task_list_view
 from .manage_users_dialog_component import (ManageUsersDialogState,
                                             manage_users_dialog)
@@ -47,13 +46,6 @@ def view_mode_segmented_control() -> rx.Component:
                 content="View tasks as list"
             ),
             value="list",
-        ),
-        rx.segmented_control.item(
-            rx.tooltip(
-                rx.icon("kanban", size=16),
-                content="View tasks as kanban board"
-            ),
-            value="kanban",
         ),
         value=ProjectDetailState.view_mode,
         on_change=ProjectDetailState.set_view_mode,
@@ -127,7 +119,6 @@ def main_content_area() -> rx.Component:
             ("description", project_description_component()),
             ("documents", documents_list_view()),
             ("list", task_list_view()),
-            ("kanban", task_kanban_view()),
             project_description_component(),  # default
         ),
 
