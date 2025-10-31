@@ -228,10 +228,6 @@ class DocumentsListState(ReflexMainState):
                 yield rx.toast.error("No project or task selected")
                 return
 
-            if not current_object.space_folder_id:
-                yield rx.toast.error("Folder not found")
-                return
-
             if not files:
                 yield rx.toast.error("No files selected")
                 return

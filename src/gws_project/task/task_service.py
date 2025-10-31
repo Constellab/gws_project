@@ -102,13 +102,13 @@ class TaskService:
 
     @ProjectDbManager.transaction()
     def create_root_task(self, project_id: str, task_dto: CreateTaskDTO) -> Task:
-        """Create a root task (task without parent) and sync it with Space by creating a child folder.
+        """Create a root task (task without parent). Space folder is created on demand.
 
         :param project_id: The ID of the project
         :type project_id: str
         :param task_dto: The task data to create
         :type task_dto: CreateTaskDTO
-        :return: The created task with space_folder_id populated
+        :return: The created task without space_folder_id (created on demand)
         :rtype: Task
         :raises BadRequestException: If dates are outside project bounds or user is not in project
         """
@@ -127,22 +127,8 @@ class TaskService:
         # Save the task to the database
         task.save()
 
-        # Create a child folder in Space if the project has a space folder
-        if project.space_folder_id:
-            space_folder = ExternalSpaceCreateFolder(
-                name=task.title,
-                code=None,
-                tags=None,
-                starting_date=task.start_date,
-                ending_date=task.end_date
-            )
-
-            # Call space service to create the child folder
-            created_folder = self._space_service.create_child_folder(project.space_folder_id, space_folder)
-
-            # Update task with the space folder ID
-            task.space_folder_id = created_folder.id
-            task.save()
+        # Space folder is NOT created here - it will be created on demand
+        # when documents are uploaded to the task
 
         return task
 
@@ -188,8 +174,8 @@ class TaskService:
             force_allow_subtasks=False
         )
 
-        # Use the parent space folder id
-        subtask.space_folder_id = parent_task.space_folder_id
+        # Copy space_folder_id from parent task (using get_space_folder_id to handle hierarchy)
+        subtask.space_folder_id = parent_task.get_space_folder_id()
 
         # Save the subtask to the database
         subtask.save()
@@ -435,6 +421,59 @@ class TaskService:
                 else:
                     # Reraise other exceptions
                     raise e
+
+    @ProjectDbManager.transaction()
+    def get_or_create_space_folder_id(self, task_id: str) -> str:
+        """Get or create the space folder ID for a task.
+
+        For tasks that already have a space folder (either directly or from parent),
+        returns the existing folder ID.
+        For root tasks without a space folder, creates one in Space and updates the task.
+
+        :param task_id: The ID of the task
+        :type task_id: str
+        :return: The space folder ID
+        :rtype: str
+        :raises BadRequestException: If the task's project doesn't have a space folder
+        """
+        # Get the task and check permissions
+        security_service = ProjectSecurityService()
+        task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
+
+        root_task = task.get_root_task()
+
+        # Try to get existing space folder ID
+        space_folder_id = root_task.get_space_folder_id()
+        if space_folder_id:
+            return space_folder_id
+
+        # Check that the project has a space folder
+        if not root_task.project.space_folder_id:
+            raise BadRequestException(
+                f"Cannot create space folder for task '{task_id}'. "
+                "The project doesn't have a space folder."
+            )
+
+        # Create a child folder in Space for the root task
+        space_folder = ExternalSpaceCreateFolder(
+            name=root_task.title,
+            code=None,
+            tags=None,
+            starting_date=root_task.start_date,
+            ending_date=root_task.end_date
+        )
+
+        # Call space service to create the child folder
+        created_folder = self._space_service.create_child_folder(
+            root_task.project.space_folder_id,
+            space_folder
+        )
+
+        # Update task with the space folder ID
+        root_task.space_folder_id = created_folder.id
+        root_task.save()
+
+        return root_task.space_folder_id
 
     def _validate_task_dates_within_project(self, project: Project, task_start_date: date, task_end_date: date) -> None:
         """Validate that task dates are within project dates.

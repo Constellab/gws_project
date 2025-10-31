@@ -1,6 +1,6 @@
 
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from gws_core import (BadRequestException, DocumentUploadOverrideMode, PageDTO,
                       SearchOperator, SpaceHierarchyObjectDTO,
@@ -8,6 +8,9 @@ from gws_core import (BadRequestException, DocumentUploadOverrideMode, PageDTO,
                       SpaceHierarchyObjectType, SpaceService)
 from gws_project.project.project_security_service import (
     ProjectSecurityService, ProjectUserRole)
+
+if TYPE_CHECKING:
+    from gws_project.task.task_service import TaskService
 
 
 class DocumentService:
@@ -21,13 +24,16 @@ class DocumentService:
     :type space_service: Optional[SpaceService]
     """
 
-    def __init__(self, space_service: Optional[SpaceService] = None):
-        """Initialize the DocumentService with an optional SpaceService instance.
+    def __init__(self, space_service: Optional[SpaceService] = None, task_service: Optional['TaskService'] = None):
+        """Initialize the DocumentService with optional SpaceService and TaskService instances.
 
         :param space_service: Optional SpaceService instance to use for Space operations
         :type space_service: Optional[SpaceService]
+        :param task_service: Optional TaskService instance to use for task operations
+        :type task_service: Optional[TaskService]
         """
         self._space_service = space_service if space_service is not None else SpaceService()
+        self._task_service = task_service  # Will be set lazily if needed
 
     def get_project_documents(self, project_id: str, page: int, size: int) -> PageDTO[SpaceHierarchyObjectDTO]:
         """Get documents of a project's space folder.
@@ -72,6 +78,13 @@ class DocumentService:
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
+        # Get the space folder ID (from task or parent)
+        space_folder_id = task.get_space_folder_id()
+
+        # If no space folder exists, return empty page
+        if not space_folder_id:
+            return PageDTO.empty_page()
+
         search_params = SpaceHierarchyObjectSearchParams()
         search_params.add_object_type_filter(SearchOperator.NEQ, SpaceHierarchyObjectType.FOLDER)
 
@@ -80,7 +93,7 @@ class DocumentService:
 
         # Get paginated documents
         return self._space_service.search_project_children_objects_paginated(
-            folder_id=task.space_folder_id,
+            folder_id=space_folder_id,
             search_params=search_params,
             page=page,
             size=size
@@ -137,6 +150,8 @@ class DocumentService:
     ) -> SpaceHierarchyObjectDTO:
         """Upload a document to a task's space folder and tag it with the task's space tag.
 
+        If the task doesn't have a space folder yet, one will be created automatically.
+
         :param task_id: The ID of the task
         :type task_id: str
         :param file_path: The path to the file to upload
@@ -147,22 +162,23 @@ class DocumentService:
         :type override_mode: DocumentUploadOverrideMode
         :return: The uploaded document object
         :rtype: SpaceHierarchyObjectDTO
-        :raises BadRequestException: If the task doesn't have a space folder
+        :raises BadRequestException: If the task's project doesn't have a space folder
         """
         # Get the task and check permissions
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
-        # Ensure the task has a space folder
-        if not task.space_folder_id:
-            raise BadRequestException(
-                f"Task with ID '{task_id}' does not have an associated space folder. "
-                "Cannot upload document."
-            )
+        # Get or create the space folder for the task
+        # This uses lazy initialization of TaskService to avoid circular imports
+        if self._task_service is None:
+            from gws_project.task.task_service import TaskService
+            self._task_service = TaskService(space_service=self._space_service)
+
+        space_folder_id = self._task_service.get_or_create_space_folder_id(task_id)
 
         # Upload the document to the task's space folder
         uploaded_doc = self._space_service.upload_document(
-            parent_folder_id=task.space_folder_id,
+            parent_folder_id=space_folder_id,
             file_path=file_path,
             override_mode=override_mode,
             filename=filename

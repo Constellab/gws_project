@@ -225,6 +225,34 @@ class Task(ModelWithUser):
         """
         return cls.select().where((cls.assign_to == user_id) & (cls.project == project_id)).count()
 
+    def get_space_folder_id(self) -> str | None:
+        """Get the space folder ID for this task.
+
+        For root tasks, returns the task's own space_folder_id.
+        For child tasks, recursively gets the space_folder_id from the parent task.
+
+        :return: The space folder ID, or None if no folder is assigned
+        :rtype: str | None
+        """
+        if self.is_root_task():
+            return self.space_folder_id
+        else:
+            return self.parent_task.get_space_folder_id()
+
+    def get_root_task(self) -> 'Task':
+        """Get the root task for this task.
+
+        If this task is a root task, returns itself.
+        Otherwise, recursively gets the root task from the parent task.
+
+        :return: The root Task
+        :rtype: Task
+        """
+        if self.is_root_task():
+            return self
+        else:
+            return self.parent_task.get_root_task()
+
     def get_space_tag(self) -> Tag:
         return Tag(key=self.SPACE_TASK_NAME, value=self.id)
 
