@@ -1,11 +1,11 @@
 
 
-from gws_core import RichTextDbField, RichTextDTO
-from gws_core.impl.rich_text.rich_text import RichText
+from gws_core import RichText, RichTextDbField, RichTextDTO
+from peewee import CharField
+
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.template.project_template_dto import ProjectTemplateDTO
-from peewee import CharField
 
 
 class ProjectTemplate(ModelWithUser):
