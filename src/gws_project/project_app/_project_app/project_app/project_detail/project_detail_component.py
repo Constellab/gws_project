@@ -114,12 +114,17 @@ def main_content_area() -> rx.Component:
         ),
 
         # Conditional rendering based on view mode
-        rx.match(
-            ProjectDetailState.view_mode,
-            ("description", project_description_component()),
-            ("documents", documents_list_view()),
-            ("list", task_list_view()),
-            project_description_component(),  # default
+        rx.cond(
+            ProjectDetailState.view_mode == "list",
+            task_list_view(),
+        ),
+        rx.cond(
+            ProjectDetailState.view_mode == "description",
+            project_description_component(),
+        ),
+        rx.cond(
+            ProjectDetailState.view_mode == "documents",
+            documents_list_view(),
         ),
 
         width="100%",

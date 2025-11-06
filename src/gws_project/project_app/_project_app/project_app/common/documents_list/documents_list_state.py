@@ -12,6 +12,7 @@ from gws_project.task.task import Task
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..project_page_state import ProjectPageState
+from ..view_mode_state import ViewModeState
 
 
 @dataclass
@@ -63,20 +64,13 @@ class DocumentsListState(ReflexMainState):
 
     @rx.var
     async def pagination_state(self) -> PaginationStateFront:
-        """Return the pagination state with documents, fetching them reactively based on ProjectPageState.
+        """Return the pagination state with documents.
 
-        This method automatically fetches documents when the current object changes.
+        Documents are loaded on component mount via fetch_documents_on_mount event.
 
         :return: PaginationStateFront with documents and pagination info
         :rtype: PaginationStateFront
         """
-        # Get current object from ProjectPageState
-        current_object = await self._get_current_object()
-
-        # If no object or different object, fetch documents
-        if current_object and (not self._cached_object_id or self._cached_object_id != current_object.id):
-            await self._fetch_initial_documents(current_object)
-
         # Convert to DocumentInfo
         space_front_service = SpaceFrontService()
         documents = [
@@ -97,6 +91,75 @@ class DocumentsListState(ReflexMainState):
             has_more=self._pagination.has_more,
             is_loading=self._pagination.is_loading
         )
+
+    @rx.event(background=True)  # type: ignore
+    async def fetch_documents_on_mount(self):
+        """Event handler to fetch documents when the documents view is mounted.
+
+        Checks if the current view mode is "documents" and if the current object is the same
+        as cached. If different, loads the first page.
+        """
+        # Get current object and check if we need to fetch
+        async with self:
+            # Check if we're in documents view mode
+            view_mode_state = await self.get_state(ViewModeState)
+            if view_mode_state.view_mode != "documents":
+                return  # Don't load if not in documents view
+
+            current_object = await self._get_current_object()
+            if not current_object:
+                return
+
+            # Check if we already have documents for this object
+            if self._cached_object_id == current_object.id and len(self._pagination.documents) > 0:
+                return  # Already loaded for this object
+
+            # Set loading state
+            self._cached_object_id = current_object.id
+            self._pagination = PaginationState(
+                documents=[],
+                page=0,
+                page_size=20,
+                has_more=True,
+                is_loading=True
+            )
+
+        # Fetch documents outside of async with block
+        try:
+            with await self.authenticate_user():
+                document_service = DocumentService()
+
+                # Use the appropriate service method based on object type
+                if isinstance(current_object, Task):
+                    page_result = document_service.get_task_documents(
+                        task_id=current_object.id,
+                        page=0,
+                        size=20
+                    )
+                else:  # Project
+                    page_result = document_service.get_project_documents(
+                        project_id=current_object.id,
+                        page=0,
+                        size=20
+                    )
+
+                async with self:
+                    self._pagination = PaginationState(
+                        documents=page_result.objects,
+                        page=0,
+                        page_size=20,
+                        has_more=len(page_result.objects) >= 20,
+                        is_loading=False
+                    )
+        except Exception:
+            async with self:
+                self._pagination = PaginationState(
+                    documents=[],
+                    page=0,
+                    page_size=20,
+                    has_more=False,
+                    is_loading=False
+                )
 
     async def _fetch_initial_documents(self, current_object: Task | Project):
         """Fetch the initial page of documents for a new object.

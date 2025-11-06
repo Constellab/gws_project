@@ -9,6 +9,7 @@ from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.project_app_router import ProjectAppRouter
 from ..common.project_page_state import ProjectPageState
+from ..common.view_mode_state import ViewModeState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 from ..task_list.task_list_state import TaskListState
 
@@ -20,11 +21,20 @@ class ProjectDetailState(ReflexMainState):
     based on the project ID from the URL.
     """
 
-    view_mode: str = "list"  # "description", "documents", "list"
     description_edit_mode: bool = False  # Track if description is in edit mode
 
     _project_id: Optional[str] = None
     _project_users: List[ProjectUserDTO] = []
+
+    @rx.var
+    async def view_mode(self) -> str:
+        """Get the current view mode from ViewModeState.
+
+        :return: The current view mode
+        :rtype: str
+        """
+        view_mode_state = await self.get_state(ViewModeState)
+        return view_mode_state.view_mode
 
     @rx.var
     async def project(self) -> Optional[ProjectDTO]:
@@ -76,21 +86,14 @@ class ProjectDetailState(ReflexMainState):
         self._project_id = None
         await self.project_users
 
-    def toggle_view_mode(self):
-        """Toggle between list and kanban view modes."""
-        self.view_mode = "kanban" if self.view_mode == "list" else "list"
+    async def set_view_mode(self, value: Union[str, List[str]]):
+        """Set the view mode by delegating to ViewModeState.
 
-    def set_view_mode(self, value: Union[str, List[str]]):
-        """Set the view mode from the segmented control.
-
-        :param value: The view mode value ("list" or "kanban")
+        :param value: The view mode value ("list", "description", or "documents")
         :type value: Union[str, List[str]]
         """
-        # Handle both single value and list of values (though we only expect single)
-        if isinstance(value, list):
-            self.view_mode = value[0] if value else "list"
-        else:
-            self.view_mode = value
+        view_mode_state = await self.get_state(ViewModeState)
+        view_mode_state.set_view_mode(value)
 
     def toggle_description_edit_mode(self):
         """Toggle the description edit mode."""

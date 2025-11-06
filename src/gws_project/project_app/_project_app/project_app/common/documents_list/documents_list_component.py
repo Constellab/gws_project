@@ -42,6 +42,8 @@ def documents_list_view() -> rx.Component:
         # full height but not overflow parent
         flex="1",
         min_height="0",
+        # Trigger background fetch when component mounts
+        on_mount=DocumentsListState.fetch_documents_on_mount,
     )
 
 
@@ -55,53 +57,14 @@ def _documents_content() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.cond(
-        DocumentsListState.pagination_state.documents.length() > 0,
-        rx.vstack(
-            # Table
-            _documents_table(),
-            # Load more button
-            rx.cond(
-                DocumentsListState.pagination_state.has_more,
-                rx.center(
-                    rx.button(
-                        rx.cond(
-                            DocumentsListState.pagination_state.is_loading,
-                            rx.hstack(
-                                rx.spinner(size="2"),
-                                "Loading...",
-                                spacing="2",
-                            ),
-                            rx.hstack(
-                                rx.icon("chevron-down", size=16),
-                                "Load More",
-                                spacing="2",
-                            )
-                        ),
-                        variant="soft",
-                        size="2",
-                        on_click=DocumentsListState.load_more_documents,
-                        disabled=DocumentsListState.pagination_state.is_loading,
-                    ),
-                    width="100%",
-                    padding="1rem",
-                ),
-            ),
-            width="100%",
-            spacing="0",
-            align_items="stretch",
-            class_name="project-documents-component",
-            # full height but not overflow parent
-            flex="1",
-            min_height="0",
-            overflow_y="auto",
-        ),
-        # Empty state
+        DocumentsListState.pagination_state.is_loading & (DocumentsListState.pagination_state.documents.length() == 0),
+        # Loading state - show spinner
         rx.center(
             rx.vstack(
-                rx.icon("folder-open", size=48, color="gray"),
+                rx.spinner(size="3"),
                 rx.text(
-                    "No documents found",
-                    size="4",
+                    "Loading documents...",
+                    size="3",
                     color="gray",
                     margin_top="1rem"
                 ),
@@ -109,7 +72,67 @@ def _documents_content() -> rx.Component:
                 align="center"
             ),
             padding="3rem",
-            width="100%"
+            width="100%",
+            flex="1",
+            min_height="0",
+        ),
+        rx.cond(
+            DocumentsListState.pagination_state.documents.length() > 0,
+            rx.vstack(
+                # Table
+                _documents_table(),
+                # Load more button
+                rx.cond(
+                    DocumentsListState.pagination_state.has_more,
+                    rx.center(
+                        rx.button(
+                            rx.cond(
+                                DocumentsListState.pagination_state.is_loading,
+                                rx.hstack(
+                                    rx.spinner(size="2"),
+                                    "Loading...",
+                                    spacing="2",
+                                ),
+                                rx.hstack(
+                                    rx.icon("chevron-down", size=16),
+                                    "Load More",
+                                    spacing="2",
+                                )
+                            ),
+                            variant="soft",
+                            size="2",
+                            on_click=DocumentsListState.load_more_documents,
+                            disabled=DocumentsListState.pagination_state.is_loading,
+                        ),
+                        width="100%",
+                        padding="1rem",
+                    ),
+                ),
+                width="100%",
+                spacing="0",
+                align_items="stretch",
+                class_name="project-documents-component",
+                # full height but not overflow parent
+                flex="1",
+                min_height="0",
+                overflow_y="auto",
+            ),
+            # Empty state
+            rx.center(
+                rx.vstack(
+                    rx.icon("folder-open", size=48, color="gray"),
+                    rx.text(
+                        "No documents found",
+                        size="4",
+                        color="gray",
+                        margin_top="1rem"
+                    ),
+                    spacing="2",
+                    align="center"
+                ),
+                padding="3rem",
+                width="100%"
+            )
         )
     )
 
