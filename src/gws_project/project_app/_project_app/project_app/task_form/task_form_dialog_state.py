@@ -100,7 +100,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         # Show for all other cases (create root without subtasks, update regular task, update subtask)
         return True
 
-    def _init_form_fields(self, task: Optional[TaskDTO] = None):
+    async def _init_form_fields(self, task: Optional[TaskDTO] = None):
         """Initialize form fields for create or update mode.
 
         Args:
@@ -126,6 +126,10 @@ class TaskFormDialogState(FormDialogState, rx.State):
             self.form_allow_subtasks = False
             self.form_assign_to_id = ""
             self.selected_task_type = "without_children"
+
+            # init assign_to_id to current user
+            main_state = await self.get_state(ReflexMainState)
+            self.form_assign_to_id = (await main_state.get_and_check_current_user()).id
 
     def _validate_and_extract_common_fields(self, form_data: dict) -> dict:
         """Validate and extract common fields from form data.
@@ -196,7 +200,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         self.is_update_mode = False
 
         # Initialize form fields
-        self._init_form_fields()
+        await self._init_form_fields()
 
         # Load users for the project
         await self._load_users(project.id)
@@ -221,7 +225,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         self.is_update_mode = False
 
         # Initialize form fields
-        self._init_form_fields()
+        await self._init_form_fields()
 
         # Load users for the project
         await self._load_users(project.id)
@@ -248,7 +252,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         self.is_update_mode = True
 
         # Initialize form fields with task data
-        self._init_form_fields(task_dto)
+        await self._init_form_fields(task_dto)
 
         # Load users for the project
         await self._load_users(task.project.id)
@@ -300,7 +304,8 @@ class TaskFormDialogState(FormDialogState, rx.State):
             start_date=common_fields.get('start_date'),
             end_date=common_fields.get('end_date'),
             priority=common_fields.get('priority'),
-            status=common_fields.get('status')
+            status=common_fields.get('status'),
+            assign_to_id=common_fields.get('assign_to_id')
         )
 
     async def _create(self, form_data: dict):

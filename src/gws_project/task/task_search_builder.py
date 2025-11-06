@@ -32,10 +32,8 @@ class TaskSearchBuilder(SearchBuilder):
         """Filter the search query by a text search on task title and description
         """
         like_pattern = f"%{search_text}%"
-        self.add_expression(
-            (Task.title.ilike(like_pattern)) |
-            (Task.description.ilike(like_pattern))
-        )
+        self.add_expression(Task.title.ilike(like_pattern))
+
         return self
 
     def add_allow_subtasks_filter(self, allow_subtasks: bool) -> "TaskSearchBuilder":

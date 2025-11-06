@@ -40,6 +40,7 @@ class UpdateTaskDTO(BaseModelDTO):
     end_date: date | None
     status: TaskStatus | None
     priority: TaskPriority | None
+    assign_to_id: Optional[str] = None
 
 
 class TaskDTO(ModelDTO):

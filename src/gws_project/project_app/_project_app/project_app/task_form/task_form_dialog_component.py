@@ -10,7 +10,7 @@ def _form_content() -> rx.Component:
     return rx.vstack(
         # Title field
         rx.vstack(
-            rx.text("Task Title", size="2", weight="bold"),
+            rx.text("Task Title*", size="2", weight="bold"),
             rx.input(
                 placeholder="Enter task title",
                 name="title",
@@ -22,29 +22,25 @@ def _form_content() -> rx.Component:
             spacing="1"
         ),
 
-        rx.cond(
-            TaskFormDialogState.is_create_mode,
-            # Assign to field
-            rx.vstack(
-                rx.text("Assign To", size="2", weight="bold"),
-                user_select(
-                    users=TaskFormDialogState.users,
-                    placeholder="Select a user (optional)",
-                    name="assign_to_id",
-                    default_value=TaskFormDialogState.form_assign_to_id,
-                    width="100%",
-                ),
+        # Assign to field (shown in both create and update modes)
+        rx.vstack(
+            rx.text("Assign To", size="2", weight="bold"),
+            user_select(
+                users=TaskFormDialogState.users,
+                placeholder="Select a user (default to yourself)",
+                name="assign_to_id",
+                default_value=TaskFormDialogState.form_assign_to_id,
                 width="100%",
-                spacing="1"
             ),
-
+            width="100%",
+            spacing="1"
         ),
 
         # Task type radio buttons (only in create root mode, not in create sub or update mode)
         rx.cond(
             ~TaskFormDialogState.is_update_mode & ~TaskFormDialogState.is_create_sub_mode,
             rx.vstack(
-                rx.text("Task Type", size="2", weight="bold"),
+                rx.text("Task Type*", size="2", weight="bold"),
                 rx.radio.root(
                     rx.hstack(
                         rx.radio.item(
@@ -84,7 +80,7 @@ def _form_content() -> rx.Component:
                 # Date fields
                 rx.hstack(
                     rx.vstack(
-                        rx.text("Start Date", size="2", weight="bold"),
+                        rx.text("Start Date*", size="2", weight="bold"),
                         rx.input(
                             type="date",
                             name="start_date",
@@ -99,7 +95,7 @@ def _form_content() -> rx.Component:
                     ),
 
                     rx.vstack(
-                        rx.text("End Date", size="2", weight="bold"),
+                        rx.text("End Date*", size="2", weight="bold"),
                         rx.input(
                             type="date",
                             name="end_date",
@@ -120,7 +116,7 @@ def _form_content() -> rx.Component:
                 # Create mode: show both status and priority
                 rx.hstack(
                     rx.vstack(
-                        rx.text("Status", size="2", weight="bold"),
+                        rx.text("Status*", size="2", weight="bold"),
                         rx.select(
                             [status.value for status in TaskStatus],
                             name="status",
@@ -132,7 +128,7 @@ def _form_content() -> rx.Component:
                     ),
 
                     rx.vstack(
-                        rx.text("Priority", size="2", weight="bold"),
+                        rx.text("Priority*", size="2", weight="bold"),
                         rx.select(
                             [priority.value for priority in TaskPriority],
                             name="priority",

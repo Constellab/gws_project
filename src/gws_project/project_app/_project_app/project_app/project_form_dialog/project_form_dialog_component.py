@@ -36,7 +36,7 @@ def _form_content() -> rx.Component:
     return rx.vstack(
         # Project Name field
         rx.vstack(
-            rx.text("Project Name", size="2", weight="bold"),
+            rx.text("Project Name*", size="2", weight="bold"),
             rx.input(
                 placeholder="Enter project name",
                 name="name",
@@ -78,7 +78,7 @@ def _form_content() -> rx.Component:
         # Date fields
         rx.hstack(
             rx.vstack(
-                rx.text("Start Date", size="2", weight="bold"),
+                rx.text("Start Date*", size="2", weight="bold"),
                 rx.input(
                     type="date",
                     name="start_date",
@@ -94,7 +94,7 @@ def _form_content() -> rx.Component:
             rx.cond(
                 ProjectFormDialogState.selected_template_id == "",
                 rx.vstack(
-                    rx.text("End Date", size="2", weight="bold"),
+                    rx.text("End Date*", size="2", weight="bold"),
                     rx.input(
                         type="date",
                         name="end_date",
@@ -110,9 +110,9 @@ def _form_content() -> rx.Component:
             spacing="3"
         ),
 
-        # Role assignments (only when template is selected)
+        # Role assignments (only when template is selected and has roles)
         rx.cond(
-            ProjectFormDialogState.selected_template_id != "",
+            (ProjectFormDialogState.selected_template_id != "") & (ProjectFormDialogState.template_roles.length() > 0),
             rx.vstack(
                 rx.text("Role Assignments", size="2", weight="bold"),
                 rx.text(

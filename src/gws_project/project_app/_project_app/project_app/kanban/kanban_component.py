@@ -17,7 +17,7 @@ def _filter_bar() -> rx.Component:
     return rx.hstack(
         # Text search input
         rx.input(
-            placeholder="Search tasks...",
+            placeholder="Title",
             value=KanbanState.search_text,
             on_change=KanbanState.handle_search_change,
             min_width="300px",
@@ -101,33 +101,14 @@ def kanban_page() -> rx.Component:
                 _filter_bar(),
 
                 # Kanban board
-                rx.cond(
-                    KanbanState.tasks.length() > 0,
-                    kanban_board(
-                        board_data=KanbanState.kanban_board_data,
-                        disable_column_drag=True,
-                        on_card_move=KanbanState.handle_card_move,
-                        on_card_click=KanbanState.handle_card_click,
-                        width="100%",
-                        flex="1",
-                        class_name="kanban-board",
-                    ),
-
-                    # Empty state when no tasks
-                    rx.center(
-                        rx.vstack(
-                            rx.icon("list_todo", size=40, color="gray"),
-                            rx.text(
-                                "No tasks found",
-                                size="3",
-                                color="gray",
-                                margin_top="0.5rem"
-                            ),
-                            spacing="2",
-                            align="center"
-                        ),
-                        width="100%",
-                    )
+                kanban_board(
+                    board_data=KanbanState.kanban_board_data,
+                    disable_column_drag=True,
+                    on_card_move=KanbanState.handle_card_move,
+                    on_card_click=KanbanState.handle_card_click,
+                    width="100%",
+                    flex="1",
+                    class_name="kanban-board",
                 ),
 
                 width="100%",

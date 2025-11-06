@@ -214,6 +214,9 @@ class TaskService:
             # For parent tasks, only allow updating title
             # Dates, status, and priority are calculated from subtasks
             task.title = task_dto.title
+            if task_dto.assign_to_id is not None:
+                task.assign_to = self._validate_assign_to_in_project(task.project.id, task_dto.assign_to_id)
+
             task.save()
 
             # Recalculate parent task information from subtasks
@@ -250,6 +253,8 @@ class TaskService:
             task.status = task_dto.status
         if task_dto.priority:
             task.priority = task_dto.priority
+        if task_dto.assign_to_id is not None:
+            task.assign_to = self._validate_assign_to_in_project(task.project.id, task_dto.assign_to_id)
 
         # Save the task to the database
         task.save()

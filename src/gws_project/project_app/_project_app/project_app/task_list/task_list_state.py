@@ -42,16 +42,7 @@ class TaskListState(ReflexMainState):
 
         return [task.to_dto() for task in self._tasks]
 
-    def delete_task(self, task_id: str):
-        """Delete a task and its subtasks from the state.
-
-        :param task_id: The ID of the task to delete
-        :type task_id: str
-        """
-        if self._tasks:
-            self._tasks = [task for task in self._tasks if task.id != task_id]
-
-    def add_or_update_task(self, task: Task):
+    async def add_or_update_task(self, task: Task):
         """Update a task in the state.
 
         :param updated_task: The updated TaskDTO
@@ -67,19 +58,9 @@ class TaskListState(ReflexMainState):
 
         self._tasks.append(task)
 
-    async def _update_task(self, task: Task):
-        """Update a task in the state.
-
-        :param task: The updated TaskDTO
-        :type task: TaskDTO
-        """
-        if not self._tasks:
-            return
-
-        for i, t in enumerate(self._tasks):
-            if t.id == task.id:
-                self._tasks[i] = task
-                break
+        # Refresh current object because sub task might affect parent task data
+        project_state = await self.get_state(ProjectPageState)
+        await project_state.refresh_object()
 
     async def open_update_task_dialog(self, task_id: str):
         """Open the update task dialog.
@@ -102,16 +83,8 @@ class TaskListState(ReflexMainState):
 
         await form_state.open_update_dialog(
             task=task,
-            callback_after_close=self._on_update_task_dialog_close
+            callback_after_close=self.add_or_update_task
         )
-
-    async def _on_update_task_dialog_close(self, task: Task):
-        """Callback after the update task dialog is closed to refresh the task list.
-
-        :param task: The updated task
-        :type task: Task
-        """
-        self.add_or_update_task(task)
 
     @rx.event
     async def open_delete_task_dialog(self, task: TaskDTO):
@@ -143,4 +116,17 @@ class TaskListState(ReflexMainState):
         yield rx.toast.success("Task deleted successfully")
 
         # Remove from list
-        self.delete_task(task_id)
+        await self.delete_task(task_id)
+
+    async def delete_task(self, task_id: str):
+        """Delete a task and its subtasks from the state.
+
+        :param task_id: The ID of the task to delete
+        :type task_id: str
+        """
+        if self._tasks:
+            self._tasks = [task for task in self._tasks if task.id != task_id]
+
+        # Refresh current object because sub task might affect parent task data
+        project_state = await self.get_state(ProjectPageState)
+        await project_state.refresh_object()

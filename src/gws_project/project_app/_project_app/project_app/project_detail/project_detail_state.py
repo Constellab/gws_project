@@ -140,7 +140,7 @@ class ProjectDetailState(ReflexMainState):
         :type task: Task
         """
         task_list_state = await self.get_state(TaskListState)
-        task_list_state.add_or_update_task(task)
+        await task_list_state.add_or_update_task(task)
 
     @rx.event
     async def open_delete_project_dialog(self):

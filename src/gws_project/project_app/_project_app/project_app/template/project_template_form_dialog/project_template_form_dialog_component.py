@@ -9,7 +9,7 @@ def _form_content() -> rx.Component:
     return rx.vstack(
         # Form fields
         rx.vstack(
-            rx.text("Template Name", size="2", weight="bold"),
+            rx.text("Template Name*", size="2", weight="bold"),
             rx.input(
                 placeholder="Enter template name",
                 name="name",
