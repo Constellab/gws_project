@@ -4,8 +4,7 @@ from typing import TYPE_CHECKING, Optional
 
 from gws_core import (BadRequestException, DocumentUploadOverrideMode, PageDTO,
                       SearchOperator, SpaceHierarchyObjectDTO,
-                      SpaceHierarchyObjectSearchParams,
-                      SpaceHierarchyObjectType, SpaceService)
+                      SpaceHierarchyObjectSearchParams, SpaceService)
 from gws_project.project.project_security_service import (
     ProjectSecurityService, ProjectUserRole)
 
@@ -52,7 +51,7 @@ class DocumentService:
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
         search_params = SpaceHierarchyObjectSearchParams()
-        search_params.add_object_type_filter(SearchOperator.NEQ, SpaceHierarchyObjectType.FOLDER)
+        search_params.add_object_type_filter(SearchOperator.NEQ, 'FOLDER')
 
         # Get paginated documents
         return self._space_service.search_project_children_objects_paginated(
@@ -86,7 +85,7 @@ class DocumentService:
             return PageDTO.empty_page()
 
         search_params = SpaceHierarchyObjectSearchParams()
-        search_params.add_object_type_filter(SearchOperator.NEQ, SpaceHierarchyObjectType.FOLDER)
+        search_params.add_object_type_filter(SearchOperator.NEQ, 'FOLDER')
 
         # filter the documents by the task's tag
         search_params.add_tag_filter(SearchOperator.EQ, task.get_space_tag())

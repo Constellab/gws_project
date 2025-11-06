@@ -28,6 +28,13 @@ def view_mode_segmented_control() -> rx.Component:
     return rx.segmented_control.root(
         rx.segmented_control.item(
             rx.tooltip(
+                rx.icon("list", size=16),
+                content="View tasks as list"
+            ),
+            value="list",
+        ),
+        rx.segmented_control.item(
+            rx.tooltip(
                 rx.icon("file-text", size=16),
                 content="View description"
             ),
@@ -39,13 +46,6 @@ def view_mode_segmented_control() -> rx.Component:
                 content="View documents"
             ),
             value="documents",
-        ),
-        rx.segmented_control.item(
-            rx.tooltip(
-                rx.icon("list", size=16),
-                content="View tasks as list"
-            ),
-            value="list",
         ),
         value=ProjectDetailState.view_mode,
         on_change=ProjectDetailState.set_view_mode,
@@ -101,7 +101,7 @@ def main_content_area() -> rx.Component:
             # Title
             rx.heading(
                 ProjectDetailState.project.title,
-                size="8",
+                size="6",
             ),
             rx.spacer(),
             # View mode toggle buttons

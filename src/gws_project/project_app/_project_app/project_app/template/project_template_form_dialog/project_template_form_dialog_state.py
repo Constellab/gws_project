@@ -86,7 +86,7 @@ class ProjectTemplateFormDialogState(FormDialogState, rx.State):
         yield rx.toast.success("Template created successfully")
 
         # Redirect to the template list page
-        yield rx.redirect(ProjectAppRouter.get_template_list_url())
+        yield rx.redirect(ProjectAppRouter.get_project_template_list_url())
 
     async def _update(self, form_data: dict):
         """Update an existing template using the form data.

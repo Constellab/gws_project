@@ -3,6 +3,7 @@ a[href="https://reflex.dev"] {
     display: none !important;
 }
 
+
 .dense-markdown{
     line-height: 1;
 }
@@ -32,6 +33,7 @@ a[href="https://reflex.dev"] {
     --cursor-slider-thumb: grab;
     --cursor-slider-thumb-active: grabbing;
     --cursor-switch: pointer; 
+    /* --default-font-family: 'Plus Jakarta Sans', sans-serif; */
 }
 
 .AccordionTrigger {

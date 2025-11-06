@@ -214,7 +214,7 @@ def main_content_area() -> rx.Component:
         rx.hstack(
             rx.heading(
                 TemplateDetailState.project_template.name,
-                size="8"
+                size="6"
             ),
             template_action_menu(),
             justify="between",

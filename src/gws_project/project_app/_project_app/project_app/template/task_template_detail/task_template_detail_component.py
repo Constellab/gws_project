@@ -26,7 +26,7 @@ def task_template_header() -> rx.Component:
         # Title
         rx.heading(
             TaskTemplateDetailState.task_template.title,
-            size="8",
+            size="6",
         ),
         rx.spacer(),
         # Action menu (Update and Delete)

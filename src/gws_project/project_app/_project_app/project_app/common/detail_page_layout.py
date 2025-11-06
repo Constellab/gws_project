@@ -4,6 +4,16 @@ from .breadcrumb.breadcrumb_component import breadcrumb_component
 from .breadcrumb.breadcrumb_state import BreadcrumbItem
 
 
+class DetailPageState(rx.State):
+    """State for managing the detail page layout."""
+
+    show_detail: bool = True
+
+    def toggle_detail(self):
+        """Toggle the visibility of the detail section."""
+        self.show_detail = not self.show_detail
+
+
 def detail_page_layout(
     main_content: rx.Component,
     sidebar_content: rx.Component,
@@ -25,33 +35,63 @@ def detail_page_layout(
     :return: The detail page layout component
     :rtype: rx.Component
     """
-    return rx.hstack(
-        # Main content area (center, max width 1000px)
-        rx.vstack(
-            rx.box(breadcrumb_component(breadcrumbs),
-                   margin_bottom="1em"
-                   ),
-            main_content,
-            max_width="1200px",
+    return rx.vstack(
+        # Header row with breadcrumb and toggle button
+        rx.hstack(
+            breadcrumb_component(breadcrumbs),
+            rx.spacer(),
+            rx.tooltip(
+                rx.icon_button(
+                    rx.cond(
+                        DetailPageState.show_detail,
+                        rx.icon("chevron-right", size=20),
+                        rx.icon("chevron-left", size=20),
+                    ),
+                    on_click=DetailPageState.toggle_detail,
+                    variant="soft",
+                    size="2",
+                    cursor="pointer",
+                ),
+                content=rx.cond(
+                    DetailPageState.show_detail,
+                    "Hide detail panel",
+                    "Show detail panel",
+                ),
+            ),
             width="100%",
-            height="100%",
-            flex="1"
+            align_items="center",
         ),
 
-        # Sidebar (right, fixed width with styling)
-        rx.vstack(
-            sidebar_content,
-            width="450px",
-            min_width="450px",
-            padding="1.5rem",
-            background="var(--gray-2)",
-            border_radius="8px",
-            align_items="start"
-        ),
+        rx.hstack(
+            # Main content area (center, max width 1000px)
+            rx.vstack(
+                main_content,
+                max_width="1200px",
+                width="100%",
+                height="100%",
+            ),
 
+            # Sidebar (right, fixed width with styling)
+            rx.cond(
+                DetailPageState.show_detail,
+                rx.vstack(
+                    sidebar_content,
+                    width="450px",
+                    min_width="450px",
+                    padding="1.5rem",
+                    background="var(--gray-2)",
+                    border_radius="8px",
+                    align_items="start"
+                ),
+            ),
+
+            flex="1",
+            min_height="0",
+            width="100%",
+            spacing="4",
+            align_items="start",
+            justify="center"
+        ),
         height="100%",
         width="100%",
-        spacing="4",
-        align_items="start",
-        justify="center"
     )

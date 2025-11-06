@@ -96,7 +96,7 @@ class TemplateDetailState(ReflexMainState):
                 template_service.delete_project_template(project_template.id)
 
             yield rx.toast.success("Template deleted successfully")
-            yield rx.redirect(ProjectAppRouter.get_template_list_url())
+            yield rx.redirect(ProjectAppRouter.get_project_template_list_url())
 
         except Exception as e:
             yield rx.toast.error(f"Error deleting template: {str(e)}")

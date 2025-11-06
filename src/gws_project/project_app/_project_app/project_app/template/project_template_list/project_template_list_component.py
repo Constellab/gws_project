@@ -23,7 +23,7 @@ def project_template_list_page() -> rx.Component:
             rx.vstack(
                 # Header with title and create button
                 rx.hstack(
-                    rx.heading("Project Templates", size="8"),
+                    rx.heading("Project Templates", size="6"),
                     create_template_dialog(),
                     justify="between",
                     align="center",

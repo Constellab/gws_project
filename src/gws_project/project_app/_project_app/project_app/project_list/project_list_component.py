@@ -22,7 +22,7 @@ def project_list_page() -> rx.Component:
             rx.vstack(
                 # Header with title and create button
                 rx.hstack(
-                    rx.heading("My projects", size="8"),
+                    rx.heading("My projects", size="6"),
                     create_project_dialog(),
                     justify="between",
                     align="center",

@@ -20,7 +20,7 @@ class ProjectDetailState(ReflexMainState):
     based on the project ID from the URL.
     """
 
-    view_mode: str = "description"  # "description", "documents", "list", or "kanban"
+    view_mode: str = "list"  # "description", "documents", "list"
     description_edit_mode: bool = False  # Track if description is in edit mode
 
     _project_id: Optional[str] = None
