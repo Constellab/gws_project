@@ -54,7 +54,7 @@ def task_list_component() -> rx.Component:
             overflow_y="auto",
         ),
         # Key forces remount when URL changes
-        key=TaskListState.current_url_id,
+        key=TaskListState.current_object_id,
         width="100%",
         flex="1",
         min_height="0",

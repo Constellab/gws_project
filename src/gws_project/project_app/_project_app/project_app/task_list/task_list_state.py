@@ -22,7 +22,7 @@ class TaskListState(ReflexMainState):
     is_loading: bool = False
 
     @rx.var
-    async def current_url_id(self) -> str:
+    async def current_object_id(self) -> str:
         """Get the current URL ID (project_id or task_id) to watch for changes.
 
         This var is used to detect URL changes and trigger task reloading.

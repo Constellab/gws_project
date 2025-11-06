@@ -1,15 +1,13 @@
 
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from gws_core import (BadRequestException, DocumentUploadOverrideMode, PageDTO,
                       SearchOperator, SpaceHierarchyObjectDTO,
                       SpaceHierarchyObjectSearchParams, SpaceService)
 from gws_project.project.project_security_service import (
     ProjectSecurityService, ProjectUserRole)
-
-if TYPE_CHECKING:
-    from gws_project.task.task_service import TaskService
+from gws_project.task.task_service import TaskService
 
 
 class DocumentService:
@@ -32,7 +30,7 @@ class DocumentService:
         :type task_service: Optional[TaskService]
         """
         self._space_service = space_service if space_service is not None else SpaceService()
-        self._task_service = task_service  # Will be set lazily if needed
+        self._task_service = task_service if task_service is not None else TaskService()
 
     def get_project_documents(self, project_id: str, page: int, size: int) -> PageDTO[SpaceHierarchyObjectDTO]:
         """Get documents of a project's space folder.
@@ -166,12 +164,6 @@ class DocumentService:
         # Get the task and check permissions
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
-
-        # Get or create the space folder for the task
-        # This uses lazy initialization of TaskService to avoid circular imports
-        if self._task_service is None:
-            from gws_project.task.task_service import TaskService
-            self._task_service = TaskService(space_service=self._space_service)
 
         space_folder_id = self._task_service.get_or_create_space_folder_id(task_id)
 

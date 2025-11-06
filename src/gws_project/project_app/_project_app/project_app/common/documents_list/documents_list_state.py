@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 import reflex as rx
-from gws_core import (BaseModelDTO, DocumentUploadOverrideMode,
+from gws_core import (BaseModelDTO, DocumentUploadOverrideMode, Logger,
                       SpaceFrontService, SpaceHierarchyObjectDTO,
                       SpaceHierarchyObjectType)
 from gws_project.document.document_service import DocumentService
@@ -101,10 +101,10 @@ class DocumentsListState(ReflexMainState):
         """
         # Get current object and check if we need to fetch
         async with self:
-            # Check if we're in documents view mode
-            view_mode_state = await self.get_state(ViewModeState)
-            if view_mode_state.view_mode != "documents":
-                return  # Don't load if not in documents view
+            # # Check if we're in documents view mode
+            # view_mode_state = await self.get_state(ViewModeState)
+            # if view_mode_state.view_mode != "documents":
+            #     return  # Don't load if not in documents view
 
             current_object = await self._get_current_object()
             if not current_object:
@@ -162,19 +162,6 @@ class DocumentsListState(ReflexMainState):
                 )
             raise e
 
-    async def _fetch_initial_documents(self, current_object: Task | Project):
-        """Fetch the initial page of documents for a new object.
-
-        :param current_object: The current task or project object
-        :type current_object: Task | Project
-        """
-        # Reset state for new object
-        self._cached_object_id = current_object.id
-        self._pagination = PaginationState()
-
-        # Fetch first page
-        await self._fetch_documents_page(current_object=current_object, page=0, append=False)
-
     async def _get_current_object(self) -> Optional[Task | Project]:
         """Get the current object from ProjectPageState.
 
@@ -183,6 +170,20 @@ class DocumentsListState(ReflexMainState):
         """
         project_page_state = await self.get_state(ProjectPageState)
         return await project_page_state.get_object()
+
+    @rx.var
+    async def current_object_id(self) -> Optional[str]:
+        """Get the current object ID (project_id or task_id) to watch for changes.
+
+        This var is used to detect URL changes and trigger document reloading.
+
+        :return: The current object ID or None if no object
+        :rtype: Optional[str]
+        """
+        current_object = await self._get_current_object()
+        if not current_object:
+            return None
+        return current_object.id
 
     async def _get_project_id(self) -> Optional[str]:
         """Get the project ID from the current object.
@@ -346,6 +347,7 @@ class DocumentsListState(ReflexMainState):
 
                 except Exception as e:
                     failed_count += 1
+                    Logger.log_exception_stack_trace(e)
                     yield rx.toast.error(f"Failed to upload {file.name}: {str(e)}")
                 finally:
                     # Clean up temporary file

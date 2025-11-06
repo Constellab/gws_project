@@ -166,17 +166,12 @@ class TaskService:
             parent_task=parent_task
         )
 
-        # Copy space_folder_id from parent task (using get_space_folder_id to handle hierarchy)
-        subtask.space_folder_id = parent_task.get_space_folder_id()
-
         # Save the subtask to the database
         subtask.save()
 
         # Update parent task information based on all subtasks (including the new one)
         # This will recursively update all ancestors up to the root task
         self._update_parent_task_from_subtasks(parent_task)
-
-        # Note: We do NOT create a folder in Space for subtasks
 
         return subtask
 
@@ -204,50 +199,26 @@ class TaskService:
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
+        title_has_changed = task.title != task_dto.title
+        dates_have_changed = (task.start_date != task_dto.start_date) or (task.end_date != task_dto.end_date)
+
         # Check if this task has subtasks (is a parent task)
-        if task.allow_subtasks:
-            # For parent tasks, only allow updating title and assignment
-            # Dates, status, and priority are calculated from subtasks
-            task.title = task_dto.title
-            if task_dto.assign_to_id is not None:
-                task.assign_to = self._validate_assign_to_in_project(task.project.id, task_dto.assign_to_id)
+        if task.is_leaf_task():
 
-            task.save()
-
-            # Recalculate this task's information from subtasks and propagate to all ancestors
-            self._update_parent_task_from_subtasks(task)
-
-            return task
-
-        # For tasks without subtasks (leaf tasks)
-
-        # Check if title or dates have changed
-        folder_has_changed = task.title != task_dto.title or \
-            task.start_date != task_dto.start_date or \
-            task.end_date != task_dto.end_date
-
-        # Validate dates based on whether this is a root task or subtask
-        if task.is_root_task():
             # For root tasks, validate against project dates
             self._validate_task_dates_within_project(task.project, task_dto.start_date, task_dto.end_date)
-        else:
-            # For subtasks at any level, dates are no longer validated against parent since parent adjusts automatically
-            # Just validate that start_date <= end_date
-            if task_dto.start_date > task_dto.end_date:
-                raise BadRequestException(
-                    f"Task start date ({task_dto.start_date}) cannot be after its end date ({task_dto.end_date})."
-                )
 
-        # Update the task fields from DTO
+            # Update the task fields from DTO
+            if task_dto.start_date:
+                task.start_date = task_dto.start_date
+            if task_dto.end_date:
+                task.end_date = task_dto.end_date
+            if task_dto.status:
+                task.status = task_dto.status
+            if task_dto.priority:
+                task.priority = task_dto.priority
+
         task.title = task_dto.title
-        if task_dto.start_date:
-            task.start_date = task_dto.start_date
-        if task_dto.end_date:
-            task.end_date = task_dto.end_date
-        if task_dto.status:
-            task.status = task_dto.status
-        if task_dto.priority:
-            task.priority = task_dto.priority
         if task_dto.assign_to_id is not None:
             task.assign_to = self._validate_assign_to_in_project(task.project.id, task_dto.assign_to_id)
 
@@ -258,8 +229,8 @@ class TaskService:
         if not task.is_root_task():
             self._update_parent_task_from_subtasks(task.parent_task)
 
-        # If this is a root task with a space folder, update the folder in Space
-        if task.is_root_task() and task.space_folder_id and folder_has_changed:
+        # If this is a task with a space folder, update the folder in Space
+        if task.space_folder_id and (title_has_changed or dates_have_changed):
             space_folder = ExternalSpaceCreateFolder(
                 name=task.title,
                 code=None,

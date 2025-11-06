@@ -30,7 +30,9 @@ def documents_list_view() -> rx.Component:
                 ),
             ),
             width="100%",
-            align="center"
+            align="center",
+            # Trigger background fetch when component mounts
+            on_mount=DocumentsListState.fetch_documents_on_mount,
         ),
         # Documents content
         _documents_content(),
@@ -42,8 +44,7 @@ def documents_list_view() -> rx.Component:
         # full height but not overflow parent
         flex="1",
         min_height="0",
-        # Trigger background fetch when component mounts
-        on_mount=DocumentsListState.fetch_documents_on_mount,
+        key=DocumentsListState.current_object_id,
     )
 
 
