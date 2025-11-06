@@ -31,8 +31,7 @@ def _form_content() -> rx.Component:
                     rx.hstack(
                         rx.radio.item(
                             rx.hstack(
-                                rx.icon(tag="file", size=16),
-                                rx.text("Single task", size="2"),
+                                rx.text("📋 Single task", size="2"),
                                 spacing="2",
                                 align="center"
                             ),
@@ -40,8 +39,7 @@ def _form_content() -> rx.Component:
                         ),
                         rx.radio.item(
                             rx.hstack(
-                                rx.icon(tag="folder", size=16),
-                                rx.text("Task with subtasks", size="2"),
+                                rx.text("📁 Task with subtasks", size="2"),
                                 spacing="2",
                                 align="center"
                             ),

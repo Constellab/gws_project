@@ -1,7 +1,7 @@
-from gws_core import (ConfigParams, AppConfig, AppType, OutputSpec,
-                      OutputSpecs, ReflexResource, Task, TaskInputs,
-                      TaskOutputs, app_decorator, task_decorator, 
-                      InputSpecs, ConfigSpecs)
+from gws_core import (AppConfig, AppType, ConfigParams, ConfigSpecs,
+                      InputSpecs, OutputSpec, OutputSpecs, ReflexResource,
+                      Task, TaskInputs, TaskOutputs, TypingIconColor,
+                      TypingStyle, app_decorator, task_decorator)
 
 
 @app_decorator("ProjectAppAppConfig", app_type=AppType.REFLEX,
@@ -14,8 +14,13 @@ class ProjectAppAppConfig(AppConfig):
         return self.get_app_folder_from_relative_path(__file__, "_project_app")
 
 
+project_app_style = TypingStyle.material_icon(
+    "assignment", background_color="#22c55e", icon_color=TypingIconColor.BLACK
+)
+
+
 @task_decorator("GenerateProjectApp", human_name="Generate ProjectApp app",
-                style=ReflexResource.copy_style())
+                style=project_app_style)
 class GenerateProjectApp(Task):
     """
     Task that generates the ProjectApp app.
@@ -34,6 +39,7 @@ class GenerateProjectApp(Task):
         reflex_app = ReflexResource()
 
         reflex_app.set_app_config(ProjectAppAppConfig())
-        reflex_app.name = "ProjectApp"
+        reflex_app.name = "Constellab project"
+        reflex_app.style = project_app_style
 
         return {"reflex_app": reflex_app}
