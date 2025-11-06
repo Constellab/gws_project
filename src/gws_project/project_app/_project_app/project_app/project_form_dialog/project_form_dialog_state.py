@@ -26,6 +26,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
     form_name: str = ""
     form_start_date: str = ""
     form_end_date: str = ""
+    form_project_manager_id: str = ""
 
     # Template-related state
     available_templates: List[ProjectTemplateDTO] = []
@@ -35,6 +36,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
 
     # Available users for role assignment
     available_users: List[UserDTO] = []
+    project_users: List[UserDTO] = []
 
     @rx.event
     async def open_create_dialog(self):
@@ -112,6 +114,15 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         self.form_start_date = project.start_date.strftime('%Y-%m-%d')
         self.form_end_date = project.end_date.strftime('%Y-%m-%d')
 
+        # Set project manager
+        self.form_project_manager_id = project.project_manager.id
+
+        # Load users for project manager selection
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            project_service = ProjectService()
+            self.project_users = [pu.user.to_dto() for pu in project_service.get_project_users(project.id)]
+
         # Mark as editing
         self.is_update_mode = True
 
@@ -122,7 +133,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         """Validate and parse form data into a SaveProjectDTO.
 
         Args:
-            form_data: Dictionary containing form fields (name, start_date, end_date)
+            form_data: Dictionary containing form fields (name, start_date, end_date, project_manager_id)
 
         Returns:
             SaveProjectDTO if validation succeeds, None otherwise (error toast is shown)
@@ -131,6 +142,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         name = form_data.get('name', '').strip()
         start_date_str = form_data.get('start_date', '').strip()
         end_date_str = form_data.get('end_date', '').strip()
+        project_manager_id = form_data.get('project_manager_id', '').strip() or None
 
         # Validate required fields
         if not name:
@@ -151,7 +163,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             name=name,
             start_date=start_date,
             end_date=end_date,
-            project_manager_id=None  # Using current user as project manager
+            project_manager_id=project_manager_id
         )
 
     async def _create(self, form_data: dict):
@@ -277,6 +289,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         self.form_name = ""
         self.form_start_date = ""
         self.form_end_date = ""
+        self.form_project_manager_id = ""
         self.is_update_mode = False
 
         # Clear template-related state

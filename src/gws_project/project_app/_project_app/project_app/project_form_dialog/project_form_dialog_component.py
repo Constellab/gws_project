@@ -48,6 +48,23 @@ def _form_content() -> rx.Component:
             spacing="1"
         ),
 
+        # Project Manager selection (only in update mode)
+        rx.cond(
+            ProjectFormDialogState.is_update_mode,
+            rx.vstack(
+                rx.text("Project Manager", size="2", weight="bold"),
+                user_select(
+                    users=ProjectFormDialogState.project_users,
+                    placeholder="Select project manager",
+                    default_value=ProjectFormDialogState.form_project_manager_id,
+                    name="project_manager_id",
+                    width="100%",
+                ),
+                width="100%",
+                spacing="1"
+            ),
+        ),
+
         # Template selection (only in create mode)
         rx.cond(
             ~ProjectFormDialogState.is_update_mode,

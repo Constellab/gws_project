@@ -170,6 +170,15 @@ class ProjectService:
         project.start_date = project_dto.start_date
         project.end_date = project_dto.end_date
         if project_dto.project_manager_id:
+            # Verify that the user is in the project
+            project_user = ProjectUser.get_by_project_and_user(
+                project.id, project_dto.project_manager_id)
+
+            if not project_user:
+                raise BadRequestException(
+                    "The new project manager is not a member of the project."
+                )
+
             project.project_manager = User.get_by_id_and_check(project_dto.project_manager_id)
 
         # Save the project model to the database
