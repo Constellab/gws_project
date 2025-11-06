@@ -59,6 +59,65 @@ class TaskTemplate(ModelWithUser):
         """Get the list of subtasks for this template task"""
         return self.subtasks
 
+    def get_ancestors(self) -> List['TaskTemplate']:
+        """Get all ancestor task templates from immediate parent up to root task.
+
+        Returns a list of ancestor task templates ordered from immediate parent to root.
+        Returns empty list if this is a root task template.
+
+        :return: List of ancestor task templates
+        :rtype: List[TaskTemplate]
+        """
+        ancestors = []
+        current = self.parent_task
+        while current is not None:
+            ancestors.append(current)
+            current = current.parent_task
+        return ancestors
+
+    def get_all_descendants(self) -> List['TaskTemplate']:
+        """Recursively get all descendant task templates (children, grandchildren, etc.).
+
+        Returns a flat list of all task templates in the subtree below this template.
+        Returns empty list if this task template has no subtasks.
+
+        :return: List of all descendant task templates
+        :rtype: List[TaskTemplate]
+        """
+        descendants = []
+        for subtask in self.get_subtasks():
+            descendants.append(subtask)
+            # Recursively add descendants of this subtask
+            descendants.extend(subtask.get_all_descendants())
+        return descendants
+
+    def get_depth(self) -> int:
+        """Get the depth of this task template in the hierarchy.
+
+        Root task templates have depth 0, their immediate children have depth 1, etc.
+
+        :return: The depth level of this task template
+        :rtype: int
+        """
+        if self.is_root_task():
+            return 0
+        else:
+            return 1 + self.parent_task.get_depth()
+
+    def get_root_task(self) -> 'TaskTemplate':
+        """Get the root task template for this task template.
+
+        If this task template is a root task, returns itself.
+        Otherwise, recursively gets the root task template from the parent task.
+
+        :return: The root TaskTemplate
+        :rtype: TaskTemplate
+        """
+        if self.is_root_task():
+            return self
+        else:
+            return self.parent_task.get_root_task()
+
     @classmethod
     def get_root_tasks_of_template(cls, template_id: str) -> List['TaskTemplate']:
         """Get all root template tasks for a template

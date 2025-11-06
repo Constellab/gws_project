@@ -11,21 +11,31 @@ def task_template_list_component() -> rx.Component:
     This component displays a table of task templates with columns for title, dates,
     priority, assigned role, and actions menu.
 
+    The component uses a key based on current_url_id to force remount when URL changes,
+    ensuring task templates are reloaded when navigating between task templates.
+
     :return: The task template list component
     :rtype: rx.Component
     """
-    return rx.vstack(
-        task_template_table_component(
-            task_templates=TaskTemplateListState.get_task_templates,
-            empty_message="No task templates found"
+    return rx.box(
+        rx.vstack(
+            task_template_table_component(
+                task_templates=TaskTemplateListState.get_task_templates,
+                empty_message="No task templates found"
+            ),
+            width="100%",
+            spacing="3",
+            align_items="start",
+            # full height but not overflow parent
+            flex="1",
+            min_height="0",
+            overflow_y="auto",
         ),
+        # Key forces remount when URL changes
+        key=TaskTemplateListState.current_url_id,
         width="100%",
-        spacing="3",
-        align_items="start",
-        # full height but not overflow parent
         flex="1",
         min_height="0",
-        overflow_y="auto",
     )
 
 

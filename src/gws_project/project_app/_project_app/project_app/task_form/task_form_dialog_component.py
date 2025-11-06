@@ -36,9 +36,9 @@ def _form_content() -> rx.Component:
             spacing="1"
         ),
 
-        # Task type radio buttons (only in create root mode, not in create sub or update mode)
+        # Task type radio buttons (shown in both create root and create sub modes, hidden in update mode)
         rx.cond(
-            ~TaskFormDialogState.is_update_mode & ~TaskFormDialogState.is_create_sub_mode,
+            ~TaskFormDialogState.is_update_mode,
             rx.vstack(
                 rx.text("Task Type*", size="2", weight="bold"),
                 rx.radio.root(
@@ -151,15 +151,7 @@ def _form_content() -> rx.Component:
                         rx.icon(tag="info", size=16)
                     ),
                     rx.callout.text(
-                        rx.cond(
-                            TaskFormDialogState.is_create_sub_mode,
-                            "Dates, status, and priority will be managed by the parent task and calculated based on subtask values.",
-                            rx.cond(
-                                TaskFormDialogState.is_parent_task_in_update_mode,
-                                "Dates, status, and priority are automatically calculated from subtasks.",
-                                "Dates, status, and priority will be automatically calculated from subtasks once you add them."
-                            )
-                        ),
+                        "Dates, status, and priority are automatically calculated from all descendant tasks.",
                         size="2"
                     ),
                 ),
@@ -183,17 +175,11 @@ def task_form_dialog() -> rx.Component:
     :rtype: rx.Component
     """
     return form_dialog_component(
-        state=TaskFormDialogState, title=rx.cond(
+        state=TaskFormDialogState,
+        title=rx.cond(
             TaskFormDialogState.is_update_mode, "Update Task", rx.cond(
-                TaskFormDialogState.is_create_sub_mode, "Create New Subtask", "Create New Task")),
-        description=rx.cond(
-            TaskFormDialogState.is_update_mode, rx.cond(
-                TaskFormDialogState.is_parent_task_in_update_mode,
-                "Update the task details below. Dates, status, and priority are automatically calculated from subtasks.",
-                "Update the task details below."),
-            rx.cond(
-                TaskFormDialogState.is_create_sub_mode,
-                "Fill in the details below to create a new subtask. Dates, status, and priority will be managed by the parent task.",
-                "Fill in the details below to create a new task for this project.")),
+                TaskFormDialogState.is_create_sub_mode, "Create New Subtask", "Create New Task")
+        ),
         form_content=_form_content(),
-        max_width="600px")
+        max_width="600px"
+    )

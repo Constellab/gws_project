@@ -135,8 +135,9 @@ class TaskService:
     @ProjectDbManager.transaction()
     def create_sub_task(self, parent_task_id: str, task_dto: CreateTaskDTO) -> Task:
         """Create a subtask under a parent task. Does not create a folder in Space.
-        Only allows creating subtasks under root tasks (no nested subtasks).
-        Parent task dates, status, and priority are automatically updated based on all subtasks.
+        Supports unlimited nesting levels - subtasks can be created under any task that allows subtasks.
+        Parent task dates, status, and priority are automatically updated based on all subtasks,
+        and these updates propagate up the entire ancestor chain.
 
         :param parent_task_id: The ID of the parent task
         :type parent_task_id: str
@@ -144,8 +145,7 @@ class TaskService:
         :type task_dto: CreateTaskDTO
         :return: The created subtask
         :rtype: Task
-        :raises BadRequestException: If parent task doesn't allow subtasks, is not a root task,
-                                      or user is not in project
+        :raises BadRequestException: If parent task doesn't allow subtasks or user is not in project
         """
         # Get the parent task and ensure it exists
         security_service = ProjectSecurityService()
@@ -158,20 +158,12 @@ class TaskService:
                 "Set 'allow_subtasks' to true on the parent task."
             )
 
-        # Check that the parent task is a root task (no nested subtasks allowed)
-        if not parent_task.is_root_task():
-            raise BadRequestException(
-                "Cannot create subtask. Nested subtasks are not allowed. "
-                "Subtasks can only be created under root tasks (tasks without a parent)."
-            )
-
         # Create the subtask model from DTO using common method
-        # Force allow_subtasks to False and use project dates as defaults
+        # Subtasks can have allow_subtasks set based on the DTO (enables unlimited nesting)
         subtask = self._build_task_from_dto(
             task_dto,
             parent_task.project,
-            parent_task=parent_task,
-            force_allow_subtasks=False
+            parent_task=parent_task
         )
 
         # Copy space_folder_id from parent task (using get_space_folder_id to handle hierarchy)
@@ -181,6 +173,7 @@ class TaskService:
         subtask.save()
 
         # Update parent task information based on all subtasks (including the new one)
+        # This will recursively update all ancestors up to the root task
         self._update_parent_task_from_subtasks(parent_task)
 
         # Note: We do NOT create a folder in Space for subtasks
@@ -191,10 +184,12 @@ class TaskService:
     def update_task(self, task_id: str, task_dto: UpdateTaskDTO) -> Task:
         """Update a task.
 
-        For subtasks: Updates title, description, dates, and priority, then recalculates parent task info.
+        For subtasks: Updates title, description, dates, and priority, then recalculates all ancestor task info.
         For parent tasks: Only updates title and description. Dates, status, and priority are
-                         automatically calculated from subtasks.
+                         automatically calculated from subtasks and propagated up the hierarchy.
         For root tasks without subtasks: Updates all fields and syncs with Space folder.
+
+        Changes propagate up the entire hierarchy chain to the root task.
 
         :param task_id: The ID of the task to update
         :type task_id: str
@@ -211,7 +206,7 @@ class TaskService:
 
         # Check if this task has subtasks (is a parent task)
         if task.allow_subtasks:
-            # For parent tasks, only allow updating title
+            # For parent tasks, only allow updating title and assignment
             # Dates, status, and priority are calculated from subtasks
             task.title = task_dto.title
             if task_dto.assign_to_id is not None:
@@ -219,12 +214,12 @@ class TaskService:
 
             task.save()
 
-            # Recalculate parent task information from subtasks
+            # Recalculate this task's information from subtasks and propagate to all ancestors
             self._update_parent_task_from_subtasks(task)
 
             return task
 
-        # For tasks without subtasks (regular tasks or subtasks)
+        # For tasks without subtasks (leaf tasks)
 
         # Check if title or dates have changed
         folder_has_changed = task.title != task_dto.title or \
@@ -236,7 +231,7 @@ class TaskService:
             # For root tasks, validate against project dates
             self._validate_task_dates_within_project(task.project, task_dto.start_date, task_dto.end_date)
         else:
-            # For subtasks, dates are no longer validated against parent since parent adjusts automatically
+            # For subtasks at any level, dates are no longer validated against parent since parent adjusts automatically
             # Just validate that start_date <= end_date
             if task_dto.start_date > task_dto.end_date:
                 raise BadRequestException(
@@ -259,7 +254,7 @@ class TaskService:
         # Save the task to the database
         task.save()
 
-        # If this is a subtask, update the parent task information
+        # If this is not a root task, update all ancestor tasks in the hierarchy
         if not task.is_root_task():
             self._update_parent_task_from_subtasks(task.parent_task)
 
@@ -304,7 +299,10 @@ class TaskService:
 
     @ProjectDbManager.transaction()
     def update_status(self, task_id: str, status: TaskStatus) -> Task:
-        """Update the status of a task and automatically update parent task information if applicable.
+        """Update the status of a task and automatically update all ancestor tasks.
+
+        The status change propagates up the entire hierarchy chain, updating all ancestor tasks
+        based on their subtasks' statuses.
 
         :param task_id: The ID of the task to update
         :type task_id: str
@@ -336,7 +334,7 @@ class TaskService:
         # Save the task to the database
         task.save()
 
-        # Update parent task information if this is a subtask
+        # Update all ancestor tasks in the hierarchy (parent, grandparent, etc.)
         # This updates not just status, but also dates and priority based on all subtasks
         if task.parent_task:
             self._update_parent_task_from_subtasks(task.parent_task)
@@ -345,7 +343,10 @@ class TaskService:
 
     @ProjectDbManager.transaction()
     def update_priority(self, task_id: str, priority: TaskPriority) -> Task:
-        """Update the priority of a task and automatically update parent task information if applicable.
+        """Update the priority of a task and automatically update all ancestor tasks.
+
+        The priority change propagates up the entire hierarchy chain, updating all ancestor tasks
+        based on their subtasks' priorities.
 
         :param task_id: The ID of the task to update
         :type task_id: str
@@ -377,7 +378,7 @@ class TaskService:
         # Save the task to the database
         task.save()
 
-        # Update parent task information if this is a subtask
+        # Update all ancestor tasks in the hierarchy (parent, grandparent, etc.)
         # This updates not just priority, but also dates and status based on all subtasks
         if task.parent_task:
             self._update_parent_task_from_subtasks(task.parent_task)
@@ -386,8 +387,11 @@ class TaskService:
 
     @ProjectDbManager.transaction()
     def delete_task(self, task_id: str) -> None:
-        """Delete a task. If it's a root task, also deletes all subtasks and the Space folder.
-        If it's a subtask, updates the parent task information after deletion.
+        """Delete a task and all its descendants recursively.
+
+        For tasks with subtasks: Deletes all descendants at all levels (children, grandchildren, etc.)
+        For root tasks: Also deletes the Space folder
+        For subtasks: Updates all ancestor tasks after deletion
 
         :param task_id: The ID of the task to delete
         :type task_id: str
@@ -399,30 +403,37 @@ class TaskService:
         # Store parent task reference before deletion if this is a subtask
         parent_task = task.parent_task if not task.is_root_task() else None
 
-        # If this is a root task with subtasks, delete all subtasks first
+        # Store root task info for Space folder deletion before deletion
+        is_root = task.is_root_task()
+        space_folder_id = task.space_folder_id
+
+        # If this task has subtasks, delete all descendants recursively
+        # The database CASCADE on the foreign key will handle this automatically,
+        # but we can also use get_all_descendants() if we need to perform
+        # additional operations on each descendant before deletion
         if task.allow_subtasks:
-            # Delete all subtasks (Peewee will handle this via CASCADE on the foreign key)
-            # But we'll explicitly query and delete to be clear
-            subtasks = task.get_subtasks()
-            for subtask in subtasks:
-                subtask.delete_instance()
+            # Get all descendants at all levels
+            descendants = task.get_all_descendants()
+            # Delete in reverse order (deepest first) to maintain referential integrity
+            for descendant in reversed(descendants):
+                descendant.delete_instance()
 
         # Delete the task from the database
         task.delete_instance()
 
-        # If this was a subtask, update the parent task information
+        # If this was a subtask, update all ancestor tasks in the hierarchy
         if parent_task:
             self._update_parent_task_from_subtasks(parent_task)
 
-        # If this is a root task with a space folder, delete the folder in Space
-        if task.is_root_task() and task.space_folder_id:
+        # If this was a root task with a space folder, delete the folder in Space
+        if is_root and space_folder_id:
             try:
-                self._space_service.delete_folder(task.space_folder_id)
+                self._space_service.delete_folder(space_folder_id)
             except BaseHTTPException as e:
                 if e.status_code == 404:
-                    # Folder not found in Space, proceed with project deletion
+                    # Folder not found in Space, proceed with task deletion
                     Logger.warning(
-                        f"Space folder {task.space_folder_id} not found. Proceeding with project deletion.")
+                        f"Space folder {space_folder_id} not found. Proceeding with task deletion.")
                 else:
                     # Reraise other exceptions
                     raise e
@@ -573,21 +584,23 @@ class TaskService:
     def _update_parent_task_from_subtasks(self, parent_task: Task) -> None:
         """Update parent task information (dates, status, priority) based on all its subtasks.
 
-        This method automatically calculates:
+        This method recursively updates the entire ancestor chain up to the root task.
+        For each ancestor task, it automatically calculates:
         - Start date: earliest start date of all subtasks (or project start date if no subtasks)
         - End date: latest end date of all subtasks (or project end date if no subtasks)
         - Status: based on subtask statuses (or TODO if no subtasks)
         - Priority: highest priority among all subtasks (or MEDIUM if no subtasks)
 
         Only saves to database and updates Space if there were actual changes.
+        Space folder is only updated for the root task.
 
-        :param parent_task: The parent task to update
+        :param parent_task: The parent task to update (and all its ancestors)
         :type parent_task: Task
         """
         # Update from subtasks (calculates dates, status, and priority)
         has_changes = parent_task.update_from_subtasks()
 
-        # Only save and update Space if there were changes
+        # Only save if there were changes
         if has_changes:
             # Save the updated parent task
             parent_task.save()
@@ -602,6 +615,11 @@ class TaskService:
                     ending_date=parent_task.end_date
                 )
                 self._space_service.update_folder(parent_task.space_folder_id, space_folder)
+
+        # Recursively update the parent's parent (if it exists)
+        # This ensures all ancestors in the hierarchy are updated
+        if parent_task.parent_task is not None:
+            self._update_parent_task_from_subtasks(parent_task.parent_task)
 
     @ProjectDbManager.transaction()
     def update_task_description(self, task_id: str, description: RichTextDTO) -> Task:
@@ -624,7 +642,7 @@ class TaskService:
 
         return task
 
-    def get_subtask_assigned_users(self, task_id: str) -> List[User]:
+    def get_descendants_assigned_users(self, task_id: str) -> List[User]:
         """Get the list of unique users assigned to subtasks of a task.
 
         Returns an empty list if the task has no subtasks or if no users are assigned.
@@ -640,17 +658,16 @@ class TaskService:
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
-        # Get all subtasks of the task
-        subtasks = Task.get_subtasks_of_task(task.id)
+        descendants = task.get_all_descendants()
 
         # Extract unique users using a dictionary to preserve order and avoid duplicates
         seen_user_ids = set()
         unique_users = []
 
-        for subtask in subtasks:
-            if subtask.assign_to and subtask.assign_to.id not in seen_user_ids:
-                seen_user_ids.add(subtask.assign_to.id)
-                unique_users.append(subtask.assign_to)
+        for descendant in descendants:
+            if descendant.assign_to and descendant.assign_to.id not in seen_user_ids:
+                seen_user_ids.add(descendant.assign_to.id)
+                unique_users.append(descendant.assign_to)
 
         return unique_users
 
@@ -662,9 +679,10 @@ class TaskService:
         role_mapping: Optional[Dict[str, str]] = None,
         parent_task: Optional[Task] = None
     ) -> Task:
-        """Create a task from a task template.
+        """Create a task from a task template with unlimited hierarchy support.
 
-        Recursively creates subtasks if the template has subtasks.
+        Recursively creates all descendant tasks (subtasks, sub-subtasks, etc.) from the template,
+        supporting unlimited nesting levels. The entire task hierarchy is created in a single operation.
 
         :param project: The project to create the task in
         :type project: Project
@@ -674,7 +692,7 @@ class TaskService:
         :type project_start_date: date
         :param role_mapping: Dictionary mapping role names to user IDs
         :type role_mapping: Optional[Dict[str, str]]
-        :param parent_task: The parent task if this is a subtask
+        :param parent_task: The parent task if this is a subtask (for recursive calls)
         :type parent_task: Optional[Task]
         :return: The created task
         :rtype: Task

@@ -253,6 +253,51 @@ class Task(ModelWithUser):
         else:
             return self.parent_task.get_root_task()
 
+    def get_ancestors(self) -> List['Task']:
+        """Get all ancestor tasks from immediate parent up to root task.
+
+        Returns a list of ancestor tasks ordered from immediate parent to root.
+        Returns empty list if this is a root task.
+
+        :return: List of ancestor tasks
+        :rtype: List[Task]
+        """
+        ancestors = []
+        current = self.parent_task
+        while current is not None:
+            ancestors.append(current)
+            current = current.parent_task
+        return ancestors
+
+    def get_all_descendants(self) -> List['Task']:
+        """Recursively get all descendant tasks (children, grandchildren, etc.).
+
+        Returns a flat list of all tasks in the subtree below this task.
+        Returns empty list if this task has no subtasks.
+
+        :return: List of all descendant tasks
+        :rtype: List[Task]
+        """
+        descendants = []
+        for subtask in self.get_subtasks():
+            descendants.append(subtask)
+            # Recursively add descendants of this subtask
+            descendants.extend(subtask.get_all_descendants())
+        return descendants
+
+    def get_depth(self) -> int:
+        """Get the depth of this task in the hierarchy.
+
+        Root tasks have depth 0, their immediate children have depth 1, etc.
+
+        :return: The depth level of this task
+        :rtype: int
+        """
+        if self.is_root_task():
+            return 0
+        else:
+            return 1 + self.parent_task.get_depth()
+
     def get_space_tag(self) -> Tag:
         return Tag(key=self.SPACE_TASK_NAME, value=self.id)
 

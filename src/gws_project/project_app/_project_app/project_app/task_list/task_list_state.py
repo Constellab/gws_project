@@ -22,6 +22,25 @@ class TaskListState(ReflexMainState):
     is_loading: bool = False
 
     @rx.var
+    async def current_url_id(self) -> str:
+        """Get the current URL ID (project_id or task_id) to watch for changes.
+
+        This var is used to detect URL changes and trigger task reloading.
+
+        :return: Current URL ID
+        :rtype: str
+        """
+        # Check for task_id_param first, then project_id_param
+        project_state = await self.get_state(ProjectPageState)
+        # url_param = await project_state.get_url_params()
+        current_object = await project_state.get_object()
+
+        if not current_object:
+            return ""
+
+        return current_object.id
+
+    @rx.var
     async def get_tasks(self) -> List[TaskDTO]:
         """Return the list of tasks as DTOs.
 
@@ -89,12 +108,15 @@ class TaskListState(ReflexMainState):
         if self._tasks is None:
             return
 
+        updated = False
         for i, task_ in enumerate(self._tasks):
             if task_.id == task.id:
                 self._tasks[i] = task
-                return
+                updated = True
+                break
 
-        self._tasks.append(task)
+        if not updated:
+            self._tasks.append(task)
 
         # Refresh current object because sub task might affect parent task data
         project_state = await self.get_state(ProjectPageState)
@@ -136,7 +158,7 @@ class TaskListState(ReflexMainState):
         # Build confirmation message
         warning = ""
         if task.allow_subtasks:
-            warning = " This will also delete all its subtasks."
+            warning = " This will also delete all its descendants (subtasks, sub-subtasks, etc.)."
 
         delete_dialog_state.open_dialog(
             title="Delete Task",

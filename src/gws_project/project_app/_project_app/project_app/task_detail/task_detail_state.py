@@ -78,7 +78,7 @@ class TaskDetailState(ReflexMainState):
 
         with await self.authenticate_user():
             task_service = TaskService()
-            users = task_service.get_subtask_assigned_users(task.id)
+            users = task_service.get_descendants_assigned_users(task.id)
             return [user.to_dto() for user in users]
 
     async def open_create_subtask_dialog(self):
@@ -172,7 +172,7 @@ class TaskDetailState(ReflexMainState):
         # Build confirmation message
         warning = ""
         if task.allow_subtasks:
-            warning = " This will also delete all its subtasks."
+            warning = " This will also delete all its descendants (subtasks, sub-subtasks, etc.)."
 
         delete_dialog_state.open_dialog(
             title="Delete Task",

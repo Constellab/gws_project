@@ -60,7 +60,8 @@ class TemplateBreadcrumbState(ReflexMainState):
     def _build_breadcrumb_for_task_template(self, task_template: TaskTemplate) -> List[BreadcrumbItem]:
         """Build breadcrumb items for a task template.
 
-        This includes the project template, parent task template (if subtask), and the task template itself.
+        This includes the project template, all ancestor task templates (for unlimited hierarchy),
+        and the task template itself.
 
         :param task_template: The task template object
         :type task_template: TaskTemplate
@@ -75,15 +76,19 @@ class TemplateBreadcrumbState(ReflexMainState):
             BreadcrumbItem(label=project_template.name, url=f"/template/project/{project_template.id}")
         )
 
-        # Add parent task template if this is a subtask template
+        # Add all ancestor task templates in order from root to immediate parent
+        # Using get_ancestors() which returns [parent, grandparent, ..., root]
+        # We reverse it to get [root, ..., grandparent, parent]
         if task_template.parent_task:
-            parent_task = task_template.parent_task
-            items.append(
-                BreadcrumbItem(
-                    label=parent_task.title,
-                    url=f"/template/task/{parent_task.id}"
+            ancestors = task_template.get_ancestors()
+            # Reverse to show from root to immediate parent
+            for ancestor in reversed(ancestors):
+                items.append(
+                    BreadcrumbItem(
+                        label=ancestor.title,
+                        url=f"/template/task/{ancestor.id}"
+                    )
                 )
-            )
 
         # Add current task template
         items.append(

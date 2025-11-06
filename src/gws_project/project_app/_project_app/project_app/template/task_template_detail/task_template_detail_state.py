@@ -159,7 +159,7 @@ class TaskTemplateDetailState(ReflexMainState):
         # Build confirmation message
         warning = ""
         if task_template.allow_subtasks:
-            warning = " This will also delete all its subtask templates."
+            warning = " This will also delete all its descendants (subtask templates, sub-subtask templates, etc.)."
 
         delete_dialog_state.open_dialog(
             title="Delete Task Template",

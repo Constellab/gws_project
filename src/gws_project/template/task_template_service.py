@@ -57,16 +57,19 @@ class TaskTemplateService:
                              parent_task_id: str = None) -> TaskTemplate:
         """Create a new task template for a project template.
 
+        Supports unlimited nesting levels - task templates can be created under any task template
+        that allows subtasks, enabling hierarchies of arbitrary depth.
+
         :param template_id: The ID of the project template
         :type template_id: str
         :param task_template_dto: The task template data to create
         :type task_template_dto: CreateTaskTemplateDTO
-        :param parent_task_id: Optional parent task template ID for creating subtasks
+        :param parent_task_id: Optional parent task template ID for creating subtasks at any level
         :type parent_task_id: str
         :return: The created task template
         :rtype: TaskTemplate
         :raises NotFoundException: If the template or parent task is not found
-        :raises BadRequestException: If validation fails
+        :raises BadRequestException: If validation fails or parent doesn't allow subtasks
         """
 
         # Verify the project template exists
@@ -83,7 +86,7 @@ class TaskTemplateService:
                     "Parent task template does not belong to the specified project template."
                 )
 
-            # Verify parent task allows subtasks
+            # Verify parent task allows subtasks (supports unlimited nesting)
             if not parent_task.allow_subtasks:
                 raise BadRequestException(
                     "Parent task template does not allow subtasks."
@@ -159,9 +162,10 @@ class TaskTemplateService:
 
     @ProjectDbManager.transaction()
     def delete_task_template(self, task_template_id: str) -> None:
-        """Delete a task template and all its subtasks.
+        """Delete a task template and all its descendants recursively.
 
-        The cascade delete will automatically remove all subtasks.
+        For task templates with subtasks: Deletes all descendants at all levels (children, grandchildren, etc.)
+        The cascade delete will automatically remove all descendants through the database foreign key.
 
         :param task_template_id: The ID of the task template to delete
         :type task_template_id: str
@@ -170,7 +174,8 @@ class TaskTemplateService:
         # Get the task template
         task_template = TaskTemplate.get_by_id_and_check(task_template_id)
 
-        # Delete the task template (cascade will delete subtasks)
+        # Delete the task template
+        # Database CASCADE on the foreign key will handle recursive deletion of all descendants
         task_template.delete_instance()
 
     @ProjectDbManager.transaction()

@@ -79,7 +79,7 @@ def _task_row(task: TaskDTO) -> rx.Component:
         rx.table.cell(
             rx.hstack(
                 # Icon indicating if task allows subtasks
-                task_icon_component(task, size=16),
+                task_icon_component(task, size='3'),
                 rx.text(
                     task.title,
                 ),

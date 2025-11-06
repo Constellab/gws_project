@@ -22,9 +22,9 @@ def _form_content() -> rx.Component:
             spacing="1"
         ),
 
-        # Task type radio buttons (only in create root mode, not in create sub or update mode)
+        # Task type radio buttons (shown in both create root and create sub modes, hidden in update mode)
         rx.cond(
-            ~TaskTemplateFormDialogState.is_update_mode & ~TaskTemplateFormDialogState.is_create_sub_mode,
+            ~TaskTemplateFormDialogState.is_update_mode,
             rx.vstack(
                 rx.text("Task Type*", size="2", weight="bold"),
                 rx.radio.root(
@@ -122,11 +122,11 @@ def _form_content() -> rx.Component:
                     rx.callout.text(
                         rx.cond(
                             TaskTemplateFormDialogState.is_create_sub_mode,
-                            "Date offsets, duration, and priority will be managed by the parent task and calculated based on subtask values.",
+                            "Date offsets, duration, and priority will be managed by the parent task and automatically propagated up the hierarchy.",
                             rx.cond(
                                 TaskTemplateFormDialogState.is_parent_task_in_update_mode,
-                                "Date offsets, duration, and priority are automatically calculated from subtasks.",
-                                "Date offsets, duration, and priority will be automatically calculated from subtasks once you add them."
+                                "Date offsets, duration, and priority are automatically calculated from all descendant task templates.",
+                                "Date offsets, duration, and priority will be automatically calculated from all descendant task templates once you add them."
                             )
                         ),
                         size="2"
@@ -177,11 +177,11 @@ def task_template_form_dialog() -> rx.Component:
         description=rx.cond(
             TaskTemplateFormDialogState.is_update_mode, rx.cond(
                 TaskTemplateFormDialogState.is_parent_task_in_update_mode,
-                "Update the task template details below. Date offsets, duration, and priority are automatically calculated from subtasks.",
+                "Update the task template details below. Date offsets, duration, and priority are automatically calculated from all descendant task templates.",
                 "Update the task template details below."),
             rx.cond(
                 TaskTemplateFormDialogState.is_create_sub_mode,
-                "Fill in the details below to create a new subtask template. Date offsets, duration, and priority will be managed by the parent task.",
+                "Fill in the details below to create a new subtask template. Changes will propagate up the hierarchy.",
                 "Fill in the details below to create a new task template for this project template.")),
         form_content=_form_content(),
         max_width="600px")

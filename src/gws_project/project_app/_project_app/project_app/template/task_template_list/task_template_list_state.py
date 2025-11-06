@@ -22,6 +22,24 @@ class TaskTemplateListState(ReflexMainState):
     _task_templates: List[TaskTemplate] = []
 
     @rx.var
+    async def current_url_id(self) -> str:
+        """Get the current URL ID to watch for changes and force component remount.
+
+        This var is used to detect URL changes and ensure proper reloading when
+        navigating between task templates.
+
+        :return: Current URL ID
+        :rtype: str
+        """
+        template_state = await self.get_state(TemplatePageState)
+        current_object = await template_state.get_object()
+
+        if not current_object:
+            return ""
+
+        return current_object.id
+
+    @rx.var
     async def get_task_templates(self) -> List[TaskTemplateDTO]:
         """Get all task templates for the current project template.
 
@@ -83,7 +101,7 @@ class TaskTemplateListState(ReflexMainState):
         # Build confirmation message
         warning = ""
         if task_template.allow_subtasks:
-            warning = " This will also delete all its subtasks."
+            warning = " This will also delete all its descendants (subtask templates, sub-subtask templates, etc.)."
 
         delete_dialog_state.open_dialog(
             title="Delete Task Template",

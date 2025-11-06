@@ -452,7 +452,6 @@ class ProjectService:
                 # Add each user to the project using add_group_to_project
                 # The group_id is actually the user_id in this context
                 self.add_group_to_project(project.id, user_id, ProjectUserRole.USER)
-                Logger.info(f"Added user {user_id} to project {project.id} from template.")
 
         # Create TaskService instance
         task_service = TaskService(self._space_service)

@@ -73,15 +73,6 @@ class TaskFormDialogState(FormDialogState, rx.State):
         return self._form_mode == TaskFormMode.CREATE_SUB.value
 
     @rx.var
-    def is_parent_task_in_update_mode(self) -> bool:
-        """Check if we're updating a parent task (task with subtasks).
-
-        Returns:
-            True if updating a parent task, False otherwise
-        """
-        return self.is_update_mode and self._editing_task is not None and self._editing_task.allow_subtasks
-
-    @rx.var
     def should_show_dates_and_priority(self) -> bool:
         """Check if dates and priority fields should be shown.
 
