@@ -18,29 +18,67 @@ class TaskListState(ReflexMainState):
     """
 
     _url_params: Optional[ProjectUrlParam] = None
-
     _tasks: List[Task] = []
+    is_loading: bool = False
 
     @rx.var
     async def get_tasks(self) -> List[TaskDTO]:
+        """Return the list of tasks as DTOs.
 
-        project_state = await self.get_state(ProjectPageState)
-        url_param = await project_state.get_url_params()
+        Tasks are loaded on component mount via fetch_tasks_on_mount event.
 
-        previous_id = self._url_params.id if self._url_params else None
-        current_id = url_param.id if url_param else None
-        if previous_id != current_id:
-            self._url_params = url_param
-            task_service = TaskService()
-            with await self.authenticate_user():
-                if url_param and url_param.type == "project":
-                    self._tasks = task_service.get_root_tasks_of_project(url_param.id)
-                elif url_param and url_param.type == "task":
-                    self._tasks = task_service.get_subtasks(url_param.id)
-                else:
-                    self._tasks = []
-
+        :return: List of TaskDTOs
+        :rtype: List[TaskDTO]
+        """
         return [task.to_dto() for task in self._tasks]
+
+    @rx.event(background=True)  # type: ignore
+    async def fetch_tasks_on_mount(self):
+        """Event handler to fetch tasks when the task list view is mounted.
+
+        Checks if the current view mode is "list" and if the current URL params
+        are the same as cached. If different, loads the tasks.
+        """
+        # Get current URL params and check if we need to fetch
+        async with self:
+
+            project_state = await self.get_state(ProjectPageState)
+            url_param = await project_state.get_url_params()
+
+            if not url_param:
+                return
+
+            # Check if we already have tasks for this URL param
+            previous_id = self._url_params.id if self._url_params else None
+            current_id = url_param.id if url_param else None
+
+            if previous_id == current_id and len(self._tasks) > 0:
+                return  # Already loaded for this URL param
+
+            # Set loading state
+            self._url_params = url_param
+            self.is_loading = True
+
+        # Fetch tasks outside of async with block
+        try:
+            with await self.authenticate_user():
+                task_service = TaskService()
+
+                if url_param.type == "project":
+                    tasks = task_service.get_root_tasks_of_project(url_param.id)
+                elif url_param.type == "task":
+                    tasks = task_service.get_subtasks(url_param.id)
+                else:
+                    tasks = []
+
+                async with self:
+                    self._tasks = tasks
+                    self.is_loading = False
+        except Exception as e:
+            async with self:
+                self._tasks = []
+                self.is_loading = False
+            raise e
 
     async def add_or_update_task(self, task: Task):
         """Update a task in the state.

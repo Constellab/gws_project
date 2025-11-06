@@ -151,7 +151,7 @@ class DocumentsListState(ReflexMainState):
                         has_more=len(page_result.objects) >= 20,
                         is_loading=False
                     )
-        except Exception:
+        except Exception as e:
             async with self:
                 self._pagination = PaginationState(
                     documents=[],
@@ -160,6 +160,7 @@ class DocumentsListState(ReflexMainState):
                     has_more=False,
                     is_loading=False
                 )
+            raise e
 
     async def _fetch_initial_documents(self, current_object: Task | Project):
         """Fetch the initial page of documents for a new object.

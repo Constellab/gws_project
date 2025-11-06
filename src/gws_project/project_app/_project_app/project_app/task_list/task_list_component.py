@@ -16,14 +16,35 @@ def task_list_component() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        task_table_component(
-            tasks=TaskListState.get_tasks,
-            empty_message="No tasks found"
+        rx.cond(
+            TaskListState.is_loading & (TaskListState.get_tasks.length() == 0),
+            # Loading state - show spinner
+            rx.center(
+                rx.vstack(
+                    rx.spinner(size="3"),
+                    rx.text(
+                        "Loading tasks...",
+                        size="3",
+                        color="gray",
+                        margin_top="1rem"
+                    ),
+                    spacing="2",
+                    align="center"
+                ),
+                padding="3rem",
+                width="100%",
+                flex="1",
+                min_height="0",
+            ),
+            task_table_component(
+                tasks=TaskListState.get_tasks,
+                empty_message="No tasks found"
+            ),
         ),
-        width="100%",
-        spacing="3",
-        align_items="start",
+        # Trigger background fetch when component mounts
+        on_mount=TaskListState.fetch_tasks_on_mount,
         # full height but not overflow parent
+        width="100%",
         flex="1",
         min_height="0",
         overflow_y="auto",
@@ -60,4 +81,5 @@ def task_list_view() -> rx.Component:
         # full height but not overflow parent
         flex="1",
         min_height="0",
+
     )
