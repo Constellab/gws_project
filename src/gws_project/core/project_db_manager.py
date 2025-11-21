@@ -1,5 +1,6 @@
 
 
+from typing import Optional
 
 from gws_core import LazyAbstractDbManager
 from peewee import DatabaseProxy
@@ -14,7 +15,7 @@ class ProjectDbManager(LazyAbstractDbManager):
 
     db = DatabaseProxy()
 
-    _instance: 'ProjectDbManager' = None
+    _instance: Optional['ProjectDbManager'] = None
 
     @classmethod
     def get_instance(cls) -> 'ProjectDbManager':
@@ -22,10 +23,8 @@ class ProjectDbManager(LazyAbstractDbManager):
             cls._instance = cls()
         return cls._instance
 
-
     def get_name(self) -> str:
         return 'db'
 
     def get_brick_name(self) -> str:
         return 'gws_project'
-

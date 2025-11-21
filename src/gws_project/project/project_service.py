@@ -13,12 +13,12 @@ from gws_project.project.project_dto import (CreateProjectFromTemplateDTO,
                                              ProjectUserRole, SaveProjectDTO)
 from gws_project.project.project_security_service import ProjectSecurityService
 from gws_project.project.project_user import ProjectUser
+from gws_project.src.gws_project.user.user_sync_service import UserSyncService
 from gws_project.task.task import Task
 from gws_project.task.task_service import TaskService
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.task_template import TaskTemplate
 from gws_project.user.user import User
-from gws_project.user.user_service import UserService
 
 
 class ProjectService:
@@ -255,7 +255,8 @@ class ProjectService:
             # Handle the case where folder_users is None (for mock testing)
             if folder_users:
                 for folder_user in folder_users:
-                    user = UserService.get_or_import_user_info(folder_user.user.id)
+                    user_sync_service = UserSyncService()
+                    user = user_sync_service.get_or_import_user(folder_user.user.id)
 
                     if not user:
                         raise Exception(f"Error importing user {folder_user.user.email} from in lab.")

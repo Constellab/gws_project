@@ -60,7 +60,7 @@ class TaskService:
         security_service = ProjectSecurityService()
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
-        return Task.get_root_tasks_of_project(project)
+        return Task.get_root_tasks_of_project(project.id)
 
     def get_subtasks(self, parent_task_id: str) -> List[Task]:
         """Get all subtasks of a parent task by parent task ID.
