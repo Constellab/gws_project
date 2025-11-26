@@ -38,6 +38,7 @@ def _filter_bar() -> rx.Component:
         ),
         width="100%",
         spacing="3",
+        wrap="wrap",
     )
 
 
@@ -54,14 +55,6 @@ def project_list_page() -> rx.Component:
     return main_component(
         page_layout(
             rx.vstack(
-                # Page header with title and create button
-                rx.hstack(
-                    rx.heading("My projects", size="6"),
-                    create_project_dialog(),
-                    justify="between",
-                    align="center",
-                    width="100%",
-                ),
                 # Filter bar
                 _filter_bar(),
                 # Error message display
@@ -111,7 +104,14 @@ def project_list_page() -> rx.Component:
                 ),
                 width="100%",
                 spacing="4",
-            )
+            ),
+            header_content=rx.hstack(
+                rx.heading("My projects", size="6"),
+                create_project_dialog(),
+                justify="between",
+                align="center",
+                width="100%",
+            ),
         )
     )
 

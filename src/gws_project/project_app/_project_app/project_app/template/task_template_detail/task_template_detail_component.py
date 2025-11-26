@@ -6,10 +6,8 @@ from ...common.detail_page_layout import detail_page_layout
 from ...common.page_layout import page_layout
 from ...common.priority_chip_component import priority_chip
 from ...common.task_components import task_template_icon_component
-from ..task_template_form_dialog.task_template_form_dialog_component import \
-    task_template_form_dialog
-from ..task_template_list.task_template_list_component import \
-    task_template_list_component
+from ..task_template_form_dialog.task_template_form_dialog_component import task_template_form_dialog
+from ..task_template_list.task_template_list_component import task_template_list_component
 from ..template_breadcrumb_state import TemplateBreadcrumbState
 from .task_template_detail_state import TaskTemplateDetailState
 
@@ -31,31 +29,25 @@ def task_template_header() -> rx.Component:
         rx.spacer(),
         # Action menu (Update and Delete)
         rx.menu.root(
-            rx.menu.trigger(
-                rx.button(
-                    rx.icon("ellipsis-vertical", size=18),
-                    variant="soft",
-                    color_scheme="gray"
-                )
-            ),
+            rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray")),
             rx.menu.content(
                 rx.menu.item(
                     rx.icon("pencil", size=16),
                     "Update Task Template",
-                    on_click=TaskTemplateDetailState.open_update_task_template_dialog
+                    on_click=TaskTemplateDetailState.open_update_task_template_dialog,
                 ),
                 rx.menu.separator(),
                 rx.menu.item(
                     rx.icon("trash_2", size=16),
                     "Delete",
                     color="red",
-                    on_click=TaskTemplateDetailState.open_delete_task_template_dialog
+                    on_click=TaskTemplateDetailState.open_delete_task_template_dialog,
                 ),
             ),
         ),
         width="100%",
         align="center",
-        spacing="2"
+        spacing="2",
     )
 
 
@@ -71,41 +63,26 @@ def task_template_description() -> rx.Component:
             rx.heading("Description", size="4", weight="bold"),
             rx.spacer(),
             rx.button(
-                rx.icon(
-                    rx.cond(
-                        TaskTemplateDetailState.description_edit_mode,
-                        "eye",
-                        "pencil"
-                    ),
-                    size=16
-                ),
-                rx.cond(
-                    TaskTemplateDetailState.description_edit_mode,
-                    "View",
-                    "Edit"
-                ),
+                rx.icon(rx.cond(TaskTemplateDetailState.description_edit_mode, "eye", "pencil"), size=16),
+                rx.cond(TaskTemplateDetailState.description_edit_mode, "View", "Edit"),
                 variant="soft",
                 size="2",
-                on_click=TaskTemplateDetailState.toggle_description_edit_mode
+                on_click=TaskTemplateDetailState.toggle_description_edit_mode,
             ),
             width="100%",
-            align="center"
+            align="center",
         ),
-
         rich_text_component(
             value=TaskTemplateDetailState.task_template.description,
             disabled=~TaskTemplateDetailState.description_edit_mode,
             output_event=TaskTemplateDetailState.handle_description_change,
             custom_style=rx.cond(
-                TaskTemplateDetailState.description_edit_mode,
-                {"minHeight": "750px"},
-                {"padding": "0"}
-            )
+                TaskTemplateDetailState.description_edit_mode, {"minHeight": "750px"}, {"padding": "0"}
+            ),
         ),
-
         width="100%",
         spacing="2",
-        align_items="start"
+        align_items="start",
     )
 
 
@@ -122,18 +99,14 @@ def task_template_subtasks() -> rx.Component:
         rx.vstack(
             # Header with title and create button
             rx.hstack(
-                rx.heading(
-                    "Subtask Templates",
-                    size="5",
-                    margin_top="1.5rem"
-                ),
+                rx.heading("Subtask Templates", size="5", margin_top="1.5rem"),
                 rx.spacer(),
                 rx.button(
                     rx.icon("plus", size=16),
                     "Create Subtask Template",
                     variant="soft",
                     size="2",
-                    on_click=TaskTemplateDetailState.open_create_subtask_template_dialog
+                    on_click=TaskTemplateDetailState.open_create_subtask_template_dialog,
                 ),
                 width="100%",
                 align="center",
@@ -143,7 +116,7 @@ def task_template_subtasks() -> rx.Component:
             width="100%",
             spacing="3",
             align_items="start",
-        )
+        ),
     )
 
 
@@ -154,13 +127,7 @@ def main_content_area() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        task_template_header(),
-        task_template_description(),
-        task_template_subtasks(),
-        width="100%",
-        spacing="3",
-        align_items="start",
-        flex="1"
+        task_template_description(), task_template_subtasks(), width="100%", spacing="3", align_items="start", flex="1"
     )
 
 
@@ -172,7 +139,6 @@ def details_sidebar() -> rx.Component:
     """
     return rx.vstack(
         rx.heading("Details", size="5", margin_bottom="1rem"),
-
         # Details grid - single parent grid with all fields
         rx.grid(
             # Parent task template (conditional row)
@@ -185,79 +151,61 @@ def details_sidebar() -> rx.Component:
                         href=f"/task_template/{TaskTemplateDetailState.parent_task_template.id}",
                         size="2",
                     ),
-                )
+                ),
             ),
-
             # Assigned role
             rx.text("Assigned role", size="2", color="gray", weight="medium"),
             rx.cond(
                 TaskTemplateDetailState.task_template.assign_to_role,
                 rx.badge(
-                    TaskTemplateDetailState.task_template.assign_to_role,
-                    variant="soft",
-                    color_scheme="blue",
-                    size="2"
+                    TaskTemplateDetailState.task_template.assign_to_role, variant="soft", color_scheme="blue", size="2"
                 ),
-                rx.text("Unassigned", size="2", color="gray", font_style="italic")
+                rx.text("Unassigned", size="2", color="gray", font_style="italic"),
             ),
-
             # Priority
             rx.text("Priority", size="2", color="gray", weight="medium"),
-            rx.box(priority_chip(
-                TaskTemplateDetailState.task_template.priority,
-                on_priority_change=TaskTemplateDetailState.update_priority,
-                allow_subtask=TaskTemplateDetailState.task_template.allow_subtasks,
-                size="2"
-            )),
-
+            rx.box(
+                priority_chip(
+                    TaskTemplateDetailState.task_template.priority,
+                    on_priority_change=TaskTemplateDetailState.update_priority,
+                    allow_subtask=TaskTemplateDetailState.task_template.allow_subtasks,
+                    size="2",
+                )
+            ),
             # Start date offset
             rx.text("Start date offset (days)", size="2", color="gray", weight="medium"),
-            rx.text(
-                TaskTemplateDetailState.task_template.start_date_offset,
-                size="2"
-            ),
-
+            rx.text(TaskTemplateDetailState.task_template.start_date_offset, size="2"),
             # Duration
             rx.text("Duration (days)", size="2", color="gray", weight="medium"),
-            rx.text(
-                TaskTemplateDetailState.task_template.duration_days,
-                size="2"
-            ),
-
+            rx.text(TaskTemplateDetailState.task_template.duration_days, size="2"),
             # Divider before technical info (spans 2 columns)
             rx.divider(margin_top="0.5rem", margin_bottom="0.5rem", grid_column="span 2"),
-
             # Created by
             rx.text("Created by", size="2", color="gray", weight="medium"),
             user_inline_component(TaskTemplateDetailState.task_template.created_by),
-
             # Created at
             rx.text("Created at", size="2", color="gray", weight="medium"),
             rx.text(
                 rx.moment(TaskTemplateDetailState.task_template.created_at, format="MMM D, YYYY HH:mm"),
                 size="2",
             ),
-
             # Last modified by
             rx.text("Last modified by", size="2", color="gray", weight="medium"),
             user_inline_component(TaskTemplateDetailState.task_template.last_modified_by),
-
             # Last modified at
             rx.text("Last modified at", size="2", color="gray", weight="medium"),
             rx.text(
                 rx.moment(TaskTemplateDetailState.task_template.last_modified_at, format="MMM D, YYYY HH:mm"),
                 size="2",
             ),
-
             columns="2",
             spacing="3",
             width="100%",
-            row_gap="1rem"
+            row_gap="1rem",
         ),
-
         width="100%",
         spacing="3",
-        align_items="start"
+        align_items="start",
     )
 
 
@@ -275,7 +223,7 @@ def task_template_detail() -> rx.Component:
         detail_page_layout(
             main_content=main_content_area(),
             sidebar_content=details_sidebar(),
-            breadcrumbs=TemplateBreadcrumbState.breadcrumbs
+            breadcrumbs=TemplateBreadcrumbState.breadcrumbs,
         ),
     )
 
@@ -295,7 +243,8 @@ def task_template_detail_page() -> rx.Component:
                 # Task template details in two-column layout
                 task_template_detail(),
                 width="100%",
-            )
+            ),
+            header_content=task_template_header(),
         ),
         # Add the task template form dialog
         task_template_form_dialog(),

@@ -4,8 +4,7 @@ from gws_reflex_main.gws_components import rich_text_component
 
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
 from ..common.detail_page_layout import detail_page_layout
-from ..common.documents_list.documents_list_component import \
-    documents_list_view
+from ..common.documents_list.documents_list_component import documents_list_view
 from ..common.page_layout import page_layout
 from ..common.priority_chip_component import priority_chip
 from ..common.status_chip_component import status_chip
@@ -23,7 +22,7 @@ def task_header() -> rx.Component:
     """
     return rx.hstack(
         # Icon indicating if task allows subtasks
-        task_icon_component(TaskDetailState.task, size='6'),
+        task_icon_component(TaskDetailState.task, size="6"),
         # Title
         rx.heading(
             TaskDetailState.task.title,
@@ -32,31 +31,20 @@ def task_header() -> rx.Component:
         rx.spacer(),
         # Action menu (Update and Delete)
         rx.menu.root(
-            rx.menu.trigger(
-                rx.button(
-                    rx.icon("ellipsis-vertical", size=18),
-                    variant="soft",
-                    color_scheme="gray"
-                )
-            ),
+            rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray")),
             rx.menu.content(
                 rx.menu.item(
-                    rx.icon("pencil", size=16),
-                    "Update Task",
-                    on_click=TaskDetailState.open_update_task_dialog
+                    rx.icon("pencil", size=16), "Update Task", on_click=TaskDetailState.open_update_task_dialog
                 ),
                 rx.menu.separator(),
                 rx.menu.item(
-                    rx.icon("trash_2", size=16),
-                    "Delete",
-                    color="red",
-                    on_click=TaskDetailState.open_delete_task_dialog
+                    rx.icon("trash_2", size=16), "Delete", color="red", on_click=TaskDetailState.open_delete_task_dialog
                 ),
             ),
         ),
         width="100%",
         align="center",
-        spacing="2"
+        spacing="2",
     )
 
 
@@ -72,41 +60,24 @@ def task_description() -> rx.Component:
             rx.heading("Description", size="4", weight="bold"),
             rx.spacer(),
             rx.button(
-                rx.icon(
-                    rx.cond(
-                        TaskDetailState.description_edit_mode,
-                        "eye",
-                        "pencil"
-                    ),
-                    size=16
-                ),
-                rx.cond(
-                    TaskDetailState.description_edit_mode,
-                    "View",
-                    "Edit"
-                ),
+                rx.icon(rx.cond(TaskDetailState.description_edit_mode, "eye", "pencil"), size=16),
+                rx.cond(TaskDetailState.description_edit_mode, "View", "Edit"),
                 variant="soft",
                 size="2",
-                on_click=TaskDetailState.toggle_description_edit_mode
+                on_click=TaskDetailState.toggle_description_edit_mode,
             ),
             width="100%",
-            align="center"
+            align="center",
         ),
-
         rich_text_component(
             value=TaskDetailState.task.description,
             disabled=~TaskDetailState.description_edit_mode,
             output_event=TaskDetailState.handle_description_change,
-            custom_style=rx.cond(
-                TaskDetailState.description_edit_mode,
-                {"minHeight": "750px"},
-                {"padding": "0"}
-            )
+            custom_style=rx.cond(TaskDetailState.description_edit_mode, {"minHeight": "750px"}, {"padding": "0"}),
         ),
-
         width="100%",
         spacing="2",
-        align_items="start"
+        align_items="start",
     )
 
 
@@ -123,18 +94,14 @@ def task_subtasks() -> rx.Component:
         rx.vstack(
             # Header with title and create button
             rx.hstack(
-                rx.heading(
-                    "Subtasks",
-                    size="5",
-                    margin_top="1.5rem"
-                ),
+                rx.heading("Subtasks", size="5", margin_top="1.5rem"),
                 rx.spacer(),
                 rx.button(
                     rx.icon("plus", size=16),
                     "Create Subtask",
                     variant="soft",
                     size="2",
-                    on_click=TaskDetailState.open_create_subtask_dialog
+                    on_click=TaskDetailState.open_create_subtask_dialog,
                 ),
                 width="100%",
                 align="center",
@@ -144,7 +111,7 @@ def task_subtasks() -> rx.Component:
             width="100%",
             spacing="3",
             align_items="start",
-        )
+        ),
     )
 
 
@@ -155,14 +122,13 @@ def main_content_area() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        task_header(),
         task_description(),
         task_subtasks(),
         documents_list_view(),
         width="100%",
         spacing="3",
         align_items="start",
-        flex="1"
+        flex="1",
     )
 
 
@@ -174,7 +140,6 @@ def details_sidebar() -> rx.Component:
     """
     return rx.vstack(
         rx.heading("Details", size="5", margin_bottom="1rem"),
-
         # Details grid - single parent grid with all fields
         rx.grid(
             # Parent task (conditional row)
@@ -187,13 +152,11 @@ def details_sidebar() -> rx.Component:
                         href=f"/task/{TaskDetailState.parent_task.id}",
                         size="2",
                     ),
-                )
+                ),
             ),
-
             # Assigned to
             rx.text("Assigned to", size="2", color="gray", weight="medium"),
             user_inline_component(TaskDetailState.task.assign_to),
-
             # Subtask members (conditional row - only show if task has subtasks)
             rx.cond(
                 TaskDetailState.task.allow_subtasks,
@@ -202,84 +165,68 @@ def details_sidebar() -> rx.Component:
                     rx.cond(
                         TaskDetailState.subtask_members.length() > 0,
                         rx.flex(
-                            rx.foreach(
-                                TaskDetailState.subtask_members,
-                                lambda user: user_inline_component(user)
-                            ),
+                            rx.foreach(TaskDetailState.subtask_members, lambda user: user_inline_component(user)),
                             direction="column",
-                            spacing="1"
+                            spacing="1",
                         ),
-                        rx.text("No members assigned", size="2", color="gray", font_style="italic")
+                        rx.text("No members assigned", size="2", color="gray", font_style="italic"),
                     ),
-                )
+                ),
             ),
-
             # Status
             rx.text("Status", size="2", color="gray", weight="medium"),
-            rx.box(status_chip(
-                TaskDetailState.task.status,
-                on_status_change=TaskDetailState.update_status,
-                allow_subtask=TaskDetailState.task.allow_subtasks,
-                size="2"
-            )),
-
+            rx.box(
+                status_chip(
+                    TaskDetailState.task.status,
+                    on_status_change=TaskDetailState.update_status,
+                    allow_subtask=TaskDetailState.task.allow_subtasks,
+                    size="2",
+                )
+            ),
             # Priority
             rx.text("Priority", size="2", color="gray", weight="medium"),
-            rx.box(priority_chip(
-                TaskDetailState.task.priority,
-                on_priority_change=TaskDetailState.update_priority,
-                allow_subtask=TaskDetailState.task.allow_subtasks,
-                size="2"
-            )),
-
+            rx.box(
+                priority_chip(
+                    TaskDetailState.task.priority,
+                    on_priority_change=TaskDetailState.update_priority,
+                    allow_subtask=TaskDetailState.task.allow_subtasks,
+                    size="2",
+                )
+            ),
             # Start date
             rx.text("Start date", size="2", color="gray", weight="medium"),
-            rx.text(
-                rx.moment(TaskDetailState.task.start_date, format="MMM D, YYYY"),
-                size="2"
-            ),
-
+            rx.text(rx.moment(TaskDetailState.task.start_date, format="MMM D, YYYY"), size="2"),
             # End date
             rx.text("End date", size="2", color="gray", weight="medium"),
-            rx.text(
-                rx.moment(TaskDetailState.task.end_date, format="MMM D, YYYY"),
-                size="2"
-            ),
-
+            rx.text(rx.moment(TaskDetailState.task.end_date, format="MMM D, YYYY"), size="2"),
             # Divider before technical info (spans 2 columns)
             rx.divider(margin_top="0.5rem", margin_bottom="0.5rem", grid_column="span 2"),
-
             # Created by
             rx.text("Created by", size="2", color="gray", weight="medium"),
             user_inline_component(TaskDetailState.task.created_by),
-
             # Created at
             rx.text("Created at", size="2", color="gray", weight="medium"),
             rx.text(
                 rx.moment(TaskDetailState.task.created_at, format="MMM D, YYYY HH:mm"),
                 size="2",
             ),
-
             # Last modified by
             rx.text("Last modified by", size="2", color="gray", weight="medium"),
             user_inline_component(TaskDetailState.task.last_modified_by),
-
             # Last modified at
             rx.text("Last modified at", size="2", color="gray", weight="medium"),
             rx.text(
                 rx.moment(TaskDetailState.task.last_modified_at, format="MMM D, YYYY HH:mm"),
                 size="2",
             ),
-
             columns="2",
             spacing="3",
             width="100%",
-            row_gap="1rem"
+            row_gap="1rem",
         ),
-
         width="100%",
         spacing="3",
-        align_items="start"
+        align_items="start",
     )
 
 
@@ -295,9 +242,7 @@ def task_detail() -> rx.Component:
     return rx.cond(
         TaskDetailState.task,
         detail_page_layout(
-            main_content=main_content_area(),
-            sidebar_content=details_sidebar(),
-            breadcrumbs=BreadcrumbState.breadcrumbs
+            main_content=main_content_area(), sidebar_content=details_sidebar(), breadcrumbs=BreadcrumbState.breadcrumbs
         ),
     )
 
@@ -317,7 +262,8 @@ def task_detail_page() -> rx.Component:
                 # Task details in two-column layout with breadcrumb
                 task_detail(),
                 width="100%",
-            )
+            ),
+            header_content=task_header(),
         ),
         # Add the task form dialog
         task_form_dialog(),

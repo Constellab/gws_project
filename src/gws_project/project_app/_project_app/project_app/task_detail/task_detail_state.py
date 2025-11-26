@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 import reflex as rx
 from gws_core import RichTextDTO, UserDTO
 from gws_project.project.project_dto import ProjectDTO
@@ -24,7 +22,7 @@ class TaskDetailState(ReflexMainState):
     description_edit_mode: bool = False  # Track if description is in edit mode
 
     @rx.var
-    async def task(self) -> Optional[TaskDTO]:
+    async def task(self) -> TaskDTO | None:
         """Return the current task DTO.
 
         :return: The current task DTO
@@ -36,7 +34,7 @@ class TaskDetailState(ReflexMainState):
             return current_object.to_dto()
         return None
 
-    async def _get_project(self) -> Optional[ProjectDTO]:
+    async def _get_project(self) -> ProjectDTO | None:
         """Return the current project DTO.
 
         :return: The current project DTO
@@ -49,7 +47,7 @@ class TaskDetailState(ReflexMainState):
         return None
 
     @rx.var
-    async def parent_task(self) -> Optional[TaskDTO]:
+    async def parent_task(self) -> TaskDTO | None:
         """Return the parent task DTO if this is a subtask.
 
         :return: The parent task DTO or None
@@ -64,7 +62,7 @@ class TaskDetailState(ReflexMainState):
         return current_task.parent_task.to_dto()
 
     @rx.var
-    async def subtask_members(self) -> List[UserDTO]:
+    async def subtask_members(self) -> list[UserDTO]:
         """Return the list of unique users assigned to subtasks of this task.
 
         Only returns data if the task allows subtasks.
@@ -91,7 +89,7 @@ class TaskDetailState(ReflexMainState):
         await form_state.open_create_sub_dialog(
             parent_task_id=task.id,
             project=await self._get_project(),
-            callback_after_close=self._on_create_subtask_dialog_close
+            callback_after_close=self._on_create_subtask_dialog_close,
         )
 
     async def _on_create_subtask_dialog_close(self, task: Task):
@@ -113,10 +111,7 @@ class TaskDetailState(ReflexMainState):
             yield rx.toast.error("Task not found")
             return
 
-        await form_state.open_update_dialog(
-            task=task,
-            callback_after_close=self._on_update_task_dialog_close
-        )
+        await form_state.open_update_dialog(task=task, callback_after_close=self._on_update_task_dialog_close)
 
     async def _on_update_task_dialog_close(self, _: Task):
         """Callback after the update task dialog is closed to refresh the task.
@@ -150,10 +145,7 @@ class TaskDetailState(ReflexMainState):
         # Update the task description
         with await self.authenticate_user():
             task_service = TaskService()
-            task_service.update_task_description(
-                task.id,
-                description_dto
-            )
+            task_service.update_task_description(task.id, description_dto)
 
         # Reload the task to reflect changes
         project_page_state = await self.get_state(ProjectPageState)
@@ -171,13 +163,18 @@ class TaskDetailState(ReflexMainState):
 
         # Build confirmation message
         warning = ""
+        if task.parent_task_id is None:
+            warning = " The corresponding folders and files in the space will be moved to trash."
+        else:
+            warning = " The files assigned to this task will be moved to trash."
+
         if task.allow_subtasks:
             warning = " This will also delete all its descendants (subtasks, sub-subtasks, etc.)."
 
         delete_dialog_state.open_dialog(
             title="Delete Task",
             content=f"Are you sure you want to delete this task?{warning}",
-            action=self._delete_task_action
+            action=self._delete_task_action,
         )
 
     async def _delete_task_action(self):

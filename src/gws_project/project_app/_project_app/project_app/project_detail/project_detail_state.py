@@ -1,5 +1,3 @@
-from typing import List, Optional, Union
-
 import reflex as rx
 from gws_core import RichTextDTO
 from gws_project.project.project_dto import ProjectDTO, ProjectUserDTO
@@ -23,8 +21,8 @@ class ProjectDetailState(ReflexMainState):
 
     description_edit_mode: bool = False  # Track if description is in edit mode
 
-    _project_id: Optional[str] = None
-    _project_users: List[ProjectUserDTO] = []
+    _project_id: str | None = None
+    _project_users: list[ProjectUserDTO] = []
 
     @rx.var
     async def view_mode(self) -> str:
@@ -37,7 +35,7 @@ class ProjectDetailState(ReflexMainState):
         return view_mode_state.view_mode
 
     @rx.var
-    async def project(self) -> Optional[ProjectDTO]:
+    async def project(self) -> ProjectDTO | None:
         """Return the current project DTO.
 
         :return: The current project DTO
@@ -50,7 +48,7 @@ class ProjectDetailState(ReflexMainState):
         return None
 
     @rx.var
-    async def project_users(self) -> List[ProjectUserDTO]:
+    async def project_users(self) -> list[ProjectUserDTO]:
         """Return the list of project users associated with the current project.
 
         :return: List of ProjectUserDTOs
@@ -69,10 +67,7 @@ class ProjectDetailState(ReflexMainState):
                 project_service = ProjectService()
                 # Load project users
                 project_users = project_service.get_project_users(current_project.id)
-                self._project_users = [
-                    pu.to_dto()
-                    for pu in project_users
-                ]
+                self._project_users = [pu.to_dto() for pu in project_users]
             self._project_id = current_project.id
 
         return self._project_users
@@ -86,7 +81,7 @@ class ProjectDetailState(ReflexMainState):
         self._project_id = None
         await self.project_users
 
-    async def set_view_mode(self, value: Union[str, List[str]]):
+    async def set_view_mode(self, value: str | list[str]):
         """Set the view mode by delegating to ViewModeState.
 
         :param value: The view mode value ("list", "description", or "documents")
@@ -117,10 +112,7 @@ class ProjectDetailState(ReflexMainState):
         # Update the project description
         with await self.authenticate_user():
             project_service = ProjectService()
-            project_service.update_project_description(
-                project.id,
-                description_dto
-            )
+            project_service.update_project_description(project.id, description_dto)
 
         # Reload the project to reflect changes
         project_page_state = await self.get_state(ProjectPageState)
@@ -131,10 +123,7 @@ class ProjectDetailState(ReflexMainState):
         form_state = await self.get_state(TaskFormDialogState)
         project = await self.project
 
-        await form_state.open_create_dialog(
-            project=project,
-            callback_after_close=self._on_create_task_dialog_close
-        )
+        await form_state.open_create_dialog(project=project, callback_after_close=self._on_create_task_dialog_close)
 
     async def _on_create_task_dialog_close(self, task: Task):
         """Callback after the create task dialog is closed to refresh the task list.
@@ -152,8 +141,8 @@ class ProjectDetailState(ReflexMainState):
         delete_dialog_state = await self.get_state(ConfirmDialogState)
         delete_dialog_state.open_dialog(
             title="Delete Project",
-            content="Are you sure you want to delete this project?",
-            action=self._delete_project_action
+            content="Are you sure you want to delete this project? The corresponding folders and files in the space will be moved to trash.",
+            action=self._delete_project_action,
         )
 
     async def _delete_project_action(self):

@@ -65,6 +65,29 @@ def project_action_menu() -> rx.Component:
     )
 
 
+def header() -> rx.Component:
+    """Create the header component for the project detail page.
+
+    :return: The header component
+    :rtype: rx.Component
+    """
+    return rx.hstack(
+        # Title
+        rx.heading(
+            ProjectDetailState.project.title,
+            size="6",
+        ),
+        rx.spacer(),
+        # View mode toggle buttons
+        view_mode_segmented_control(),
+        # Action menu
+        project_action_menu(),
+        width="100%",
+        align="center",
+        spacing="2",
+    )
+
+
 def main_content_area() -> rx.Component:
     """Create the main content area (left side) with title, description, team members, and tasks.
 
@@ -72,22 +95,6 @@ def main_content_area() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        # Title row with segmented control and action menu
-        rx.hstack(
-            # Title
-            rx.heading(
-                ProjectDetailState.project.title,
-                size="6",
-            ),
-            rx.spacer(),
-            # View mode toggle buttons
-            view_mode_segmented_control(),
-            # Action menu
-            project_action_menu(),
-            width="100%",
-            align="center",
-            spacing="2",
-        ),
         # Conditional rendering based on view mode
         rx.cond(
             ProjectDetailState.view_mode == "list",
@@ -196,6 +203,7 @@ def project_detail_page() -> rx.Component:
                     breadcrumbs=BreadcrumbState.breadcrumbs,
                 ),
             ),
+            header_content=header(),
             height="100vh",
         ),
         # Add the update dialog

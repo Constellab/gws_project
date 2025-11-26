@@ -1,4 +1,3 @@
-
 import reflex as rx
 from gws_reflex_main import main_component
 from gws_reflex_main.components.reflex_user_components import user_select
@@ -22,7 +21,6 @@ def _filter_bar() -> rx.Component:
             on_change=KanbanState.handle_search_change,
             min_width="300px",
         ),
-
         # Project filter select
         rx.select.root(
             rx.select.trigger(
@@ -41,7 +39,6 @@ def _filter_bar() -> rx.Component:
             value=KanbanState.selected_project_id,
             on_change=KanbanState.handle_project_change,
         ),
-
         # User filter select
         user_select(
             users=KanbanState.available_users,
@@ -50,7 +47,6 @@ def _filter_bar() -> rx.Component:
             on_change=KanbanState.handle_user_change,
             width="200px",
         ),
-
         # Date filter select
         rx.select.root(
             rx.select.trigger(
@@ -65,7 +61,6 @@ def _filter_bar() -> rx.Component:
             value=KanbanState.selected_date_filter,
             on_change=KanbanState.handle_date_filter_change,
         ),
-
         # Clear filters button
         rx.button(
             "Clear",
@@ -73,9 +68,9 @@ def _filter_bar() -> rx.Component:
             variant="outline",
             size="2",
         ),
-
         width="100%",
         spacing="3",
+        wrap="wrap",
     )
 
 
@@ -91,15 +86,8 @@ def kanban_page() -> rx.Component:
     return main_component(
         page_layout(
             rx.vstack(
-                # Page header
-                rx.heading(
-                    "Task Board",
-                    size="6",
-                ),
-
                 # Filter bar
                 _filter_bar(),
-
                 # Kanban board
                 kanban_board(
                     board_data=KanbanState.kanban_board_data,
@@ -110,11 +98,14 @@ def kanban_page() -> rx.Component:
                     flex="1",
                     class_name="kanban-board",
                 ),
-
                 width="100%",
                 spacing="3",
                 align_items="start",
                 height="100%",
+            ),
+            header_content=rx.heading(
+                "Task Board",
+                size="6",
             ),
             height="100vh",
         )
