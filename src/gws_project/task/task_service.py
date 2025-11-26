@@ -1,19 +1,22 @@
-
 from datetime import date, timedelta
-from typing import Dict, List, Optional
 
-from gws_core import (BadRequestException, BaseHTTPException,
-                      CurrentUserService, ExternalSpaceCreateFolder, Logger,
-                      RichText, RichTextDTO, SearchParams, SpaceService)
+from gws_core import (
+    BadRequestException,
+    BaseHTTPException,
+    CurrentUserService,
+    ExternalSpaceCreateFolder,
+    Logger,
+    RichText,
+    RichTextDTO,
+    SpaceService,
+)
+
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
-from gws_project.project.project_security_service import (
-    ProjectSecurityService, ProjectUserRole)
+from gws_project.project.project_security_service import ProjectSecurityService, ProjectUserRole
 from gws_project.project.project_user import ProjectUser
 from gws_project.task.task import Task
-from gws_project.task.task_dto import (CreateTaskDTO, TaskPriority, TaskStatus,
-                                       UpdateTaskDTO)
-from gws_project.task.task_search_builder import TaskSearchBuilder
+from gws_project.task.task_dto import CreateTaskDTO, TaskPriority, TaskStatus, UpdateTaskDTO
 from gws_project.template.task_template import TaskTemplate
 from gws_project.user.user import User
 
@@ -26,7 +29,7 @@ class TaskService:
     :type space_service: Optional[SpaceService]
     """
 
-    def __init__(self, space_service: Optional[SpaceService] = None):
+    def __init__(self, space_service: SpaceService | None = None):
         """Initialize the TaskService with an optional SpaceService instance.
 
         :param space_service: Optional SpaceService instance to use for Space operations
@@ -47,7 +50,7 @@ class TaskService:
         security_service = ProjectSecurityService()
         return security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
-    def get_root_tasks_of_project(self, project_id: str) -> List[Task]:
+    def get_root_tasks_of_project(self, project_id: str) -> list[Task]:
         """Get the root task of a project by project ID.
 
         :param project_id: The ID of the project
@@ -62,7 +65,7 @@ class TaskService:
 
         return Task.get_root_tasks_of_project(project.id)
 
-    def get_subtasks(self, parent_task_id: str) -> List[Task]:
+    def get_subtasks(self, parent_task_id: str) -> list[Task]:
         """Get all subtasks of a parent task by parent task ID.
 
         :param parent_task_id: The ID of the parent task
@@ -76,29 +79,6 @@ class TaskService:
         parent_task = security_service.get_and_check_role_for_task(parent_task_id, ProjectUserRole.USER)
 
         return Task.get_subtasks_of_task(parent_task.id)
-
-    def search(self, search: SearchParams = None) -> List[Task]:
-        """Search for tasks based on search parameters with pagination.
-
-        :param search: The search parameters
-        :type search: SearchParams
-        :param page: The page number (0-indexed)
-        :type page: int
-        :param number_of_items_per_page: Number of items per page
-        :type number_of_items_per_page: int
-        :return: A paginator containing the search results
-        :rtype: Paginator[Task]
-        """
-        user_projects = ProjectUser.get_projects_of_user(CurrentUserService.get_and_check_current_user().id)
-
-        project_ids = [project.id for project in user_projects]
-
-        search_builder = TaskSearchBuilder()
-        search_builder.add_projects_filter(project_ids)
-
-        if search:
-            search_builder.add_search_params(search)
-        return search_builder.search_all()
 
     @ProjectDbManager.transaction()
     def create_root_task(self, project_id: str, task_dto: CreateTaskDTO) -> Task:
@@ -160,11 +140,7 @@ class TaskService:
 
         # Create the subtask model from DTO using common method
         # Subtasks can have allow_subtasks set based on the DTO (enables unlimited nesting)
-        subtask = self._build_task_from_dto(
-            task_dto,
-            parent_task.project,
-            parent_task=parent_task
-        )
+        subtask = self._build_task_from_dto(task_dto, parent_task.project, parent_task=parent_task)
 
         # Save the subtask to the database
         subtask.save()
@@ -204,7 +180,6 @@ class TaskService:
 
         # Check if this task has subtasks (is a parent task)
         if task.is_leaf_task():
-
             # For root tasks, validate against project dates
             self._validate_task_dates_within_project(task.project, task_dto.start_date, task_dto.end_date)
 
@@ -232,11 +207,7 @@ class TaskService:
         # If this is a task with a space folder, update the folder in Space
         if task.space_folder_id and (title_has_changed or dates_have_changed):
             space_folder = ExternalSpaceCreateFolder(
-                name=task.title,
-                code=None,
-                tags=None,
-                starting_date=task.start_date,
-                ending_date=task.end_date
+                name=task.title, code=None, tags=None, starting_date=task.start_date, ending_date=task.end_date
             )
 
             # Call space service to update the folder
@@ -403,8 +374,7 @@ class TaskService:
             except BaseHTTPException as e:
                 if e.status_code == 404:
                     # Folder not found in Space, proceed with task deletion
-                    Logger.warning(
-                        f"Space folder {space_folder_id} not found. Proceeding with task deletion.")
+                    Logger.warning(f"Space folder {space_folder_id} not found. Proceeding with task deletion.")
                 else:
                     # Reraise other exceptions
                     raise e
@@ -437,8 +407,7 @@ class TaskService:
         # Check that the project has a space folder
         if not root_task.project.space_folder_id:
             raise BadRequestException(
-                f"Cannot create space folder for task '{task_id}'. "
-                "The project doesn't have a space folder."
+                f"Cannot create space folder for task '{task_id}'. The project doesn't have a space folder."
             )
 
         # Create a child folder in Space for the root task
@@ -447,14 +416,11 @@ class TaskService:
             code=None,
             tags=None,
             starting_date=root_task.start_date,
-            ending_date=root_task.end_date
+            ending_date=root_task.end_date,
         )
 
         # Call space service to create the child folder
-        created_folder = self._space_service.create_child_folder(
-            root_task.project.space_folder_id,
-            space_folder
-        )
+        created_folder = self._space_service.create_child_folder(root_task.project.space_folder_id, space_folder)
 
         # Update task with the space folder ID
         root_task.space_folder_id = created_folder.id
@@ -511,8 +477,8 @@ class TaskService:
         self,
         task_dto: CreateTaskDTO,
         project: Project,
-        parent_task: Optional[Task] = None,
-        force_allow_subtasks: Optional[bool] = None
+        parent_task: Task | None = None,
+        force_allow_subtasks: bool | None = None,
     ) -> Task:
         """Build a Task model from a CreateTaskDTO.
 
@@ -583,7 +549,7 @@ class TaskService:
                     code=None,
                     tags=None,
                     starting_date=parent_task.start_date,
-                    ending_date=parent_task.end_date
+                    ending_date=parent_task.end_date,
                 )
                 self._space_service.update_folder(parent_task.space_folder_id, space_folder)
 
@@ -613,7 +579,7 @@ class TaskService:
 
         return task
 
-    def get_descendants_assigned_users(self, task_id: str) -> List[User]:
+    def get_descendants_assigned_users(self, task_id: str) -> list[User]:
         """Get the list of unique users assigned to subtasks of a task.
 
         Returns an empty list if the task has no subtasks or if no users are assigned.
@@ -647,8 +613,8 @@ class TaskService:
         project: Project,
         task_template: TaskTemplate,
         project_start_date: date,
-        role_mapping: Optional[Dict[str, str]] = None,
-        parent_task: Optional[Task] = None
+        role_mapping: dict[str, str] | None = None,
+        parent_task: Task | None = None,
     ) -> Task:
         """Create a task from a task template with unlimited hierarchy support.
 
@@ -674,10 +640,7 @@ class TaskService:
         task_end_date = task_start_date + timedelta(days=max(task_template.duration_days - 1, 0))
 
         # Determine the user to assign the task to using role mapping
-        assign_to_user_id = self._get_assign_to_user_id_from_role(
-            task_template.assign_to_role,
-            role_mapping
-        )
+        assign_to_user_id = self._get_assign_to_user_id_from_role(task_template.assign_to_role, role_mapping)
 
         # Create task DTO
         task_dto = CreateTaskDTO(
@@ -687,7 +650,7 @@ class TaskService:
             status=TaskStatus.TODO,
             priority=task_template.priority,
             allow_subtasks=task_template.allow_subtasks,
-            assign_to_id=assign_to_user_id
+            assign_to_id=assign_to_user_id,
         )
 
         # Create the task using TaskService methods
@@ -706,21 +669,13 @@ class TaskService:
         # Create subtasks recursively
         subtasks = TaskTemplate.get_subtasks_of_template_task(task_template.id)
         for subtask_template in subtasks:
-            self.create_task_from_template(
-                project,
-                subtask_template,
-                project_start_date,
-                role_mapping,
-                task
-            )
+            self.create_task_from_template(project, subtask_template, project_start_date, role_mapping, task)
 
         return task
 
     def _get_assign_to_user_id_from_role(
-        self,
-        assign_to_role: Optional[str],
-        role_mapping: Optional[Dict[str, str]] = None
-    ) -> Optional[str]:
+        self, assign_to_role: str | None, role_mapping: dict[str, str] | None = None
+    ) -> str | None:
         """Get the user ID to assign a task to based on the template role and role mapping.
 
         :param project: The project

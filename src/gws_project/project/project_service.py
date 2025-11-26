@@ -1,24 +1,28 @@
-
-
 from datetime import timedelta
-from typing import List, Optional
 
-from gws_core import (BadRequestException, BaseHTTPException,
-                      CurrentUserService, ExternalSpaceCreateFolder, Logger,
-                      RichText, RichTextDTO, SpaceRootFolderUserRole,
-                      SpaceService)
+from gws_core import (
+    BadRequestException,
+    BaseHTTPException,
+    CurrentUserService,
+    ExternalSpaceCreateFolder,
+    Logger,
+    RichText,
+    RichTextDTO,
+    SpaceRootFolderUserRole,
+    SpaceService,
+)
+
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
-from gws_project.project.project_dto import (CreateProjectFromTemplateDTO,
-                                             ProjectUserRole, SaveProjectDTO)
+from gws_project.project.project_dto import CreateProjectFromTemplateDTO, ProjectUserRole, SaveProjectDTO
 from gws_project.project.project_security_service import ProjectSecurityService
 from gws_project.project.project_user import ProjectUser
-from gws_project.src.gws_project.user.user_sync_service import UserSyncService
 from gws_project.task.task import Task
 from gws_project.task.task_service import TaskService
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.task_template import TaskTemplate
 from gws_project.user.user import User
+from gws_project.user.user_sync_service import UserSyncService
 
 
 class ProjectService:
@@ -31,7 +35,7 @@ class ProjectService:
 
     _space_service: SpaceService
 
-    def __init__(self, space_service: Optional[SpaceService] = None):
+    def __init__(self, space_service: SpaceService | None = None):
         """Initialize the ProjectService with an optional SpaceService instance.
 
         :param space_service: Optional SpaceService instance to use for Space operations
@@ -52,7 +56,7 @@ class ProjectService:
         security_service = ProjectSecurityService()
         return security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
-    def get_project_users(self, project_id: str) -> List[ProjectUser]:
+    def get_project_users(self, project_id: str) -> list[ProjectUser]:
         """Get all users associated with a project.
 
         :param project_id: The ID of the project
@@ -65,7 +69,7 @@ class ProjectService:
 
         return ProjectUser.get_by_project(project_id)
 
-    def get_current_user_projects(self) -> List[Project]:
+    def get_current_user_projects(self) -> list[Project]:
         """Get all projects that the current user is a member of.
 
         :return: List of projects the current user has access to
@@ -73,8 +77,9 @@ class ProjectService:
         """
         current_user = CurrentUserService.get_and_check_current_user()
 
-        # Query projects through the ProjectUser junction table
-        return ProjectUser.get_projects_of_user(current_user.id)
+        return list(
+            Project.select().join(ProjectUser).where(ProjectUser.user == current_user.id).order_by(Project.title)
+        )
 
     def _validate_project_dates(self, start_date, end_date) -> None:
         """Validate that project start date is before end date.
@@ -105,8 +110,9 @@ class ProjectService:
         self._validate_project_dates(project_dto.start_date, project_dto.end_date)
 
         # Create the project model from DTO
-        project_manager = User.get_by_id_and_check(
-            project_dto.project_manager_id) if project_dto.project_manager_id else current_user
+        project_manager = (
+            User.get_by_id_and_check(project_dto.project_manager_id) if project_dto.project_manager_id else current_user
+        )
         project = Project()
         project.title = project_dto.name
         project.description = project_dto.description or RichText().to_dto()  # Initialize with empty rich text
@@ -130,7 +136,7 @@ class ProjectService:
             code=None,  # You can add a code field to Project if needed
             tags=None,  # You can add tags to Project if needed
             starting_date=project.start_date,
-            ending_date=project.end_date
+            ending_date=project.end_date,
         )
 
         # Call space service to create the root folder
@@ -155,15 +161,16 @@ class ProjectService:
         """
         # Get the project by ID
         security_service = ProjectSecurityService()
-        project = security_service.get_and_check_role_for_project(
-            project_id, ProjectUserRole.USER)
+        project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
         # Validate project dates
         self._validate_project_dates(project_dto.start_date, project_dto.end_date)
 
-        folder_has_changed = project.title != project_dto.name or \
-            project.start_date != project_dto.start_date or \
-            project.end_date != project_dto.end_date
+        folder_has_changed = (
+            project.title != project_dto.name
+            or project.start_date != project_dto.start_date
+            or project.end_date != project_dto.end_date
+        )
 
         # Update the project fields from DTO
         project.title = project_dto.name
@@ -171,13 +178,10 @@ class ProjectService:
         project.end_date = project_dto.end_date
         if project_dto.project_manager_id:
             # Verify that the user is in the project
-            project_user = ProjectUser.get_by_project_and_user(
-                project.id, project_dto.project_manager_id)
+            project_user = ProjectUser.get_by_project_and_user(project.id, project_dto.project_manager_id)
 
             if not project_user:
-                raise BadRequestException(
-                    "The new project manager is not a member of the project."
-                )
+                raise BadRequestException("The new project manager is not a member of the project.")
 
             project.project_manager = User.get_by_id_and_check(project_dto.project_manager_id)
 
@@ -191,7 +195,7 @@ class ProjectService:
                 code=None,  # You can add a code field to Project if needed
                 tags=None,  # You can add tags to Project if needed
                 starting_date=project.start_date,
-                ending_date=project.end_date
+                ending_date=project.end_date,
             )
 
             # Call space service to update the folder
@@ -207,8 +211,7 @@ class ProjectService:
         :type project: Project
         """
         security_service = ProjectSecurityService()
-        project = security_service.get_and_check_role_for_project(
-            project_id, ProjectUserRole.OWNER)
+        project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.OWNER)
 
         # If the project has a space folder ID, delete the folder in Space first
         if project.space_folder_id:
@@ -218,7 +221,8 @@ class ProjectService:
                 if e.status_code == 404:
                     # Folder not found in Space, proceed with project deletion
                     Logger.warning(
-                        f"Space folder {project.space_folder_id} not found. Proceeding with project deletion.")
+                        f"Space folder {project.space_folder_id} not found. Proceeding with project deletion."
+                    )
                 else:
                     # Reraise other exceptions
                     raise e
@@ -227,8 +231,9 @@ class ProjectService:
         project.delete_instance()
 
     @ProjectDbManager.transaction()
-    def add_group_to_project(self, project_id: str, group_id: str,
-                             role: ProjectUserRole = ProjectUserRole.USER) -> List[ProjectUser]:
+    def add_group_to_project(
+        self, project_id: str, group_id: str, role: ProjectUserRole = ProjectUserRole.USER
+    ) -> list[ProjectUser]:
         """Add a user to a project and share the project folder in Space.
 
         :param project_id: The ID of the project
@@ -242,8 +247,7 @@ class ProjectService:
         """
         # Get the project
         security_service = ProjectSecurityService()
-        project = security_service.get_and_check_role_for_project(
-            project_id, ProjectUserRole.OWNER)
+        project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.OWNER)
 
         # If the project has a space folder, share it with the user
         project_users = []
@@ -262,20 +266,12 @@ class ProjectService:
                         raise Exception(f"Error importing user {folder_user.user.email} from in lab.")
 
                     # Create the ProjectUser entity with the specified role
-                    project_user = ProjectUser.create_or_update(
-                        project=project,
-                        user=user,
-                        role=folder_user.role
-                    )
+                    project_user = ProjectUser.create_or_update(project=project, user=user, role=folder_user.role)
                     project_users.append(project_user)
             else:
                 # Fallback for testing: directly add the user if group_id is a user_id
                 user = User.get_by_id_and_check(group_id)
-                project_user = ProjectUser.create_or_update(
-                    project=project,
-                    user=user,
-                    role=role
-                )
+                project_user = ProjectUser.create_or_update(project=project, user=user, role=role)
                 project_users.append(project_user)
 
         return project_users
@@ -294,8 +290,7 @@ class ProjectService:
         """
         # Get the project
         security_service = ProjectSecurityService()
-        project = security_service.get_and_check_role_for_project(
-            project_id, ProjectUserRole.OWNER)
+        project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.OWNER)
 
         # Get the ProjectUser entity to check the role
         project_user = ProjectUser.get_by_project_and_user(project.id, user_id)
@@ -347,8 +342,7 @@ class ProjectService:
         """
         # Get the project and check permissions
         security_service = ProjectSecurityService()
-        project = security_service.get_and_check_role_for_project(
-            project_id, ProjectUserRole.OWNER)
+        project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.OWNER)
 
         # Get the ProjectUser entity
         project_user = ProjectUser.get_by_project_and_user(project.id, user_id)
@@ -393,8 +387,7 @@ class ProjectService:
         """
         # Get the project and check permissions
         security_service = ProjectSecurityService()
-        project = security_service.get_and_check_role_for_project(
-            project_id, ProjectUserRole.USER)
+        project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
         # Update the description
         project.description = description
@@ -404,9 +397,7 @@ class ProjectService:
 
     @ProjectDbManager.transaction()
     def create_project_from_template(
-        self,
-        project_template_id: str,
-        project_dto: CreateProjectFromTemplateDTO
+        self, project_template_id: str, project_dto: CreateProjectFromTemplateDTO
     ) -> Project:
         """Create a project from a project template.
 
@@ -429,10 +420,7 @@ class ProjectService:
         root_task_templates = TaskTemplate.get_root_tasks_of_template(project_template_id)
 
         # Calculate the project end_date based on template tasks
-        end_date = self._calculate_project_end_date_from_template(
-            project_dto.start_date,
-            root_task_templates
-        )
+        end_date = self._calculate_project_end_date_from_template(project_dto.start_date, root_task_templates)
 
         # Create the project using SaveProjectDTO
         save_project_dto = SaveProjectDTO(
@@ -440,7 +428,7 @@ class ProjectService:
             start_date=project_dto.start_date,
             end_date=end_date,
             project_manager_id=project_dto.project_manager_id,
-            description=project_template.description
+            description=project_template.description,
         )
         project = self.create_project(save_project_dto)
 
@@ -460,19 +448,12 @@ class ProjectService:
         # Create all tasks from the template
         for root_task_template in root_task_templates:
             task_service.create_task_from_template(
-                project,
-                root_task_template,
-                project_dto.start_date,
-                project_dto.role_mapping
+                project, root_task_template, project_dto.start_date, project_dto.role_mapping
             )
 
         return project
 
-    def _calculate_project_end_date_from_template(
-        self,
-        project_start_date,
-        task_templates: List[TaskTemplate]
-    ):
+    def _calculate_project_end_date_from_template(self, project_start_date, task_templates: list[TaskTemplate]):
         """Calculate the project end date based on all task templates.
 
         Recursively processes all task templates (including subtasks) to find

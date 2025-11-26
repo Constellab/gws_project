@@ -1,11 +1,10 @@
 from datetime import date, timedelta
-from typing import List
 
 import reflex as rx
 from gws_core import UserDTO
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectDTO
-from gws_project.project.project_user import ProjectUser
+from gws_project.project.project_service import ProjectService
 from gws_project.task.task_dto import TaskDTO, TaskStatus
 from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.task.task_service import TaskService
@@ -13,8 +12,7 @@ from gws_project.user.user import User
 from gws_reflex_main import ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import Task
-from ..common.kanban.kanban import (BoardDataDTO, CardDTO, CardMoveEvent,
-                                    build_kanban_board_data)
+from ..common.kanban.kanban import BoardDataDTO, CardDTO, CardMoveEvent, build_kanban_board_data
 from ..common.project_app_router import ProjectAppRouter
 
 
@@ -25,7 +23,7 @@ class KanbanState(ReflexMainState):
     in a kanban board format, as well as managing task updates and deletion.
     """
 
-    tasks: List[TaskDTO] = []
+    tasks: list[TaskDTO] = []
     _is_loaded: bool = False
 
     # Filter state
@@ -35,14 +33,14 @@ class KanbanState(ReflexMainState):
     selected_date_filter: str = "current_week"  # Default to current week
 
     # Data for filters
-    available_projects: List[ProjectDTO] = []
-    available_users: List[UserDTO] = []
+    available_projects: list[ProjectDTO] = []
+    available_users: list[UserDTO] = []
 
     async def load_projects(self):
         """Load the list of projects for the current user."""
-        current_user = await self.get_and_check_current_user()
-        user_projects = ProjectUser.get_projects_of_user(current_user.id)
-        self.available_projects = [project.to_dto() for project in user_projects]
+        with await self.authenticate_user():
+            user_projects = ProjectService().get_current_user_projects()
+            self.available_projects = [project.to_dto() for project in user_projects]
 
     async def load_users(self):
         """Load the list of all real users (excluding SYSUSER).
@@ -101,7 +99,7 @@ class KanbanState(ReflexMainState):
             if today.month == 12:
                 end_date = today.replace(day=31)
             else:
-                end_date = (today.replace(month=today.month + 1, day=1) - timedelta(days=1))
+                end_date = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
         else:
             # Default to current week
             start_date = today - timedelta(days=today.weekday())
@@ -118,8 +116,7 @@ class KanbanState(ReflexMainState):
         :return: List of filtered tasks as DTOs
         :rtype: List[TaskDTO]
         """
-        tasks: List[Task]
-        current_user = await self.get_and_check_current_user()
+        tasks: list[Task]
 
         # Build the search with filters
         search_builder = TaskSearchBuilder()
@@ -128,11 +125,11 @@ class KanbanState(ReflexMainState):
         if self.selected_project_id:
             search_builder.add_project_filter(self.selected_project_id)
         else:
-            user_projects = ProjectUser.get_projects_of_user(current_user.id)
-            project_ids = [project.id for project in user_projects]
-            if project_ids:
-                search_builder.add_projects_filter(project_ids)
-
+            with await self.authenticate_user():
+                user_projects = ProjectService().get_current_user_projects()
+                project_ids = [project.id for project in user_projects]
+                if project_ids:
+                    search_builder.add_projects_filter(project_ids)
         # User/assignee filter
         if self.selected_user_id:
             search_builder.add_user_filter(self.selected_user_id)
@@ -207,7 +204,7 @@ class KanbanState(ReflexMainState):
         await self.load_tasks()
 
     @rx.var
-    def project_options(self) -> List[tuple[str, str]]:
+    def project_options(self) -> list[tuple[str, str]]:
         """Get project options for select component (excluding the 'All Projects' option).
 
         :return: List of (id, title) tuples
@@ -216,7 +213,7 @@ class KanbanState(ReflexMainState):
         return [(p.id, p.title) for p in self.available_projects]
 
     @rx.var
-    def user_options(self) -> List[tuple[str, str]]:
+    def user_options(self) -> list[tuple[str, str]]:
         """Get user options for select component (excluding the 'All Users' option).
 
         :return: List of (id, full_name) tuples
@@ -235,7 +232,7 @@ class KanbanState(ReflexMainState):
 
     def _task_to_card(self, task: TaskDTO) -> CardDTO:
         """Convert a TaskDTO to a Kanban card format."""
-        assignee = task.assign_to.first_name + ' ' + task.assign_to.last_name if task.assign_to else "Unassigned"
+        assignee = task.assign_to.first_name + " " + task.assign_to.last_name if task.assign_to else "Unassigned"
 
         # Get project name from project_id
         project_name = None
@@ -253,7 +250,7 @@ class KanbanState(ReflexMainState):
             assignee=assignee,
             parent_task_title=task.parent_task_title,
             is_leaf=not task.allow_subtasks,
-            project_name=project_name
+            project_name=project_name,
         )
 
     @rx.event(background=True)  # type: ignore

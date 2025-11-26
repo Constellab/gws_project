@@ -42,17 +42,16 @@ def _form_content() -> rx.Component:
                 name="name",
                 required=True,
                 width="100%",
-                default_value=ProjectFormDialogState.form_name
+                default_value=ProjectFormDialogState.form_name,
             ),
             width="100%",
-            spacing="1"
+            spacing="1",
         ),
-
-        # Project Manager selection (only in update mode)
+        # Manager selection (only in update mode)
         rx.cond(
             ProjectFormDialogState.is_update_mode,
             rx.vstack(
-                rx.text("Project Manager", size="2", weight="bold"),
+                rx.text("Manager", size="2", weight="bold"),
                 user_select(
                     users=ProjectFormDialogState.project_users,
                     placeholder="Select project manager",
@@ -61,10 +60,9 @@ def _form_content() -> rx.Component:
                     width="100%",
                 ),
                 width="100%",
-                spacing="1"
+                spacing="1",
             ),
         ),
-
         # Template selection (only in create mode)
         rx.cond(
             ~ProjectFormDialogState.is_update_mode,
@@ -88,10 +86,9 @@ def _form_content() -> rx.Component:
                     on_change=ProjectFormDialogState.handle_template_change,
                 ),
                 width="100%",
-                spacing="1"
+                spacing="1",
             ),
         ),
-
         # Date fields
         rx.hstack(
             rx.vstack(
@@ -101,12 +98,11 @@ def _form_content() -> rx.Component:
                     name="start_date",
                     required=True,
                     width="100%",
-                    default_value=ProjectFormDialogState.form_start_date
+                    default_value=ProjectFormDialogState.form_start_date,
                 ),
                 width="100%",
-                spacing="1"
+                spacing="1",
             ),
-
             # End Date (hidden when template is selected)
             rx.cond(
                 ProjectFormDialogState.selected_template_id == "",
@@ -117,16 +113,15 @@ def _form_content() -> rx.Component:
                         name="end_date",
                         required=True,
                         width="100%",
-                        default_value=ProjectFormDialogState.form_end_date
+                        default_value=ProjectFormDialogState.form_end_date,
                     ),
                     width="100%",
-                    spacing="1"
+                    spacing="1",
                 ),
             ),
             width="100%",
-            spacing="3"
+            spacing="3",
         ),
-
         # Role assignments (only when template is selected and has roles)
         rx.cond(
             (ProjectFormDialogState.selected_template_id != "") & (ProjectFormDialogState.template_roles.length() > 0),
@@ -139,10 +134,7 @@ def _form_content() -> rx.Component:
                 ),
                 rx.box(
                     rx.vstack(
-                        rx.foreach(
-                            ProjectFormDialogState.template_roles,
-                            _role_assignment_row
-                        ),
+                        rx.foreach(ProjectFormDialogState.template_roles, _role_assignment_row),
                         width="100%",
                         spacing="2",
                     ),
@@ -152,12 +144,11 @@ def _form_content() -> rx.Component:
                     width="100%",
                 ),
                 width="100%",
-                spacing="1"
+                spacing="1",
             ),
         ),
-
         width="100%",
-        spacing="3"
+        spacing="3",
     )
 
 
@@ -171,18 +162,14 @@ def _dialog() -> rx.Component:
     """
     return form_dialog_component(
         state=ProjectFormDialogState,
-        title=rx.cond(
-            ProjectFormDialogState.is_update_mode,
-            "Update Project",
-            "Create New Project"
-        ),
+        title=rx.cond(ProjectFormDialogState.is_update_mode, "Update Project", "Create New Project"),
         description=rx.cond(
             ProjectFormDialogState.is_update_mode,
             "Update the project details below.",
-            "Fill in the details below to create a new project."
+            "Fill in the details below to create a new project.",
         ),
         form_content=_form_content(),
-        max_width="500px"
+        max_width="500px",
     )
 
 
@@ -197,12 +184,9 @@ def create_project_dialog() -> rx.Component:
     """
     return rx.fragment(
         rx.button(
-            rx.icon("plus", size=18),
-            "Create New Project",
-            size="3",
-            on_click=ProjectFormDialogState.open_create_dialog
+            rx.icon("plus", size=18), "Create New Project", size="3", on_click=ProjectFormDialogState.open_create_dialog
         ),
-        _dialog()
+        _dialog(),
     )
 
 
