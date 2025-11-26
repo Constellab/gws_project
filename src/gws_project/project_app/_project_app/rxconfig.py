@@ -14,7 +14,7 @@ def _init_reflex() -> None:
 
 # Get api_url from environment variable first (before calling _init_reflex)
 # This avoids circular imports since the config object needs to exist first
-api_url = os.environ.get('GWS_REFLEX_API_URL')
+api_url = os.environ.get("GWS_REFLEX_API_URL")
 if api_url is None:
     raise ValueError("GWS_REFLEX_API_URL environment variable is not set")
 # [END_AUTO_CODE]
@@ -29,6 +29,7 @@ config = rx.Config(
         "@dnd-kit/core",
         "@dnd-kit/sortable",
         "@dnd-kit/utilities",
+        "gantt-task-react@0.3.9",
     ],
 )
 

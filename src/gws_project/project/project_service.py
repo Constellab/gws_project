@@ -14,7 +14,13 @@ from gws_core import (
 
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
-from gws_project.project.project_dto import CreateProjectFromTemplateDTO, ProjectUserRole, SaveProjectDTO
+from gws_project.project.project_dto import (
+    CreateProjectFromTemplateDTO,
+    ProjectUserRole,
+    ProjectWithRootTasksDTO,
+    SaveProjectDTO,
+)
+from gws_project.project.project_search_builder import ProjectSearchBuilder
 from gws_project.project.project_security_service import ProjectSecurityService
 from gws_project.project.project_user import ProjectUser
 from gws_project.task.task import Task
@@ -80,6 +86,50 @@ class ProjectService:
         return list(
             Project.select().join(ProjectUser).where(ProjectUser.user == current_user.id).order_by(Project.title)
         )
+
+    def search_current_user_projects_with_root_tasks(
+        self,
+        search_title: str | None = None,
+        manager_id: str | None = None,
+    ) -> list[ProjectWithRootTasksDTO]:
+        """Get all projects that the current user is a member of, along with their root tasks.
+
+        This method is optimized for GANTT chart display, returning projects with their
+        root-level tasks only (no subtasks). Tasks are ordered by start date.
+
+        :return: List of ProjectWithRootTasksDTO containing projects and their root tasks
+        :rtype: List[ProjectWithRootTasksDTO]
+        """
+        # Build the search with filters
+        search_builder = ProjectSearchBuilder()
+
+        # Filter by user's projects (projects where user is a member)
+        current_user = CurrentUserService.get_and_check_current_user()
+        search_builder.add_project_user_filter(current_user.id)
+
+        # Text search filter
+        if search_title:
+            search_builder.add_text_search(search_title)
+
+        # Project manager filter
+        if manager_id:
+            search_builder.add_project_manager_filter(manager_id)
+
+        projects = search_builder.search_all()
+
+        result = []
+        for project in projects:
+            # Get root tasks for this project (tasks without parent_task)
+            root_tasks = Task.get_root_tasks_of_project(project.id)
+
+            # Convert tasks to DTOs
+            root_tasks_dtos = [task.to_dto() for task in root_tasks]
+
+            # Create the combined DTO
+            project_with_tasks = ProjectWithRootTasksDTO(project=project.to_dto(), root_tasks=root_tasks_dtos)
+            result.append(project_with_tasks)
+
+        return result
 
     def _validate_project_dates(self, start_date, end_date) -> None:
         """Validate that project start date is before end date.

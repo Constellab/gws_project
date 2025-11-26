@@ -1,9 +1,8 @@
 """State for managing view mode across different detail pages."""
-from typing import Literal, Union, List
 
-import reflex as rx
+from typing import Literal
+
 from gws_reflex_main import ReflexMainState
-
 
 ViewMode = Literal["list", "description", "documents"]
 
@@ -17,7 +16,7 @@ class ViewModeState(ReflexMainState):
 
     view_mode: ViewMode = "list"
 
-    def set_view_mode(self, value: Union[str, List[str]]):
+    def set_view_mode(self, value: str | list[str]):
         """Set the view mode from the segmented control.
 
         :param value: The view mode value ("list", "description", or "documents")

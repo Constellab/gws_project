@@ -52,6 +52,7 @@ def sidebar_content() -> rx.Component:
         rx.vstack(
             menu_item("folder", "Projects", "/"),
             menu_item("kanban", "Kanban", "/kanban"),
+            menu_item("gantt_chart", "Gantt", "/gantt"),
             menu_item("layout_template", "Templates", "/templates"),
             width="100%",
             spacing="1",

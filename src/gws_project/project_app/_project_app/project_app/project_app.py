@@ -1,20 +1,18 @@
 import reflex as rx
 from gws_reflex_main import register_gws_reflex_app
 
+from .gantt.gantt_page_component import gantt_page_component
+from .gantt.gantt_page_state import GanttPageState
 from .kanban.kanban_component import kanban_page
 from .kanban.kanban_state import KanbanState
 from .project_detail.project_detail_component import project_detail_page
 from .project_list.project_list_component import project_list_page
 from .project_list.project_list_state import ProjectListState
 from .task_detail.task_detail_component import task_detail_page
-from .template.project_template_detail.project_template_detail_component import \
-    project_template_detail_page
-from .template.project_template_list.project_template_list_component import \
-    project_template_list_page
-from .template.project_template_list.project_template_list_state import \
-    ProjectTemplateListState
-from .template.task_template_detail.task_template_detail_component import \
-    task_template_detail_page
+from .template.project_template_detail.project_template_detail_component import project_template_detail_page
+from .template.project_template_list.project_template_list_component import project_template_list_page
+from .template.project_template_list.project_template_list_state import ProjectTemplateListState
+from .template.task_template_detail.task_template_detail_component import task_template_detail_page
 
 app = register_gws_reflex_app()
 
@@ -59,6 +57,16 @@ def kanban():
     return kanban_page()
 
 
+# Declare the gantt chart page
+@rx.page(route="/gantt", on_load=[GanttPageState.on_load])
+def gantt():
+    """Gantt chart page displaying all projects with their root tasks.
+
+    This page shows a timeline view of all projects and their root tasks.
+    """
+    return gantt_page_component()
+
+
 # Declare the template list page
 @rx.page(route="/templates", on_load=[ProjectTemplateListState.on_load])
 def template_list():
@@ -77,6 +85,7 @@ def project_template_detail():
     The template_id is extracted from the URL path.
     """
     return project_template_detail_page()
+
 
 # Declare the template detail page with URL parameter
 
