@@ -1,14 +1,11 @@
-
-
-from typing import List
-
 from gws_core import EnumField, RichTextDbField, RichTextDTO, Tag
+from peewee import BooleanField, CharField, DateField, ForeignKeyField, IntegerField
+
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
 from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from gws_project.user.user import User
-from peewee import BooleanField, CharField, DateField, ForeignKeyField
 
 
 class Task(ModelWithUser):
@@ -24,25 +21,22 @@ class Task(ModelWithUser):
     - The allow_subtasks field cannot be modified after creation
     """
 
-    project = ForeignKeyField(
-        Project, on_delete='CASCADE', null=False, backref='+')
-    parent_task: 'Task' = ForeignKeyField(
-        'self', on_delete='CASCADE', null=True, backref='subtasks')
+    project = ForeignKeyField(Project, on_delete="CASCADE", null=False, backref="+")
+    parent_task: "Task" = ForeignKeyField("self", on_delete="CASCADE", null=True, backref="subtasks")
     title = CharField(max_length=255, null=False)
     description: RichTextDTO = RichTextDbField(null=False)
     start_date = DateField(null=False)
     end_date = DateField(null=False)
-    status = EnumField(choices=TaskStatus, max_length=20,
-                       default=TaskStatus.TODO, null=False)
-    priority = EnumField(choices=TaskPriority, max_length=10,
-                         default=TaskPriority.MEDIUM, null=False)
+    status = EnumField(choices=TaskStatus, max_length=20, default=TaskStatus.TODO, null=False)
+    priority = EnumField(choices=TaskPriority, max_length=10, default=TaskPriority.MEDIUM, null=False)
     allow_subtasks = BooleanField(default=False)
-    assign_to = ForeignKeyField(User, null=False, backref='+')
+    assign_to = ForeignKeyField(User, null=False, backref="+")
     space_folder_id = CharField(max_length=36, null=True)
+    progress = IntegerField(default=0, null=False)
 
-    subtasks: List['Task']
+    subtasks: list["Task"]
 
-    SPACE_TASK_NAME: str = 'task'
+    SPACE_TASK_NAME: str = "task"
 
     def is_root_task(self) -> bool:
         """Check if the task is a root task (i.e., has no parent task)"""
@@ -52,7 +46,7 @@ class Task(ModelWithUser):
         """Check if the task is a leaf task (i.e., has no subtasks)"""
         return not self.allow_subtasks
 
-    def get_subtasks(self) -> List['Task']:
+    def get_subtasks(self) -> list["Task"]:
         """Get the list of subtasks for this task"""
         return self.subtasks
 
@@ -104,13 +98,11 @@ class Task(ModelWithUser):
             new_priority = TaskPriority.MEDIUM
         else:
             # Define priority order
-            priority_order = {TaskPriority.HIGH: 3,
-                              TaskPriority.MEDIUM: 2, TaskPriority.LOW: 1}
+            priority_order = {TaskPriority.HIGH: 3, TaskPriority.MEDIUM: 2, TaskPriority.LOW: 1}
             subtask_priorities = [subtask.priority for subtask in subtasks]
 
             # Get the highest priority
-            new_priority = max(subtask_priorities,
-                               key=lambda p: priority_order[p])
+            new_priority = max(subtask_priorities, key=lambda p: priority_order[p])
 
         # Check if priority changed
         if self.priority != new_priority:
@@ -136,16 +128,12 @@ class Task(ModelWithUser):
             new_end_date = self.project.end_date
         else:
             # Calculate start date: earliest start date from subtasks
-            start_dates = [
-                subtask.start_date for subtask in subtasks if subtask.start_date]
-            new_start_date = min(
-                start_dates) if start_dates else self.project.start_date
+            start_dates = [subtask.start_date for subtask in subtasks if subtask.start_date]
+            new_start_date = min(start_dates) if start_dates else self.project.start_date
 
             # Calculate end date: latest end date from subtasks
-            end_dates = [
-                subtask.end_date for subtask in subtasks if subtask.end_date]
-            new_end_date = max(
-                end_dates) if end_dates else self.project.end_date
+            end_dates = [subtask.end_date for subtask in subtasks if subtask.end_date]
+            new_end_date = max(end_dates) if end_dates else self.project.end_date
 
         # Check if dates changed
         dates_changed = False
@@ -158,13 +146,42 @@ class Task(ModelWithUser):
 
         return dates_changed
 
+    def _calculate_progress_from_subtasks(self) -> bool:
+        """Calculate and set the task progress based on its subtasks.
+
+        Progress is calculated as the average progress of all subtasks (0-100).
+        If there are no subtasks, progress is set to 0.
+
+        :return: True if the progress was changed, False otherwise
+        :rtype: bool
+        """
+        subtasks = self.get_subtasks()
+
+        if not subtasks:
+            # No subtasks, set progress to 0
+            if self.progress != 0:
+                self.progress = 0
+                return True
+            return False
+
+        # Calculate average progress from all subtasks
+        total_progress = sum(subtask.progress for subtask in subtasks)
+        new_progress = total_progress // len(subtasks)
+
+        # Check if progress changed
+        if self.progress != new_progress:
+            self.progress = new_progress
+            return True
+        return False
+
     def update_from_subtasks(self) -> bool:
-        """Update task dates, status, and priority based on all its subtasks.
+        """Update task dates, status, priority, and progress based on all its subtasks.
 
         This is the main method to call when subtasks change. It will:
         - Calculate and set dates from subtasks
         - Calculate and set status from subtasks
         - Calculate and set priority from subtasks
+        - Calculate and set progress from subtasks
 
         :return: True if any value was changed, False otherwise
         :rtype: bool
@@ -177,12 +194,25 @@ class Task(ModelWithUser):
         dates_changed = self._calculate_dates_from_subtasks()
         status_changed = self._calculate_status_from_subtasks()
         priority_changed = self._calculate_priority_from_subtasks()
+        progress_changed = self._calculate_progress_from_subtasks()
 
         # Return True if any value changed
-        return dates_changed or status_changed or priority_changed
+        return dates_changed or status_changed or priority_changed or progress_changed
+
+    def set_status(self, status: TaskStatus) -> None:
+        """Refresh the progress of leaf tasks based on their status.
+
+        Sets progress to 100 if status is DONE, otherwise sets to 0.
+        """
+        if self.is_leaf_task():
+            self.status = status
+            if self.status == TaskStatus.DONE:
+                self.progress = 100
+            else:
+                self.progress = 0
 
     @classmethod
-    def get_root_tasks_of_project(cls, project_id: str) -> List['Task']:
+    def get_root_tasks_of_project(cls, project_id: str) -> list["Task"]:
         """Get all tasks associated with a project
 
         :param project: The project
@@ -190,10 +220,12 @@ class Task(ModelWithUser):
         :return: List of tasks
         :rtype: List[Task]
         """
-        return list(cls.select().where((cls.project == project_id) & (cls.parent_task.is_null())).order_by(cls.created_at))
+        return list(
+            cls.select().where((cls.project == project_id) & (cls.parent_task.is_null())).order_by(cls.created_at)
+        )
 
     @classmethod
-    def get_subtasks_of_task(cls, parent_task_id: str) -> List['Task']:
+    def get_subtasks_of_task(cls, parent_task_id: str) -> list["Task"]:
         """Get all subtasks of a parent task
 
         :param parent_task: The parent task
@@ -204,7 +236,7 @@ class Task(ModelWithUser):
         return list(cls.select().where(cls.parent_task == parent_task_id).order_by(cls.created_at))
 
     @classmethod
-    def get_tasks_of_user(cls, user_id: str) -> List['Task']:
+    def get_tasks_of_user(cls, user_id: str) -> list["Task"]:
         """Get all tasks assigned to a user
 
         :param user_id: The user ID
@@ -239,7 +271,7 @@ class Task(ModelWithUser):
         else:
             return self.parent_task.get_space_folder_id()
 
-    def get_root_task(self) -> 'Task':
+    def get_root_task(self) -> "Task":
         """Get the root task for this task.
 
         If this task is a root task, returns itself.
@@ -253,7 +285,7 @@ class Task(ModelWithUser):
         else:
             return self.parent_task.get_root_task()
 
-    def get_ancestors(self) -> List['Task']:
+    def get_ancestors(self) -> list["Task"]:
         """Get all ancestor tasks from immediate parent up to root task.
 
         Returns a list of ancestor tasks ordered from immediate parent to root.
@@ -269,7 +301,7 @@ class Task(ModelWithUser):
             current = current.parent_task
         return ancestors
 
-    def get_all_descendants(self) -> List['Task']:
+    def get_all_descendants(self) -> list["Task"]:
         """Recursively get all descendant tasks (children, grandchildren, etc.).
 
         Returns a flat list of all tasks in the subtree below this task.
@@ -321,14 +353,15 @@ class Task(ModelWithUser):
             parent_task_id=self.parent_task.id if self.parent_task else None,
             parent_task_title=self.parent_task.title if self.parent_task else None,
             space_folder_id=self.space_folder_id,
+            progress=self.progress,
             created_at=self.created_at,
             created_by=self.created_by.to_dto(),
             last_modified_at=self.last_modified_at,
-            last_modified_by=self.last_modified_by.to_dto()
+            last_modified_by=self.last_modified_by.to_dto(),
         )
 
     class Meta:
-        table_name = 'gws_project_tasks'
+        table_name = "gws_project_tasks"
         database = ProjectDbManager.get_instance().db
         is_table = True
         db_manager = ProjectDbManager.get_instance()

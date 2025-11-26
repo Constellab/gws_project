@@ -1,17 +1,15 @@
-
 from datetime import date, datetime
 
-from gws_core import (BadRequestException, BaseTestCase, CurrentUserService,
-                      TestMockSpaceService, UserGroup)
+from gws_core import BadRequestException, BaseTestCase, CurrentUserService, TestMockSpaceService, UserGroup
+from gws_core import UserService as GwsCoreUserService
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectUserRole, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
-from gws_project.task.task_dto import (CreateSubTaskDTO, CreateTaskDTO,
-                                       TaskPriority, TaskStatus, UpdateTaskDTO)
+from gws_project.task.task_dto import CreateTaskDTO, TaskPriority, TaskStatus, UpdateTaskDTO
 from gws_project.task.task_service import TaskService
 from gws_project.user.user import User
-from gws_project.user.user_service import UserService
+from gws_project.user.user_sync_service import ProjectUserSyncService
 
 
 # test_task_service
@@ -21,7 +19,10 @@ class TestTaskService(BaseTestCase):
     @classmethod
     def init_before_test(cls):
         super().init_before_test()
-        UserService.sync_gws_core_users()
+        # Sync users from gws_core to gws_project database
+        sync_service = ProjectUserSyncService()
+        gws_core_users = GwsCoreUserService.get_all_users()
+        sync_service.sync_all_users(gws_core_users)
 
     def _get_task_service(self) -> TaskService:
         """Create a TaskService instance with mock space service"""
@@ -30,8 +31,7 @@ class TestTaskService(BaseTestCase):
     def _create_test_project(self, project_service: ProjectService) -> Project:
         """Helper method to create a test project"""
         project_dto = SaveProjectDTO(
-            name='Test Project',
-            description='Test Project Description',
+            name="Test Project",
             start_date=datetime(2025, 1, 1),
             end_date=datetime(2025, 12, 31),
         )
@@ -41,8 +41,8 @@ class TestTaskService(BaseTestCase):
         """Helper method to create a test user"""
         user = User(
             user_email=email,
-            user_first_name='Test',
-            user_last_name='User',
+            user_first_name="Test",
+            user_last_name="User",
             group=UserGroup.USER,
         )
         user.save()
@@ -59,14 +59,13 @@ class TestTaskService(BaseTestCase):
 
         # Create root task DTO
         root_task_dto = CreateTaskDTO(
-            title='Test Root Task',
-            description='Test root task description',
+            title="Test Root Task",
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
             status=TaskStatus.TODO,
             priority=TaskPriority.HIGH,
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
 
         # Test successful creation
@@ -74,8 +73,8 @@ class TestTaskService(BaseTestCase):
 
         # Assertions
         self.assertIsNotNone(created_task)
-        self.assertEqual(created_task.title, 'Test Root Task')
-        self.assertEqual(created_task.description, 'Test root task description')
+        self.assertEqual(created_task.title, "Test Root Task")
+        self.assertIsNotNone(created_task.description)  # Should have RichTextDTO
         self.assertEqual(created_task.start_date, date(2025, 2, 1))
         self.assertEqual(created_task.end_date, date(2025, 2, 28))
         self.assertEqual(created_task.status, TaskStatus.TODO)
@@ -85,7 +84,8 @@ class TestTaskService(BaseTestCase):
         self.assertEqual(created_task.project.id, project.id)
         self.assertIsNone(created_task.parent_task)
         self.assertTrue(created_task.is_root_task())
-        self.assertIsNotNone(created_task.space_folder_id)  # Should be created in Space
+        # Space folder is created on demand when documents are uploaded, not immediately
+        self.assertIsNone(created_task.space_folder_id)
 
     def test_create_root_task_invalid_dates(self):
         """Test create_root_task with invalid dates"""
@@ -97,16 +97,15 @@ class TestTaskService(BaseTestCase):
 
         # Test start date before project start date
         invalid_dto = CreateTaskDTO(
-            title='Invalid Task',
-            description='Task with invalid dates',
+            title="Invalid Task",
             start_date=date(2024, 12, 31),  # Before project start
             end_date=date(2025, 2, 28),
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
 
         with self.assertRaises(BadRequestException) as context:
             task_service.create_root_task(project.id, invalid_dto)
-        self.assertIn('start date', str(context.exception))
+        self.assertIn("start date", str(context.exception))
 
         # Test end date after project end date
         invalid_dto.start_date = date(2025, 2, 1)
@@ -114,7 +113,7 @@ class TestTaskService(BaseTestCase):
 
         with self.assertRaises(BadRequestException) as context:
             task_service.create_root_task(project.id, invalid_dto)
-        self.assertIn('end date', str(context.exception))
+        self.assertIn("end date", str(context.exception))
 
         # Test start date after end date
         invalid_dto.start_date = date(2025, 3, 1)
@@ -122,7 +121,7 @@ class TestTaskService(BaseTestCase):
 
         with self.assertRaises(BadRequestException) as context:
             task_service.create_root_task(project.id, invalid_dto)
-        self.assertIn('start date', str(context.exception))
+        self.assertIn("start date", str(context.exception))
 
     def test_create_root_task_user_not_in_project(self):
         """Test create_root_task with user not in project"""
@@ -133,11 +132,7 @@ class TestTaskService(BaseTestCase):
         external_user = self._create_test_user("external@example.com")
 
         root_task_dto = CreateTaskDTO(
-            title='Test Task',
-            description='Test description',
-            start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
-            assign_to_id=external_user.id
+            title="Test Task", start_date=date(2025, 2, 1), end_date=date(2025, 2, 28), assign_to_id=external_user.id
         )
 
         with self.assertRaises(BadRequestException):
@@ -153,24 +148,22 @@ class TestTaskService(BaseTestCase):
 
         # First create a root task that allows subtasks
         root_task_dto = CreateTaskDTO(
-            title='Parent Task',
-            description='Parent task description',
+            title="Parent Task",
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         root_task = task_service.create_root_task(project.id, root_task_dto)
 
         # Create subtask DTO
-        sub_task_dto = CreateSubTaskDTO(
-            title='Test Sub Task',
-            description='Test subtask description',
+        sub_task_dto = CreateTaskDTO(
+            title="Test Sub Task",
             start_date=date(2025, 2, 5),
             end_date=date(2025, 2, 15),
             status=TaskStatus.DOING,
             priority=TaskPriority.LOW,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
 
         # Test successful creation
@@ -178,8 +171,8 @@ class TestTaskService(BaseTestCase):
 
         # Assertions
         self.assertIsNotNone(created_subtask)
-        self.assertEqual(created_subtask.title, 'Test Sub Task')
-        self.assertEqual(created_subtask.description, 'Test subtask description')
+        self.assertEqual(created_subtask.title, "Test Sub Task")
+        self.assertIsNotNone(created_subtask.description)  # Should have RichTextDTO
         self.assertEqual(created_subtask.start_date, date(2025, 2, 5))
         self.assertEqual(created_subtask.end_date, date(2025, 2, 15))
         self.assertEqual(created_subtask.status, TaskStatus.DOING)
@@ -201,30 +194,25 @@ class TestTaskService(BaseTestCase):
 
         # Create a root task that does NOT allow subtasks
         root_task_dto = CreateTaskDTO(
-            title='No Subtasks Parent',
-            description='Parent that does not allow subtasks',
+            title="No Subtasks Parent",
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
             allow_subtasks=False,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         root_task = task_service.create_root_task(project.id, root_task_dto)
 
-        sub_task_dto = CreateSubTaskDTO(
-            title='Test Sub Task',
-            description='Test subtask',
-            start_date=date(2025, 2, 5),
-            end_date=date(2025, 2, 15),
-            assign_to_id=current_user.id
+        sub_task_dto = CreateTaskDTO(
+            title="Test Sub Task", start_date=date(2025, 2, 5), end_date=date(2025, 2, 15), assign_to_id=current_user.id
         )
 
         # Test failure when parent doesn't allow subtasks
         with self.assertRaises(BadRequestException) as context:
             task_service.create_sub_task(root_task.id, sub_task_dto)
-        self.assertIn('does not allow subtasks', str(context.exception))
+        self.assertIn("does not allow subtasks", str(context.exception))
 
-    def test_create_sub_task_invalid_dates(self):
-        """Test create_sub_task with dates outside parent task bounds"""
+    def test_create_sub_task_extends_parent_dates(self):
+        """Test that subtask dates can extend parent task dates automatically"""
         task_service = self._get_task_service()
         project_service = ProjectService(TestMockSpaceService())
 
@@ -233,27 +221,33 @@ class TestTaskService(BaseTestCase):
 
         # Create parent task
         root_task_dto = CreateTaskDTO(
-            title='Parent Task',
-            description='Parent task',
+            title="Parent Task",
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         root_task = task_service.create_root_task(project.id, root_task_dto)
 
-        # Test start date before parent start date
-        invalid_dto = CreateSubTaskDTO(
-            title='Invalid Subtask',
-            description='Subtask with invalid dates',
-            start_date=date(2025, 1, 31),  # Before parent start
-            end_date=date(2025, 2, 15),
-            assign_to_id=current_user.id
+        # Create subtask with dates that extend beyond parent's dates
+        subtask_dto = CreateTaskDTO(
+            title="Extending Subtask",
+            start_date=date(2025, 1, 15),  # Before parent start
+            end_date=date(2025, 3, 15),  # After parent end
+            assign_to_id=current_user.id,
         )
 
-        with self.assertRaises(BadRequestException) as context:
-            task_service.create_sub_task(root_task.id, invalid_dto)
-        self.assertIn('start date', str(context.exception))
+        # Subtask creation should succeed and update parent dates automatically
+        created_subtask = task_service.create_sub_task(root_task.id, subtask_dto)
+
+        # Verify subtask was created with the specified dates
+        self.assertEqual(created_subtask.start_date, date(2025, 1, 15))
+        self.assertEqual(created_subtask.end_date, date(2025, 3, 15))
+
+        # Verify parent task dates were automatically updated to encompass subtask
+        refreshed_parent = Task.get_by_id(root_task.id)
+        self.assertEqual(refreshed_parent.start_date, date(2025, 1, 15))
+        self.assertEqual(refreshed_parent.end_date, date(2025, 3, 15))
 
     def test_update_task(self):
         """Test update_task method"""
@@ -265,22 +259,21 @@ class TestTaskService(BaseTestCase):
 
         # Create a task to update
         root_task_dto = CreateTaskDTO(
-            title='Original Title',
-            description='Original description',
+            title="Original Title",
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
             priority=TaskPriority.MEDIUM,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         created_task = task_service.create_root_task(project.id, root_task_dto)
 
         # Update task DTO
         update_dto = UpdateTaskDTO(
-            title='Updated Title',
-            description='Updated description',
+            title="Updated Title",
             start_date=date(2025, 2, 5),
             end_date=date(2025, 2, 25),
-            priority=TaskPriority.HIGH
+            status=TaskStatus.TODO,
+            priority=TaskPriority.HIGH,
         )
 
         # Test successful update
@@ -288,8 +281,7 @@ class TestTaskService(BaseTestCase):
 
         # Assertions
         self.assertEqual(updated_task.id, created_task.id)
-        self.assertEqual(updated_task.title, 'Updated Title')
-        self.assertEqual(updated_task.description, 'Updated description')
+        self.assertEqual(updated_task.title, "Updated Title")
         self.assertEqual(updated_task.start_date, date(2025, 2, 5))
         self.assertEqual(updated_task.end_date, date(2025, 2, 25))
         self.assertEqual(updated_task.priority, TaskPriority.HIGH)
@@ -308,11 +300,7 @@ class TestTaskService(BaseTestCase):
 
         # Create a task
         root_task_dto = CreateTaskDTO(
-            title='Test Task',
-            description='Test description',
-            start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
-            assign_to_id=current_user.id
+            title="Test Task", start_date=date(2025, 2, 1), end_date=date(2025, 2, 28), assign_to_id=current_user.id
         )
         created_task = task_service.create_root_task(project.id, root_task_dto)
 
@@ -337,13 +325,12 @@ class TestTaskService(BaseTestCase):
 
         # Create a task without subtasks
         root_task_dto = CreateTaskDTO(
-            title='Test Task',
-            description='Test description',
+            title="Test Task",
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
             status=TaskStatus.TODO,
             allow_subtasks=False,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         created_task = task_service.create_root_task(project.id, root_task_dto)
 
@@ -353,18 +340,17 @@ class TestTaskService(BaseTestCase):
 
         # Test failure when task allows subtasks
         task_with_subtasks_dto = CreateTaskDTO(
-            title='Parent Task',
-            description='Parent with subtasks',
+            title="Parent Task",
             start_date=date(2025, 3, 1),
             end_date=date(2025, 3, 31),
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         parent_task = task_service.create_root_task(project.id, task_with_subtasks_dto)
 
         with self.assertRaises(BadRequestException) as context:
             task_service.update_status(parent_task.id, TaskStatus.DONE)
-        self.assertIn('subtasks', str(context.exception))
+        self.assertIn("subtasks", str(context.exception))
 
     def test_delete_task(self):
         """Test delete_task method"""
@@ -376,22 +362,17 @@ class TestTaskService(BaseTestCase):
 
         # Create a root task with subtasks
         root_task_dto = CreateTaskDTO(
-            title='Parent Task',
-            description='Parent task to delete',
+            title="Parent Task",
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         root_task = task_service.create_root_task(project.id, root_task_dto)
 
         # Create a subtask
-        sub_task_dto = CreateSubTaskDTO(
-            title='Sub Task',
-            description='Subtask to be deleted with parent',
-            start_date=date(2025, 2, 5),
-            end_date=date(2025, 2, 15),
-            assign_to_id=current_user.id
+        sub_task_dto = CreateTaskDTO(
+            title="Sub Task", start_date=date(2025, 2, 5), end_date=date(2025, 2, 15), assign_to_id=current_user.id
         )
         sub_task = task_service.create_sub_task(root_task.id, sub_task_dto)
 
@@ -419,21 +400,16 @@ class TestTaskService(BaseTestCase):
 
         # Create parent and subtask
         root_task_dto = CreateTaskDTO(
-            title='Parent Task',
-            description='Parent task',
+            title="Parent Task",
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         root_task = task_service.create_root_task(project.id, root_task_dto)
 
-        sub_task_dto = CreateSubTaskDTO(
-            title='Sub Task',
-            description='Subtask to delete',
-            start_date=date(2025, 2, 5),
-            end_date=date(2025, 2, 15),
-            assign_to_id=current_user.id
+        sub_task_dto = CreateTaskDTO(
+            title="Sub Task", start_date=date(2025, 2, 5), end_date=date(2025, 2, 15), assign_to_id=current_user.id
         )
         sub_task = task_service.create_sub_task(root_task.id, sub_task_dto)
 
@@ -461,44 +437,41 @@ class TestTaskService(BaseTestCase):
 
         # 1. Create root task with subtasks allowed
         root_task_dto = CreateTaskDTO(
-            title='Main Development Task',
-            description='Main task for development work',
+            title="Main Development Task",
             start_date=date(2025, 3, 1),
             end_date=date(2025, 3, 31),
             priority=TaskPriority.HIGH,
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         root_task = task_service.create_root_task(project.id, root_task_dto)
 
         # 2. Create multiple subtasks
-        subtask1_dto = CreateSubTaskDTO(
-            title='Database Setup',
-            description='Set up database schema',
+        subtask1_dto = CreateTaskDTO(
+            title="Database Setup",
             start_date=date(2025, 3, 5),
             end_date=date(2025, 3, 10),
             priority=TaskPriority.HIGH,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         subtask1 = task_service.create_sub_task(root_task.id, subtask1_dto)
 
-        subtask2_dto = CreateSubTaskDTO(
-            title='API Development',
-            description='Develop REST API endpoints',
+        subtask2_dto = CreateTaskDTO(
+            title="API Development",
             start_date=date(2025, 3, 11),
             end_date=date(2025, 3, 20),
             priority=TaskPriority.MEDIUM,
-            assign_to_id=second_user.id
+            assign_to_id=second_user.id,
         )
         subtask2 = task_service.create_sub_task(root_task.id, subtask2_dto)
 
         # 3. Update root task
         update_dto = UpdateTaskDTO(
-            title='Enhanced Development Task',
-            description='Enhanced main task description',
+            title="Enhanced Development Task",
             start_date=date(2025, 3, 1),
             end_date=date(2025, 3, 30),
-            priority=TaskPriority.MEDIUM
+            status=TaskStatus.TODO,
+            priority=TaskPriority.MEDIUM,
         )
         updated_root = task_service.update_task(root_task.id, update_dto)
 
@@ -514,8 +487,10 @@ class TestTaskService(BaseTestCase):
         refreshed_subtask2 = Task.get_by_id(subtask2.id)
 
         # Assertions on final state
-        self.assertEqual(refreshed_root.title, 'Enhanced Development Task')
-        self.assertEqual(refreshed_root.priority, TaskPriority.MEDIUM)
+        self.assertEqual(refreshed_root.title, "Enhanced Development Task")
+        # Parent task priority is automatically calculated from subtasks (highest priority)
+        # subtask1 has HIGH priority, so parent will have HIGH priority
+        self.assertEqual(refreshed_root.priority, TaskPriority.HIGH)
         self.assertEqual(refreshed_subtask1.status, TaskStatus.DONE)
         self.assertEqual(refreshed_subtask2.assign_to.id, current_user.id)
 
@@ -537,24 +512,22 @@ class TestTaskService(BaseTestCase):
 
         # Create parent task with allow_subtasks=True
         parent_dto = CreateTaskDTO(
-            title='Parent Task',
-            description='Parent task that allows subtasks',
+            title="Parent Task",
             start_date=date(2025, 3, 1),
             end_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         parent_task = task_service.create_root_task(project.id, parent_dto)
 
         # Create subtask
-        subtask_dto = CreateSubTaskDTO(
-            title='Subtask 1',
-            description='First subtask',
+        subtask_dto = CreateTaskDTO(
+            title="Subtask 1",
             start_date=date(2025, 3, 5),
             end_date=date(2025, 3, 15),
             status=TaskStatus.TODO,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         subtask = task_service.create_sub_task(parent_task.id, subtask_dto)
 
@@ -564,6 +537,13 @@ class TestTaskService(BaseTestCase):
         # Check that parent status is automatically updated to DOING
         refreshed_parent = Task.get_by_id(parent_task.id)
         self.assertEqual(refreshed_parent.status, TaskStatus.DOING)
+
+        # Check parent progress (1 subtask in DOING = 0% progress, only DONE counts)
+        self.assertEqual(refreshed_parent.progress, 0)
+
+        # Check project progress is updated
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 0)
 
     def test_parent_status_update_all_subtasks_done(self):
         """Test parent status updates to DONE when all subtasks are DONE"""
@@ -575,34 +555,31 @@ class TestTaskService(BaseTestCase):
 
         # Create parent task
         parent_dto = CreateTaskDTO(
-            title='Parent Task',
-            description='Parent task',
+            title="Parent Task",
             start_date=date(2025, 3, 1),
             end_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         parent_task = task_service.create_root_task(project.id, parent_dto)
 
         # Create multiple subtasks
-        subtask1_dto = CreateSubTaskDTO(
-            title='Subtask 1',
-            description='First subtask',
+        subtask1_dto = CreateTaskDTO(
+            title="Subtask 1",
             start_date=date(2025, 3, 5),
             end_date=date(2025, 3, 10),
             status=TaskStatus.TODO,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         subtask1 = task_service.create_sub_task(parent_task.id, subtask1_dto)
 
-        subtask2_dto = CreateSubTaskDTO(
-            title='Subtask 2',
-            description='Second subtask',
+        subtask2_dto = CreateTaskDTO(
+            title="Subtask 2",
             start_date=date(2025, 3, 11),
             end_date=date(2025, 3, 15),
             status=TaskStatus.TODO,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         subtask2 = task_service.create_sub_task(parent_task.id, subtask2_dto)
 
@@ -612,6 +589,12 @@ class TestTaskService(BaseTestCase):
         # Parent should still be TODO (not all subtasks are done)
         refreshed_parent = Task.get_by_id(parent_task.id)
         self.assertEqual(refreshed_parent.status, TaskStatus.TODO)
+        # Progress should be 50% (1 of 2 subtasks done)
+        self.assertEqual(refreshed_parent.progress, 50)
+
+        # Check project progress
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 50)
 
         # Update second subtask to DONE
         task_service.update_status(subtask2.id, TaskStatus.DONE)
@@ -619,6 +602,12 @@ class TestTaskService(BaseTestCase):
         # Now parent should be DONE (all subtasks are done)
         refreshed_parent = Task.get_by_id(parent_task.id)
         self.assertEqual(refreshed_parent.status, TaskStatus.DONE)
+        # Progress should be 100% (all subtasks done)
+        self.assertEqual(refreshed_parent.progress, 100)
+
+        # Check project progress is also 100%
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 100)
 
     def test_parent_status_update_mixed_subtask_statuses(self):
         """Test parent status update with mixed subtask statuses"""
@@ -630,44 +619,40 @@ class TestTaskService(BaseTestCase):
 
         # Create parent task
         parent_dto = CreateTaskDTO(
-            title='Parent Task',
-            description='Parent task',
+            title="Parent Task",
             start_date=date(2025, 3, 1),
             end_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         parent_task = task_service.create_root_task(project.id, parent_dto)
 
         # Create three subtasks
-        subtask1_dto = CreateSubTaskDTO(
-            title='Subtask 1',
-            description='First subtask',
+        subtask1_dto = CreateTaskDTO(
+            title="Subtask 1",
             start_date=date(2025, 3, 5),
             end_date=date(2025, 3, 8),
             status=TaskStatus.TODO,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         subtask1 = task_service.create_sub_task(parent_task.id, subtask1_dto)
 
-        subtask2_dto = CreateSubTaskDTO(
-            title='Subtask 2',
-            description='Second subtask',
+        subtask2_dto = CreateTaskDTO(
+            title="Subtask 2",
             start_date=date(2025, 3, 9),
             end_date=date(2025, 3, 12),
             status=TaskStatus.TODO,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         subtask2 = task_service.create_sub_task(parent_task.id, subtask2_dto)
 
-        subtask3_dto = CreateSubTaskDTO(
-            title='Subtask 3',
-            description='Third subtask',
+        subtask3_dto = CreateTaskDTO(
+            title="Subtask 3",
             start_date=date(2025, 3, 13),
             end_date=date(2025, 3, 16),
             status=TaskStatus.TODO,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         subtask3 = task_service.create_sub_task(parent_task.id, subtask3_dto)
 
@@ -679,6 +664,12 @@ class TestTaskService(BaseTestCase):
         # Parent should be DOING (because at least one subtask is DOING)
         refreshed_parent = Task.get_by_id(parent_task.id)
         self.assertEqual(refreshed_parent.status, TaskStatus.DOING)
+        # Progress: 1 DONE (100%) + 1 DOING (0%) + 1 TODO (0%) = 100/3 = 33%
+        self.assertEqual(refreshed_parent.progress, 33)
+
+        # Check project progress
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 33)
 
         # Now set the DOING subtask back to TODO
         task_service.update_status(subtask2.id, TaskStatus.TODO)
@@ -686,6 +677,12 @@ class TestTaskService(BaseTestCase):
         # Parent should be TODO (no subtasks are DOING, not all are DONE)
         refreshed_parent = Task.get_by_id(parent_task.id)
         self.assertEqual(refreshed_parent.status, TaskStatus.TODO)
+        # Progress: 1 DONE (100%) + 2 TODO (0%) = 100/3 = 33%
+        self.assertEqual(refreshed_parent.progress, 33)
+
+        # Check project progress
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 33)
 
     def test_parent_status_update_priority_rules(self):
         """Test the priority rules: DOING > DONE > TODO"""
@@ -697,26 +694,24 @@ class TestTaskService(BaseTestCase):
 
         # Create parent task
         parent_dto = CreateTaskDTO(
-            title='Parent Task',
-            description='Parent task',
+            title="Parent Task",
             start_date=date(2025, 3, 1),
             end_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         parent_task = task_service.create_root_task(project.id, parent_dto)
 
         # Create multiple subtasks
         subtasks = []
         for i in range(3):
-            subtask_dto = CreateSubTaskDTO(
-                title=f'Subtask {i+1}',
-                description=f'Subtask {i+1}',
-                start_date=date(2025, 3, 5+i*3),
-                end_date=date(2025, 3, 7+i*3),
+            subtask_dto = CreateTaskDTO(
+                title=f"Subtask {i + 1}",
+                start_date=date(2025, 3, 5 + i * 3),
+                end_date=date(2025, 3, 7 + i * 3),
                 status=TaskStatus.TODO,
-                assign_to_id=current_user.id
+                assign_to_id=current_user.id,
             )
             subtask = task_service.create_sub_task(parent_task.id, subtask_dto)
             subtasks.append(subtask)
@@ -750,13 +745,12 @@ class TestTaskService(BaseTestCase):
 
         # Create a root task without subtasks (leaf task)
         root_task_dto = CreateTaskDTO(
-            title='Leaf Task',
-            description='Task without subtasks',
+            title="Leaf Task",
             start_date=date(2025, 3, 1),
             end_date=date(2025, 3, 15),
             status=TaskStatus.TODO,
             allow_subtasks=False,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         root_task = task_service.create_root_task(project.id, root_task_dto)
 
@@ -765,7 +759,7 @@ class TestTaskService(BaseTestCase):
         self.assertEqual(updated_task.status, TaskStatus.DONE)
 
     def test_parent_status_update_no_subtasks(self):
-        """Test parent status calculation when parent has no subtasks"""
+        """Test parent status when parent has no subtasks"""
         task_service = self._get_task_service()
         project_service = ProjectService(TestMockSpaceService())
 
@@ -774,16 +768,223 @@ class TestTaskService(BaseTestCase):
 
         # Create parent task that allows subtasks but has none yet
         parent_dto = CreateTaskDTO(
-            title='Parent Task',
-            description='Parent task with no subtasks',
+            title="Parent Task",
             start_date=date(2025, 3, 1),
             end_date=date(2025, 3, 31),
             status=TaskStatus.DOING,
             allow_subtasks=True,
-            assign_to_id=current_user.id
+            assign_to_id=current_user.id,
         )
         parent_task = task_service.create_root_task(project.id, parent_dto)
 
-        # The _calculate_parent_status_from_subtasks method should return TODO for empty list
-        calculated_status = task_service._calculate_parent_status_from_subtasks(parent_task)
-        self.assertEqual(calculated_status, TaskStatus.TODO)
+        # When a task has no subtasks, it should maintain its initial status
+        self.assertEqual(parent_task.status, TaskStatus.DOING)
+
+    def test_delete_task_recalculates_parent_progress(self):
+        """Test that deleting a subtask recalculates parent progress"""
+        task_service = self._get_task_service()
+        project_service = ProjectService(TestMockSpaceService())
+
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # Create parent task with subtasks
+        parent_dto = CreateTaskDTO(
+            title="Parent Task",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 31),
+            allow_subtasks=True,
+            assign_to_id=current_user.id,
+        )
+        parent_task = task_service.create_root_task(project.id, parent_dto)
+
+        # Create 3 subtasks
+        subtask1_dto = CreateTaskDTO(
+            title="Subtask 1",
+            start_date=date(2025, 3, 5),
+            end_date=date(2025, 3, 10),
+            status=TaskStatus.TODO,
+            assign_to_id=current_user.id,
+        )
+        subtask1 = task_service.create_sub_task(parent_task.id, subtask1_dto)
+
+        subtask2_dto = CreateTaskDTO(
+            title="Subtask 2",
+            start_date=date(2025, 3, 11),
+            end_date=date(2025, 3, 15),
+            status=TaskStatus.DONE,
+            assign_to_id=current_user.id,
+        )
+        subtask2 = task_service.create_sub_task(parent_task.id, subtask2_dto)
+
+        subtask3_dto = CreateTaskDTO(
+            title="Subtask 3",
+            start_date=date(2025, 3, 16),
+            end_date=date(2025, 3, 20),
+            status=TaskStatus.DONE,
+            assign_to_id=current_user.id,
+        )
+        subtask3 = task_service.create_sub_task(parent_task.id, subtask3_dto)
+
+        # Initial state: 2 DONE, 1 TODO = 2/3 = 66% progress
+        refreshed_parent = Task.get_by_id(parent_task.id)
+        self.assertEqual(refreshed_parent.progress, 66)
+
+        # Check project progress
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 66)
+
+        # Delete one DONE subtask
+        task_service.delete_task(subtask2.id)
+
+        # After deletion: 1 DONE, 1 TODO = 1/2 = 50% progress
+        refreshed_parent = Task.get_by_id(parent_task.id)
+        self.assertEqual(refreshed_parent.progress, 50)
+
+        # Check project progress is updated
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 50)
+
+        # Delete the TODO subtask
+        task_service.delete_task(subtask1.id)
+
+        # After deletion: 1 DONE, 0 TODO = 1/1 = 100% progress
+        refreshed_parent = Task.get_by_id(parent_task.id)
+        self.assertEqual(refreshed_parent.progress, 100)
+        self.assertEqual(refreshed_parent.status, TaskStatus.DONE)
+
+        # Check project progress is 100%
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 100)
+
+        # Delete the last subtask
+        task_service.delete_task(subtask3.id)
+
+        # After deletion: No subtasks = progress is set to 0%, status should be TODO
+        refreshed_parent = Task.get_by_id(parent_task.id)
+        self.assertEqual(refreshed_parent.progress, 0)
+        self.assertEqual(refreshed_parent.status, TaskStatus.TODO)
+
+        # Check project progress
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 0)
+
+    def test_progress_calculation_and_project_update(self):
+        """Test progress calculation on tasks and propagation to project"""
+        task_service = self._get_task_service()
+        project_service = ProjectService(TestMockSpaceService())
+
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # Create two root tasks with subtasks
+        # Root Task 1
+        root1_dto = CreateTaskDTO(
+            title="Backend Development",
+            start_date=date(2025, 2, 1),
+            end_date=date(2025, 2, 28),
+            allow_subtasks=True,
+            assign_to_id=current_user.id,
+        )
+        root1 = task_service.create_root_task(project.id, root1_dto)
+
+        # Create 2 subtasks for root1
+        subtask1_1_dto = CreateTaskDTO(
+            title="Database Schema",
+            start_date=date(2025, 2, 1),
+            end_date=date(2025, 2, 10),
+            status=TaskStatus.TODO,
+            assign_to_id=current_user.id,
+        )
+        subtask1_1 = task_service.create_sub_task(root1.id, subtask1_1_dto)
+
+        subtask1_2_dto = CreateTaskDTO(
+            title="API Endpoints",
+            start_date=date(2025, 2, 11),
+            end_date=date(2025, 2, 20),
+            status=TaskStatus.TODO,
+            assign_to_id=current_user.id,
+        )
+        subtask1_2 = task_service.create_sub_task(root1.id, subtask1_2_dto)
+
+        # Root Task 2
+        root2_dto = CreateTaskDTO(
+            title="Frontend Development",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 31),
+            allow_subtasks=True,
+            assign_to_id=current_user.id,
+        )
+        root2 = task_service.create_root_task(project.id, root2_dto)
+
+        # Create 2 subtasks for root2
+        subtask2_1_dto = CreateTaskDTO(
+            title="UI Components",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 15),
+            status=TaskStatus.TODO,
+            assign_to_id=current_user.id,
+        )
+        subtask2_1 = task_service.create_sub_task(root2.id, subtask2_1_dto)
+
+        subtask2_2_dto = CreateTaskDTO(
+            title="State Management",
+            start_date=date(2025, 3, 16),
+            end_date=date(2025, 3, 31),
+            status=TaskStatus.TODO,
+            assign_to_id=current_user.id,
+        )
+        subtask2_2 = task_service.create_sub_task(root2.id, subtask2_2_dto)
+
+        # Initial state: All tasks are TODO, progress should be 0
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 0)
+
+        # Scenario 1: Complete one subtask from root1
+        task_service.update_status(subtask1_1.id, TaskStatus.DONE)
+
+        # Root1 progress: 1 DONE + 1 TODO = 50%
+        refreshed_root1 = Task.get_by_id(root1.id)
+        self.assertEqual(refreshed_root1.progress, 50)
+
+        # Root2 progress: 2 TODO = 0%
+        refreshed_root2 = Task.get_by_id(root2.id)
+        self.assertEqual(refreshed_root2.progress, 0)
+
+        # Project progress: average of root tasks = (50 + 0) / 2 = 25%
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 25)
+
+        # Scenario 2: Set one subtask from root1 to DOING and one from root2 to DOING
+        task_service.update_status(subtask1_2.id, TaskStatus.DOING)
+        task_service.update_status(subtask2_1.id, TaskStatus.DOING)
+
+        # Root1 progress: 1 DONE (100%) + 1 DOING (0%) = 50%
+        refreshed_root1 = Task.get_by_id(root1.id)
+        self.assertEqual(refreshed_root1.progress, 50)
+
+        # Root2 progress: 1 DOING (0%) + 1 TODO (0%) = 0%
+        refreshed_root2 = Task.get_by_id(root2.id)
+        self.assertEqual(refreshed_root2.progress, 0)
+
+        # Project progress: (50 + 0) / 2 = 25%
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 25)
+
+        # Scenario 3: Complete all subtasks
+        task_service.update_status(subtask1_2.id, TaskStatus.DONE)
+        task_service.update_status(subtask2_1.id, TaskStatus.DONE)
+        task_service.update_status(subtask2_2.id, TaskStatus.DONE)
+
+        # Both root tasks should be 100%
+        refreshed_root1 = Task.get_by_id(root1.id)
+        self.assertEqual(refreshed_root1.progress, 100)
+        self.assertEqual(refreshed_root1.status, TaskStatus.DONE)
+
+        refreshed_root2 = Task.get_by_id(root2.id)
+        self.assertEqual(refreshed_root2.progress, 100)
+        self.assertEqual(refreshed_root2.status, TaskStatus.DONE)
+
+        # Project progress should be 100%
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 100)

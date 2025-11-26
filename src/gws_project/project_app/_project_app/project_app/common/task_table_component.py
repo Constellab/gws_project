@@ -1,6 +1,5 @@
-from typing import List
-
 import reflex as rx
+from gws_project.project_app._project_app.project_app.common.progress_bar import progress_bar
 from gws_project.task.task_dto import TaskDTO
 from gws_reflex_main import user_inline_component
 
@@ -10,10 +9,7 @@ from .priority_chip_component import priority_chip
 from .status_chip_component import status_chip
 
 
-def task_table_component(
-    tasks: List[TaskDTO],
-    empty_message: str = "No tasks found"
-) -> rx.Component:
+def task_table_component(tasks: list[TaskDTO], empty_message: str = "No tasks found") -> rx.Component:
     """Create a reusable task table component.
 
     This component displays a table of tasks with columns for title, description,
@@ -26,6 +22,7 @@ def task_table_component(
     :return: The task table component
     :rtype: rx.Component
     """
+
     return rx.cond(
         tasks.length() > 0,
         rx.table.root(
@@ -39,12 +36,7 @@ def task_table_component(
                     rx.table.column_header_cell("Actions", width="100px"),
                 ),
             ),
-            rx.table.body(
-                rx.foreach(
-                    tasks,
-                    lambda task: _task_row(task)
-                )
-            ),
+            rx.table.body(rx.foreach(tasks, lambda task: _task_row(task))),
             width="100%",
             variant="surface",
         ),
@@ -52,18 +44,13 @@ def task_table_component(
         rx.center(
             rx.vstack(
                 rx.icon("list_todo", size=48, color="gray"),
-                rx.text(
-                    empty_message,
-                    size="4",
-                    color="gray",
-                    margin_top="1rem"
-                ),
+                rx.text(empty_message, size="4", color="gray", margin_top="1rem"),
                 spacing="2",
-                align="center"
+                align="center",
             ),
             padding="3rem",
-            width="100%"
-        )
+            width="100%",
+        ),
     )
 
 
@@ -79,12 +66,12 @@ def _task_row(task: TaskDTO) -> rx.Component:
         rx.table.cell(
             rx.hstack(
                 # Icon indicating if task allows subtasks
-                task_icon_component(task, size='3'),
+                task_icon_component(task, size="3"),
                 rx.text(
                     task.title,
                 ),
                 spacing="2",
-                align="center"
+                align="center",
             )
         ),
         rx.table.cell(
@@ -92,18 +79,26 @@ def _task_row(task: TaskDTO) -> rx.Component:
                 rx.text(rx.moment(task.start_date, format="MMM D, YYYY"), size="2"),
                 rx.text(rx.moment(task.end_date, format="MMM D, YYYY"), size="2"),
                 spacing="1",
-                align="start"
+                align="start",
             )
         ),
-        rx.table.cell(status_chip(task.status)),
+        rx.table.cell(
+            rx.vstack(
+                status_chip(task.status),
+                rx.cond(
+                    task.progress > 0,
+                    progress_bar(task.progress, width="50px"),
+                ),
+                spacing="2",
+                align="start",
+                width="100%",
+            )
+        ),
         rx.table.cell(priority_chip(task.priority)),
         rx.table.cell(user_inline_component(task.assign_to)),
         rx.table.cell(_actions_menu(task)),
-        style={
-            ":hover": {"background_color": "var(--gray-3)"},
-            "cursor": "pointer"
-        },
-        on_click=lambda: rx.redirect(ProjectAppRouter.get_task_detail_url(task.id))
+        style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
+        on_click=lambda: rx.redirect(ProjectAppRouter.get_task_detail_url(task.id)),
     )
 
 
@@ -118,25 +113,17 @@ def _actions_menu(subtask: TaskDTO) -> rx.Component:
     from ..task_list.task_list_state import TaskListState
 
     return rx.menu.root(
-        rx.menu.trigger(
-            rx.button(
-                rx.icon("ellipsis-vertical", size=18),
-                variant="soft",
-                size="2"
-            )
-        ),
+        rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", size="2")),
         rx.menu.content(
             rx.menu.item(
-                rx.icon("pencil", size=16),
-                "Update",
-                on_click=lambda: TaskListState.open_update_task_dialog(subtask.id)
+                rx.icon("pencil", size=16), "Update", on_click=lambda: TaskListState.open_update_task_dialog(subtask.id)
             ),
             rx.menu.separator(),
             rx.menu.item(
                 rx.icon("trash_2", size=16),
                 "Delete",
                 color="red",
-                on_click=lambda: TaskListState.open_delete_task_dialog(subtask)
+                on_click=lambda: TaskListState.open_delete_task_dialog(subtask),
             ),
             on_click=lambda: rx.stop_propagation,  # Prevent row click event
         ),

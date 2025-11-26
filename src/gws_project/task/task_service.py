@@ -147,7 +147,7 @@ class TaskService:
 
         # Update parent task information based on all subtasks (including the new one)
         # This will recursively update all ancestors up to the root task
-        self._update_parent_task_from_subtasks(parent_task)
+        self._recalculate_parent_info(subtask)
 
         return subtask
 
@@ -189,7 +189,7 @@ class TaskService:
             if task_dto.end_date:
                 task.end_date = task_dto.end_date
             if task_dto.status:
-                task.status = task_dto.status
+                task.set_status(task_dto.status)
             if task_dto.priority:
                 task.priority = task_dto.priority
 
@@ -201,8 +201,7 @@ class TaskService:
         task.save()
 
         # If this is not a root task, update all ancestor tasks in the hierarchy
-        if not task.is_root_task():
-            self._update_parent_task_from_subtasks(task.parent_task)
+        self._recalculate_parent_info(task)
 
         # If this is a task with a space folder, update the folder in Space
         if task.space_folder_id and (title_has_changed or dates_have_changed):
@@ -271,15 +270,14 @@ class TaskService:
             return task  # No change needed
 
         # Update the task status
-        task.status = status
+        task.set_status(status)
 
         # Save the task to the database
         task.save()
 
         # Update all ancestor tasks in the hierarchy (parent, grandparent, etc.)
         # This updates not just status, but also dates and priority based on all subtasks
-        if task.parent_task:
-            self._update_parent_task_from_subtasks(task.parent_task)
+        self._recalculate_parent_info(task)
 
         return task
 
@@ -322,8 +320,7 @@ class TaskService:
 
         # Update all ancestor tasks in the hierarchy (parent, grandparent, etc.)
         # This updates not just priority, but also dates and status based on all subtasks
-        if task.parent_task:
-            self._update_parent_task_from_subtasks(task.parent_task)
+        self._recalculate_parent_info(task)
 
         return task
 
@@ -364,8 +361,8 @@ class TaskService:
         task.delete_instance()
 
         # If this was a subtask, update all ancestor tasks in the hierarchy
-        if parent_task:
-            self._update_parent_task_from_subtasks(parent_task)
+        # Recursively update ancestors
+        self._recalculate_parent_info(task)
 
         # If this was a root task with a space folder, delete the folder in Space
         if is_root and space_folder_id:
@@ -504,7 +501,7 @@ class TaskService:
         task.end_date = task_dto.end_date or project.end_date
 
         # Set status and priority with defaults
-        task.status = task_dto.status or TaskStatus.TODO
+        task.set_status(task_dto.status or TaskStatus.TODO)
         task.priority = task_dto.priority or TaskPriority.MEDIUM
 
         # Set allow_subtasks - can be forced (for subtasks) or from DTO
@@ -518,8 +515,8 @@ class TaskService:
 
         return task
 
-    def _update_parent_task_from_subtasks(self, parent_task: Task) -> None:
-        """Update parent task information (dates, status, priority) based on all its subtasks.
+    def _recalculate_parent_info(self, task: Task) -> None:
+        """Update parent task information (dates, status, priority, progress) based on all its subtasks.
 
         This method recursively updates the entire ancestor chain up to the root task.
         For each ancestor task, it automatically calculates:
@@ -527,36 +524,43 @@ class TaskService:
         - End date: latest end date of all subtasks (or project end date if no subtasks)
         - Status: based on subtask statuses (or TODO if no subtasks)
         - Priority: highest priority among all subtasks (or MEDIUM if no subtasks)
+        - Progress: average progress of all subtasks
 
         Only saves to database and updates Space if there were actual changes.
         Space folder is only updated for the root task.
+        After updating the root task, recalculates project progress.
 
         :param parent_task: The parent task to update (and all its ancestors)
         :type parent_task: Task
         """
-        # Update from subtasks (calculates dates, status, and priority)
-        has_changes = parent_task.update_from_subtasks()
 
-        # Only save if there were changes
-        if has_changes:
-            # Save the updated parent task
-            parent_task.save()
+        if task.parent_task:
+            parent_task = task.parent_task
+            # Update from subtasks (calculates dates, status, priority, and progress)
+            has_changes = parent_task.update_from_subtasks()
 
-            # Update Space folder if this is a root task
-            if parent_task.is_root_task() and parent_task.space_folder_id:
-                space_folder = ExternalSpaceCreateFolder(
-                    name=parent_task.title,
-                    code=None,
-                    tags=None,
-                    starting_date=parent_task.start_date,
-                    ending_date=parent_task.end_date,
-                )
-                self._space_service.update_folder(parent_task.space_folder_id, space_folder)
+            # Only save if there were changes
+            if has_changes:
+                # Save the updated parent task
+                parent_task.save()
 
-        # Recursively update the parent's parent (if it exists)
-        # This ensures all ancestors in the hierarchy are updated
-        if parent_task.parent_task is not None:
-            self._update_parent_task_from_subtasks(parent_task.parent_task)
+                # Update Space folder if this is a root task
+                if parent_task.is_root_task() and parent_task.space_folder_id:
+                    space_folder = ExternalSpaceCreateFolder(
+                        name=parent_task.title,
+                        code=None,
+                        tags=None,
+                        starting_date=parent_task.start_date,
+                        ending_date=parent_task.end_date,
+                    )
+                    self._space_service.update_folder(parent_task.space_folder_id, space_folder)
+            # Recursively update the parent's parent (if it exists)
+            # This ensures all ancestors in the hierarchy are updated
+            self._recalculate_parent_info(parent_task)
+
+        else:
+            # If this is a root task, recalculate project progress
+            self._recalculate_project_progress(task.project)
 
     @ProjectDbManager.transaction()
     def update_task_description(self, task_id: str, description: RichTextDTO) -> Task:
@@ -697,3 +701,34 @@ class TaskService:
 
         # Otherwise, return None to use current user (TaskService default behavior)
         return None
+
+    def _recalculate_project_progress(self, project: Project) -> Project:
+        """Recalculate and update project progress based on direct children (root tasks) progress.
+
+        The project progress is calculated as the average progress of all root tasks.
+        If there are no root tasks, progress is set to 0.
+
+        :param project: The project to update
+        :type project: Project
+        :return: The updated project
+        :rtype: Project
+        :raises NotFoundException: If the project is not found
+        :raises UnauthorizedException: If the user doesn't have access to the project
+        """
+        # Get the project and ensure it exists
+
+        # Get all root tasks for this project
+        root_tasks = Task.get_root_tasks_of_project(project.id)
+
+        if not root_tasks:
+            # No root tasks, set progress to 0
+            project.progress = 0
+        else:
+            # Calculate average progress from all root tasks
+            total_progress = sum(task.progress for task in root_tasks)
+            project.progress = total_progress // len(root_tasks)
+
+        # Save the updated project
+        project.save()
+
+        return project

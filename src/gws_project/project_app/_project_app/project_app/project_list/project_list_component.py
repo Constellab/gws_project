@@ -3,6 +3,7 @@ from gws_reflex_main import main_component, user_inline_component
 from gws_reflex_main.components.reflex_user_components import user_select
 
 from ..common.page_layout import page_layout
+from ..common.progress_bar import progress_bar
 from ..project_form_dialog.project_form_dialog_component import create_project_dialog
 from .project_list_state import ProjectDTO, ProjectListState
 
@@ -79,8 +80,8 @@ def project_list_page() -> rx.Component:
                             rx.table.header(
                                 rx.table.row(
                                     rx.table.column_header_cell("Title"),
-                                    rx.table.column_header_cell("Start Date"),
-                                    rx.table.column_header_cell("End Date"),
+                                    rx.table.column_header_cell("Dates"),
+                                    rx.table.column_header_cell("Progress"),
                                     rx.table.column_header_cell("Manager"),
                                     rx.table.column_header_cell("Created At"),
                                 ),
@@ -121,8 +122,21 @@ def _row(project: ProjectDTO) -> rx.Component:
         rx.table.cell(
             rx.text(project.title),
         ),
-        rx.table.cell(rx.moment(project.start_date, format="MMM D, YYYY")),
-        rx.table.cell(rx.moment(project.end_date, format="MMM D, YYYY")),
+        rx.table.cell(
+            rx.vstack(
+                rx.text(rx.moment(project.start_date, format="MMM D, YYYY"), size="2"),
+                rx.text(rx.moment(project.end_date, format="MMM D, YYYY"), size="2"),
+                spacing="1",
+                align="start",
+            )
+        ),
+        rx.table.cell(
+            rx.cond(
+                project.progress > 0,
+                progress_bar(project.progress, width="100px"),
+                rx.text("0%", size="2", color="gray"),
+            )
+        ),
         rx.table.cell(user_inline_component(project.project_manager)),
         rx.table.cell(rx.moment(project.created_at, format="MMM D, YYYY")),
         style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},

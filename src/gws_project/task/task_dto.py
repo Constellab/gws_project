@@ -57,5 +57,6 @@ class TaskDTO(ModelDTO):
     parent_task_id: Optional[str]
     parent_task_title: Optional[str]
     space_folder_id: Optional[str]
+    progress: int
     created_by: UserDTO
     last_modified_by: UserDTO

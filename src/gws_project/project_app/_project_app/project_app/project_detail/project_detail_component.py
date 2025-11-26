@@ -5,6 +5,7 @@ from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
 from ..common.detail_page_layout import detail_page_layout
 from ..common.documents_list.documents_list_component import documents_list_view
 from ..common.page_layout import page_layout
+from ..common.progress_bar import progress_bar
 from ..project_form_dialog.project_form_dialog_component import project_update_dialog
 from ..project_form_dialog.project_form_dialog_state import ProjectFormDialogState
 from ..task_form.task_form_dialog_component import task_form_dialog
@@ -131,6 +132,14 @@ def details_sidebar() -> rx.Component:
             # Manager
             rx.text("Manager", size="2", color="gray", weight="medium"),
             user_inline_component(ProjectDetailState.project.project_manager),
+            # Progress (conditional row - only show if progress > 0)
+            rx.cond(
+                ProjectDetailState.project.progress > 0,
+                rx.fragment(
+                    rx.text("Progress", size="2", color="gray", weight="medium"),
+                    progress_bar(ProjectDetailState.project.progress, width="150px"),
+                ),
+            ),
             # Start date
             rx.text("Start date", size="2", color="gray", weight="medium"),
             rx.text(rx.moment(ProjectDetailState.project.start_date, format="MMM D, YYYY"), size="2"),

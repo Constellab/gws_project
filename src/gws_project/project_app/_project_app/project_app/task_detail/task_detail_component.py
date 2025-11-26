@@ -7,6 +7,7 @@ from ..common.detail_page_layout import detail_page_layout
 from ..common.documents_list.documents_list_component import documents_list_view
 from ..common.page_layout import page_layout
 from ..common.priority_chip_component import priority_chip
+from ..common.progress_bar import progress_bar
 from ..common.status_chip_component import status_chip
 from ..common.task_components import task_icon_component
 from ..task_form.task_form_dialog_component import task_form_dialog
@@ -192,6 +193,14 @@ def details_sidebar() -> rx.Component:
                     allow_subtask=TaskDetailState.task.allow_subtasks,
                     size="2",
                 )
+            ),
+            # Progress (conditional row - only show if progress > 0)
+            rx.cond(
+                TaskDetailState.task.progress > 0,
+                rx.fragment(
+                    rx.text("Progress", size="2", color="gray", weight="medium"),
+                    progress_bar(TaskDetailState.task.progress, width="150px"),
+                ),
             ),
             # Start date
             rx.text("Start date", size="2", color="gray", weight="medium"),

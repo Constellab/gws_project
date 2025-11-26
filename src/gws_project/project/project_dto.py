@@ -62,5 +62,6 @@ class ProjectDTO(ModelDTO):
     start_date: datetime
     end_date: datetime
     project_manager: UserDTO
+    progress: int
     created_by: UserDTO
     last_modified_by: UserDTO
