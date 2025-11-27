@@ -25,8 +25,7 @@ def documents_list_view() -> rx.Component:
                 id="document_upload",
                 multiple=True,
                 on_drop=DocumentsListState.handle_upload(
-                    rx.upload_files("document_upload",
-                                    on_upload_progress=DocumentsListState.handle_upload_progress)
+                    rx.upload_files("document_upload", on_upload_progress=DocumentsListState.handle_upload_progress)
                 ),
             ),
             width="100%",
@@ -63,14 +62,9 @@ def _documents_content() -> rx.Component:
         rx.center(
             rx.vstack(
                 rx.spinner(size="3"),
-                rx.text(
-                    "Loading documents...",
-                    size="3",
-                    color="gray",
-                    margin_top="1rem"
-                ),
+                rx.text("Loading documents...", size="3", color="gray", margin_top="1rem"),
                 spacing="2",
-                align="center"
+                align="center",
             ),
             padding="3rem",
             width="100%",
@@ -98,7 +92,7 @@ def _documents_content() -> rx.Component:
                                     rx.icon("chevron-down", size=16),
                                     "Load More",
                                     spacing="2",
-                                )
+                                ),
                             ),
                             variant="soft",
                             size="2",
@@ -122,19 +116,14 @@ def _documents_content() -> rx.Component:
             rx.center(
                 rx.vstack(
                     rx.icon("folder-open", size=48, color="gray"),
-                    rx.text(
-                        "No documents found",
-                        size="4",
-                        color="gray",
-                        margin_top="1rem"
-                    ),
+                    rx.text("No documents found", size="4", color="gray", margin_top="1rem"),
                     spacing="2",
-                    align="center"
+                    align="center",
                 ),
                 padding="3rem",
-                width="100%"
-            )
-        )
+                width="100%",
+            ),
+        ),
     )
 
 
@@ -152,12 +141,7 @@ def _documents_table() -> rx.Component:
                 rx.table.column_header_cell("Actions", justify="end"),
             ),
         ),
-        rx.table.body(
-            rx.foreach(
-                DocumentsListState.pagination_state.documents,
-                _document_row
-            )
-        ),
+        rx.table.body(rx.foreach(DocumentsListState.pagination_state.documents, _document_row)),
         width="100%",
         variant="surface",
     )
@@ -172,21 +156,8 @@ def _document_row(document: DocumentInfo) -> rx.Component:
     :rtype: rx.Component
     """
     return rx.table.row(
-        rx.table.cell(
-            rx.hstack(
-                _document_icon(document.type),
-                rx.text(document.name),
-                spacing="2",
-                align="center"
-            )
-        ),
-        rx.table.cell(
-            rx.text(
-                document.type,
-                size="2",
-                color="gray"
-            )
-        ),
+        rx.table.cell(rx.hstack(_document_icon(document.type), rx.text(document.name), spacing="2", align="center")),
+        rx.table.cell(rx.text(document.type, size="2", color="gray")),
         rx.table.cell(
             rx.hstack(
                 rx.link(
