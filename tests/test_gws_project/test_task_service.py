@@ -1,32 +1,57 @@
 from datetime import date, datetime
 
-from gws_core import BadRequestException, BaseTestCase, CurrentUserService, TestMockSpaceService, UserGroup
-from gws_core import UserService as GwsCoreUserService
+from gws_core import (
+    BadRequestException,
+    BaseTestCase,
+    CurrentUserService,
+    TestMockSpaceService,
+    UserGroup,
+)
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectUserRole, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
 from gws_project.task.task_dto import CreateTaskDTO, TaskPriority, TaskStatus, UpdateTaskDTO
 from gws_project.task.task_service import TaskService
+from gws_project.user.project_user_sync_service import ProjectUserSyncService
 from gws_project.user.user import User
-from gws_project.user.user_sync_service import ProjectUserSyncService
 
 
 # test_task_service
 class TestTaskService(BaseTestCase):
     """Test suite for TaskService public methods"""
 
+    test_user: User
+    mock_space_service: TestMockSpaceService
+
     @classmethod
     def init_before_test(cls):
         super().init_before_test()
+
+        user = User(
+            email="testuser@example.com",
+            first_name="Test",
+            last_name="User",
+            group=UserGroup.USER,
+        )
+        cls.test_user = user.save()
         # Sync users from gws_core to gws_project database
         sync_service = ProjectUserSyncService()
-        gws_core_users = GwsCoreUserService.get_all_users()
-        sync_service.sync_all_users(gws_core_users)
+        sync_service.sync_all_users()
 
-    def _get_task_service(self) -> TaskService:
+    def _get_task_service(self, users: list[User] | None = None) -> TaskService:
         """Create a TaskService instance with mock space service"""
-        return TaskService(TestMockSpaceService())
+        mock_space_service = TestMockSpaceService()
+        if users:
+            mock_space_service.set_space_folder_users_mock([user.to_dto() for user in users])
+        return TaskService(mock_space_service)
+
+    def _get_project_service(self, users: list[User] | None = None) -> ProjectService:
+        """Create a ProjectService instance with mock space service"""
+        mock_space_service = TestMockSpaceService()
+        if users:
+            mock_space_service.set_space_folder_users_mock([user.to_dto() for user in users])
+        return ProjectService(mock_space_service)
 
     def _create_test_project(self, project_service: ProjectService) -> Project:
         """Helper method to create a test project"""
@@ -40,9 +65,9 @@ class TestTaskService(BaseTestCase):
     def _create_test_user(self, email: str = "testuser@example.com") -> User:
         """Helper method to create a test user"""
         user = User(
-            user_email=email,
-            user_first_name="Test",
-            user_last_name="User",
+            email=email,
+            first_name="Test",
+            last_name="User",
             group=UserGroup.USER,
         )
         user.save()
@@ -51,7 +76,7 @@ class TestTaskService(BaseTestCase):
     def test_create_root_task(self):
         """Test create_root_task method"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         # Create test project and user
         project = self._create_test_project(project_service)
@@ -90,7 +115,7 @@ class TestTaskService(BaseTestCase):
     def test_create_root_task_invalid_dates(self):
         """Test create_root_task with invalid dates"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -126,7 +151,7 @@ class TestTaskService(BaseTestCase):
     def test_create_root_task_user_not_in_project(self):
         """Test create_root_task with user not in project"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         external_user = self._create_test_user("external@example.com")
@@ -141,7 +166,7 @@ class TestTaskService(BaseTestCase):
     def test_create_sub_task(self):
         """Test create_sub_task method"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -187,7 +212,7 @@ class TestTaskService(BaseTestCase):
     def test_create_sub_task_invalid_parent(self):
         """Test create_sub_task with invalid parent task conditions"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -214,7 +239,7 @@ class TestTaskService(BaseTestCase):
     def test_create_sub_task_extends_parent_dates(self):
         """Test that subtask dates can extend parent task dates automatically"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -252,7 +277,7 @@ class TestTaskService(BaseTestCase):
     def test_update_task(self):
         """Test update_task method"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -288,14 +313,14 @@ class TestTaskService(BaseTestCase):
 
     def test_update_assign_to(self):
         """Test update_assign_to method"""
-        task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        second_user = self._create_test_user("second@example.com")
+        task_service = self._get_task_service([second_user])
+        project_service = self._get_project_service([second_user])
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create another user and add them to the project
-        second_user = self._create_test_user("second@example.com")
         project_service.add_group_to_project(project.id, second_user.id, ProjectUserRole.USER)
 
         # Create a task
@@ -318,7 +343,7 @@ class TestTaskService(BaseTestCase):
     def test_update_status(self):
         """Test update_status method"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -355,7 +380,7 @@ class TestTaskService(BaseTestCase):
     def test_delete_task(self):
         """Test delete_task method"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -393,7 +418,7 @@ class TestTaskService(BaseTestCase):
     def test_delete_subtask_only(self):
         """Test deleting only a subtask (not the parent)"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -425,14 +450,17 @@ class TestTaskService(BaseTestCase):
 
     def test_comprehensive_task_workflow(self):
         """Test a complete workflow of task operations"""
-        task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        # Add another user to the project
+        second_user = self._create_test_user("workflow@example.com")
+        project_service = self._get_project_service([second_user])
+
+        task_service = self._get_task_service([second_user])
+        project_service = self._get_project_service([second_user])
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Add another user to the project
-        second_user = self._create_test_user("workflow@example.com")
         project_service.add_group_to_project(project.id, second_user.id, ProjectUserRole.USER)
 
         # 1. Create root task with subtasks allowed
@@ -505,7 +533,7 @@ class TestTaskService(BaseTestCase):
     def test_parent_status_update_single_subtask_doing(self):
         """Test parent status updates to DOING when a single subtask is set to DOING"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -548,7 +576,7 @@ class TestTaskService(BaseTestCase):
     def test_parent_status_update_all_subtasks_done(self):
         """Test parent status updates to DONE when all subtasks are DONE"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -612,7 +640,7 @@ class TestTaskService(BaseTestCase):
     def test_parent_status_update_mixed_subtask_statuses(self):
         """Test parent status update with mixed subtask statuses"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -687,7 +715,7 @@ class TestTaskService(BaseTestCase):
     def test_parent_status_update_priority_rules(self):
         """Test the priority rules: DOING > DONE > TODO"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -738,7 +766,7 @@ class TestTaskService(BaseTestCase):
     def test_parent_status_no_update_for_leaf_tasks(self):
         """Test that updating status of tasks without parents doesn't cause errors"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -761,7 +789,7 @@ class TestTaskService(BaseTestCase):
     def test_parent_status_update_no_subtasks(self):
         """Test parent status when parent has no subtasks"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -783,7 +811,7 @@ class TestTaskService(BaseTestCase):
     def test_delete_task_recalculates_parent_progress(self):
         """Test that deleting a subtask recalculates parent progress"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
@@ -872,7 +900,7 @@ class TestTaskService(BaseTestCase):
     def test_progress_calculation_and_project_update(self):
         """Test progress calculation on tasks and propagation to project"""
         task_service = self._get_task_service()
-        project_service = ProjectService(TestMockSpaceService())
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()

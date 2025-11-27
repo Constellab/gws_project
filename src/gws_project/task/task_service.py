@@ -658,6 +658,9 @@ class TaskService:
             # Create root task
             task = self.create_root_task(project.id, task_dto)
         else:
+            # By default use the parent task's assignee if none specified
+            if not task_dto.assign_to_id:
+                task_dto.assign_to_id = parent_task.assign_to.id if parent_task.assign_to else None
             # Create subtask
             task = self.create_sub_task(parent_task.id, task_dto)
 

@@ -1,15 +1,13 @@
 from datetime import datetime
-from typing import Dict, List, Optional
 
 import reflex as rx
 from gws_core import UserDTO
-from gws_project.project.project_dto import (CreateProjectFromTemplateDTO,
-                                             ProjectDTO, SaveProjectDTO)
+from gws_core.space.space_dto import SpaceGroupType
+from gws_core.space.space_service import SpaceService
+from gws_project.project.project_dto import CreateProjectFromTemplateDTO, ProjectDTO, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.template.project_template_dto import ProjectTemplateDTO
-from gws_project.template.project_template_service import \
-    ProjectTemplateService
-from gws_project.user.user import User
+from gws_project.template.project_template_service import ProjectTemplateService
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 from ..common.project_app_router import ProjectAppRouter
@@ -20,7 +18,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
     """State management for the create project dialog functionality."""
 
     # Project being edited (None for create mode)
-    _editing_project: Optional[ProjectDTO] = None
+    _editing_project: ProjectDTO | None = None
 
     # Form field default values
     form_name: str = ""
@@ -29,14 +27,14 @@ class ProjectFormDialogState(FormDialogState, rx.State):
     form_project_manager_id: str = ""
 
     # Template-related state
-    available_templates: List[ProjectTemplateDTO] = []
+    available_templates: list[ProjectTemplateDTO] = []
     selected_template_id: str = ""
-    template_roles: List[str] = []
-    role_mapping: Dict[str, str] = {}
+    template_roles: list[str] = []
+    role_mapping: dict[str, str] = {}
 
     # Available users for role assignment
-    available_users: List[UserDTO] = []
-    project_users: List[UserDTO] = []
+    available_users: list[UserDTO] = []
+    project_users: list[UserDTO] = []
 
     @rx.event
     async def open_create_dialog(self):
@@ -53,9 +51,14 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             templates = template_service.get_all_templates()
             self.available_templates = [t.to_dto() for t in templates]
 
-            # Load users (get all real users)
-            users = User.get_real_users()
-            self.available_users = [u.to_dto() for u in users]
+            # Load users from space. Load only user because role assignemnt is per user.
+            space_service = SpaceService()
+            groups = space_service.get_current_lab_all_groups()
+            available_users: list[UserDTO] = []
+            for group in groups:
+                if group.type == SpaceGroupType.SINGLE_USER and group.user:
+                    available_users.append(group.user)
+            self.available_users = available_users
 
         # Open the dialog
         self.dialog_opened = True
@@ -111,8 +114,8 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         self.form_name = project.title
 
         # set data to format 'YYYY-MM-DD' for date input
-        self.form_start_date = project.start_date.strftime('%Y-%m-%d')
-        self.form_end_date = project.end_date.strftime('%Y-%m-%d')
+        self.form_start_date = project.start_date.strftime("%Y-%m-%d")
+        self.form_end_date = project.end_date.strftime("%Y-%m-%d")
 
         # Set project manager
         self.form_project_manager_id = project.project_manager.id
@@ -129,7 +132,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         # Open the dialog
         await self.open_dialog()
 
-    def _validate_and_parse_form_data(self, form_data: dict) -> Optional[SaveProjectDTO]:
+    def _validate_and_parse_form_data(self, form_data: dict) -> SaveProjectDTO | None:
         """Validate and parse form data into a SaveProjectDTO.
 
         Args:
@@ -139,10 +142,10 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             SaveProjectDTO if validation succeeds, None otherwise (error toast is shown)
         """
         # Get values from form data
-        name = form_data.get('name', '').strip()
-        start_date_str = form_data.get('start_date', '').strip()
-        end_date_str = form_data.get('end_date', '').strip()
-        project_manager_id = form_data.get('project_manager_id', '').strip() or None
+        name = form_data.get("name", "").strip()
+        start_date_str = form_data.get("start_date", "").strip()
+        end_date_str = form_data.get("end_date", "").strip()
+        project_manager_id = form_data.get("project_manager_id", "").strip() or None
 
         # Validate required fields
         if not name:
@@ -160,10 +163,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
 
         # Create and return the SaveProjectDTO
         return SaveProjectDTO(
-            name=name,
-            start_date=start_date,
-            end_date=end_date,
-            project_manager_id=project_manager_id
+            name=name, start_date=start_date, end_date=end_date, project_manager_id=project_manager_id
         )
 
     async def _create(self, form_data: dict):
@@ -213,8 +213,8 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             The created project
         """
         # Get values from form data
-        name = form_data.get('name', '').strip()
-        start_date_str = form_data.get('start_date', '').strip()
+        name = form_data.get("name", "").strip()
+        start_date_str = form_data.get("start_date", "").strip()
 
         # Validate required fields
         if not name:
@@ -236,16 +236,13 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             name=name,
             start_date=start_date,
             project_manager_id=None,  # Using current user as project manager
-            role_mapping=self.role_mapping
+            role_mapping=self.role_mapping,
         )
 
         # Create the project from template
         with await main_state.authenticate_user():
             project_service = ProjectService()
-            created_project = project_service.create_project_from_template(
-                self.selected_template_id,
-                create_dto
-            )
+            created_project = project_service.create_project_from_template(self.selected_template_id, create_dto)
 
         return created_project
 

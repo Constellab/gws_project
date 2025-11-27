@@ -27,8 +27,8 @@ from gws_project.task.task import Task
 from gws_project.task.task_service import TaskService
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.task_template import TaskTemplate
+from gws_project.user.project_user_sync_service import ProjectUserSyncService
 from gws_project.user.user import User
-from gws_project.user.user_sync_service import UserSyncService
 
 
 class ProjectService:
@@ -307,21 +307,18 @@ class ProjectService:
             folder_users = self._space_service.share_root_folder(project.space_folder_id, group_id, space_role)
 
             # Handle the case where folder_users is None (for mock testing)
-            if folder_users:
-                for folder_user in folder_users:
-                    user_sync_service = UserSyncService()
-                    user = user_sync_service.get_or_import_user(folder_user.user.id)
+            for folder_user in folder_users:
+                user_sync_service = ProjectUserSyncService()
+                user = user_sync_service.get_or_import_from_space_user(folder_user.user.id)
 
-                    if not user:
-                        raise Exception(f"Error importing user {folder_user.user.email} from in lab.")
+                if not user:
+                    raise Exception(f"Error importing user {folder_user.user.email} in lab.")
 
-                    # Create the ProjectUser entity with the specified role
-                    project_user = ProjectUser.create_or_update(project=project, user=user, role=folder_user.role)
-                    project_users.append(project_user)
-            else:
-                # Fallback for testing: directly add the user if group_id is a user_id
-                user = User.get_by_id_and_check(group_id)
-                project_user = ProjectUser.create_or_update(project=project, user=user, role=role)
+                # Create the ProjectUser entity with the specified role
+                # use the role return from Space to ensure consistency (it might be different than provided
+                # role, if user was already shared with different role)
+                space_folder_role = ProjectUserRole.from_space_folder_user_role(folder_user.role)
+                project_user = ProjectUser.create_or_update(project=project, user=user, role=space_folder_role)
                 project_users.append(project_user)
 
         return project_users

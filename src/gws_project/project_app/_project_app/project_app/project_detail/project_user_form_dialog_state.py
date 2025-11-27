@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 import reflex as rx
 from gws_core import SpaceGroupDTO, SpaceRootFolderUserRole, SpaceService
 from gws_project.project.project_dto import ProjectUserDTO, ProjectUserRole
@@ -17,11 +15,11 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
     """
 
     # Editing project user (None for create mode)
-    editing_project_user: Optional[ProjectUserDTO] = None
+    editing_project_user: ProjectUserDTO | None = None
 
     # Form field default values
     selected_role: str = SpaceRootFolderUserRole.USER.value
-    groups: List[SpaceGroupDTO]
+    groups: list[SpaceGroupDTO]
 
     @rx.event
     async def open_create_dialog(self):
@@ -54,7 +52,7 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
         self.editing_project_user = project_user
 
         # Initialize form fields with project user data
-        self.selected_role = project_user.role
+        self.selected_role = project_user.role.value
 
         # Mark as editing
         self.is_update_mode = True
@@ -74,8 +72,8 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
             True if validation succeeds, False otherwise (error toast is shown)
         """
         # Get values from form data
-        group_id = form_data.get('group_id', '').strip()
-        role = form_data.get('role', '').strip()
+        group_id = form_data.get("group_id", "").strip()
+        role = form_data.get("role", "").strip()
 
         # Validate required fields
         if not group_id and self.is_create_mode:

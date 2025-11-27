@@ -190,15 +190,20 @@ def _document_icon(object_type) -> rx.Component:
     :return: The icon component
     :rtype: rx.Component
     """
-    # Use rx.match to render different icons based on the object type
-    return rx.match(
-        object_type,
-        ("FOLDER", rx.icon("folder", size=16, color="gray")),
-        ("NOTE", rx.icon("file-text", size=16, color="gray")),
-        ("SCENARIO", rx.icon("circle-play", size=16, color="gray")),
-        ("RESOURCE", rx.icon("database", size=16, color="gray")),
-        ("CONSTELLAB_DOCUMENT", rx.icon("file-text", size=16, color="gray")),
-        rx.icon("file", size=16, color="gray"),  # Default for DOCUMENT and others
+    # Use rx.match to render different icon names based on the object type
+    return rx.icon(
+        rx.match(
+            object_type,
+            ("FOLDER", "folder"),
+            ("NOTE", "file-text"),
+            ("SCENARIO", "circle-play"),
+            ("RESOURCE", "database"),
+            ("CONSTELLAB_DOCUMENT", "file-text"),
+            "file",  # Default for DOCUMENT and others
+        ),
+        size=16,
+        color="gray",
+        flex_shrink="0",
     )
 
 

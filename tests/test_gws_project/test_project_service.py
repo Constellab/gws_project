@@ -1,11 +1,8 @@
-
 from datetime import date, datetime
 
-from gws_core import (BadRequestException, BaseTestCase, CurrentUserService,
-                      RichText, TestMockSpaceService, UserGroup)
+from gws_core import BadRequestException, BaseTestCase, CurrentUserService, RichText, TestMockSpaceService, UserGroup
 from gws_project.project.project import Project
-from gws_project.project.project_dto import (CreateProjectFromTemplateDTO,
-                                             ProjectUserRole, SaveProjectDTO)
+from gws_project.project.project_dto import CreateProjectFromTemplateDTO, ProjectUserRole, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.project.project_user import ProjectUser
 from gws_project.task.task import Task
@@ -13,19 +10,23 @@ from gws_project.task.task_dto import TaskPriority, TaskStatus
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.task_template import TaskTemplate
 from gws_project.user.user import User
-from gws_project.user.user_service import UserService
+
+from test_gws_project.test_task_service import ProjectUserSyncService
 
 
 # test_project_service
 class TestProjectService(BaseTestCase):
-
     @classmethod
     def init_before_test(cls):
         super().init_before_test()
-        UserService.sync_gws_core_users()
+        sync_service = ProjectUserSyncService()
+        sync_service.sync_all_users()
 
-    def _get_project_service(self) -> ProjectService:
-        return ProjectService(TestMockSpaceService())
+    def _get_project_service(self, users: list[User] | None = None) -> ProjectService:
+        mock_space_service = TestMockSpaceService()
+        if users:
+            mock_space_service.set_space_folder_users_mock([user.to_dto() for user in users])
+        return ProjectService(mock_space_service)
 
     def test_project(self):
         """Test all public methods of ProjectService in a coherent order"""
@@ -35,7 +36,7 @@ class TestProjectService(BaseTestCase):
 
         # ========== Test 1: create_project ==========
         project_dto = SaveProjectDTO(
-            name='Test Project',
+            name="Test Project",
             start_date=datetime(2025, 1, 1),
             end_date=datetime(2025, 12, 31),
         )
@@ -44,7 +45,7 @@ class TestProjectService(BaseTestCase):
 
         # Assertions on the created project
         self.assertIsNotNone(project)
-        self.assertEqual(project.title, 'Test Project')
+        self.assertEqual(project.title, "Test Project")
         self.assertEqual(project.start_date, datetime(2025, 1, 1))
         self.assertEqual(project.end_date, datetime(2025, 12, 31))
         self.assertEqual(project.project_manager.id, current_user.id)
@@ -56,7 +57,7 @@ class TestProjectService(BaseTestCase):
 
         # ========== Test 2: update_project ==========
         update_dto = SaveProjectDTO(
-            name='Updated Project Name',
+            name="Updated Project Name",
             start_date=datetime(2025, 2, 1),
             end_date=datetime(2025, 11, 30),
         )
@@ -65,7 +66,7 @@ class TestProjectService(BaseTestCase):
 
         # Assertions on the updated project
         self.assertEqual(updated_project.id, project.id)
-        self.assertEqual(updated_project.title, 'Updated Project Name')
+        self.assertEqual(updated_project.title, "Updated Project Name")
         self.assertEqual(updated_project.start_date, datetime(2025, 2, 1))
         self.assertEqual(updated_project.end_date, datetime(2025, 11, 30))
         self.assertEqual(updated_project.space_folder_id, project.space_folder_id)
@@ -73,19 +74,15 @@ class TestProjectService(BaseTestCase):
         # ========== Test 3: add_user_to_project ==========
         # Create a second user for testing
         second_user = User(
-            user_email='testuser2@example.com',
-            user_first_name='Test',
-            user_last_name='User2',
+            email="testuser2@example.com",
+            first_name="Test",
+            last_name="User2",
             group=UserGroup.USER,
         )
         second_user.save()
 
         # Manually add user to project for testing (since add_group_to_project requires Space groups)
-        project_user = ProjectUser.create_or_update(
-            project=project,
-            user=second_user,
-            role=ProjectUserRole.USER
-        )
+        project_user = ProjectUser.create_or_update(project=project, user=second_user, role=ProjectUserRole.USER)
 
         # Assertions on added user
         self.assertIsNotNone(project_user)
@@ -102,19 +99,15 @@ class TestProjectService(BaseTestCase):
         with self.assertRaises(BadRequestException) as context:
             project_service.remove_user_from_project(project.id, current_user.id)
 
-        self.assertIn('last owner', str(context.exception).lower())
+        self.assertIn("last owner", str(context.exception).lower())
 
         # Add second user as owner so we can test removing a user with tasks
-        ProjectUser.create_or_update(
-            project=project,
-            user=second_user,
-            role=ProjectUserRole.OWNER
-        )
+        ProjectUser.create_or_update(project=project, user=second_user, role=ProjectUserRole.OWNER)
 
         # Create a task assigned to the second user
         task = Task()
         task.project = project
-        task.title = 'Test Task'
+        task.title = "Test Task"
         task.description = RichText().to_dto()
         task.start_date = datetime(2025, 3, 1)
         task.end_date = datetime(2025, 3, 15)
@@ -127,7 +120,7 @@ class TestProjectService(BaseTestCase):
         with self.assertRaises(BadRequestException) as context:
             project_service.remove_user_from_project(project.id, second_user.id)
 
-        self.assertIn('task', str(context.exception).lower())
+        self.assertIn("task", str(context.exception).lower())
 
         # Delete the task and try again (should succeed now)
         task.delete_instance()
@@ -148,7 +141,7 @@ class TestProjectService(BaseTestCase):
 
         # Test with start date after end date
         invalid_project_dto = SaveProjectDTO(
-            name='Invalid Date Project',
+            name="Invalid Date Project",
             start_date=datetime(2025, 12, 31),
             end_date=datetime(2025, 1, 1),
         )
@@ -156,44 +149,44 @@ class TestProjectService(BaseTestCase):
         with self.assertRaises(BadRequestException) as context:
             project_service.create_project(invalid_project_dto)
 
-        self.assertIn('start date', str(context.exception).lower())
-        self.assertIn('end date', str(context.exception).lower())
+        self.assertIn("start date", str(context.exception).lower())
+        self.assertIn("end date", str(context.exception).lower())
 
     def test_create_project_from_template(self):
         """Test creating a project from a template"""
-        project_service = self._get_project_service()
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create a project manager user for testing role mapping
         project_manager = User(
-            user_email='manager@example.com',
-            user_first_name='Project',
-            user_last_name='Manager',
+            email="manager@example.com",
+            first_name="Project",
+            last_name="Manager",
             group=UserGroup.USER,
         )
         project_manager.save()
 
         # Create a developer user for testing role mapping
         developer = User(
-            user_email='developer@example.com',
-            user_first_name='Dev',
-            user_last_name='User',
+            email="developer@example.com",
+            first_name="Dev",
+            last_name="User",
             group=UserGroup.USER,
         )
         developer.save()
+        project_service = self._get_project_service([project_manager, developer])
 
         # ========== Create a project template ==========
         rich_text = RichText()
         rich_text.add_paragraph("This is a template for software development projects.")
         template = ProjectTemplate()
-        template.name = 'Software Development Template'
+        template.name = "Software Development Template"
         template.description = rich_text.to_dto()
         template.save()
 
         # Create root task template 1: Planning (5 days)
         planning_task = TaskTemplate()
         planning_task.project_template = template
-        planning_task.title = 'Planning Phase'
+        planning_task.title = "Planning Phase"
         planning_rich_text = RichText()
         planning_rich_text.add_paragraph("Define project scope and requirements")
         planning_task.description = planning_rich_text.to_dto()
@@ -201,14 +194,14 @@ class TestProjectService(BaseTestCase):
         planning_task.duration_days = 5
         planning_task.priority = TaskPriority.HIGH
         planning_task.allow_subtasks = True
-        planning_task.assign_to_role = 'project_manager'
+        planning_task.assign_to_role = "project_manager"
         planning_task.save()
 
         # Create subtask for planning
         planning_subtask = TaskTemplate()
         planning_subtask.project_template = template
         planning_subtask.parent_task = planning_task
-        planning_subtask.title = 'Requirements Gathering'
+        planning_subtask.title = "Requirements Gathering"
         planning_subtask_rich_text = RichText()
         planning_subtask_rich_text.add_paragraph("Gather and document all project requirements")
         planning_subtask.description = planning_subtask_rich_text.to_dto()
@@ -216,13 +209,13 @@ class TestProjectService(BaseTestCase):
         planning_subtask.duration_days = 3
         planning_subtask.priority = TaskPriority.HIGH
         planning_subtask.allow_subtasks = False
-        planning_subtask.assign_to_role = 'project_manager'
+        planning_subtask.assign_to_role = "project_manager"
         planning_subtask.save()
 
         # Create root task template 2: Development (10 days, starts after planning)
         development_task = TaskTemplate()
         development_task.project_template = template
-        development_task.title = 'Development Phase'
+        development_task.title = "Development Phase"
         development_rich_text = RichText()
         development_rich_text.add_paragraph("Implement the project features")
         development_task.description = development_rich_text.to_dto()
@@ -230,14 +223,14 @@ class TestProjectService(BaseTestCase):
         development_task.duration_days = 10
         development_task.priority = TaskPriority.MEDIUM
         development_task.allow_subtasks = True
-        development_task.assign_to_role = 'developer'
+        development_task.assign_to_role = "developer"
         development_task.save()
 
         # Create subtask for development
         dev_subtask = TaskTemplate()
         dev_subtask.project_template = template
         dev_subtask.parent_task = development_task
-        dev_subtask.title = 'Backend Implementation'
+        dev_subtask.title = "Backend Implementation"
         dev_subtask_rich_text = RichText()
         dev_subtask_rich_text.add_paragraph("Implement backend APIs and database schema")
         dev_subtask.description = dev_subtask_rich_text.to_dto()
@@ -245,18 +238,15 @@ class TestProjectService(BaseTestCase):
         dev_subtask.duration_days = 7
         dev_subtask.priority = TaskPriority.HIGH
         dev_subtask.allow_subtasks = False
-        dev_subtask.assign_to_role = 'developer'
+        dev_subtask.assign_to_role = "developer"
         dev_subtask.save()
 
         # ========== Create project from template ==========
         project_dto = CreateProjectFromTemplateDTO(
-            name='My New Project',
+            name="My New Project",
             start_date=datetime(2025, 1, 1),
             project_manager_id=project_manager.id,
-            role_mapping={
-                'project_manager': project_manager.id,
-                'developer': developer.id
-            }
+            role_mapping={"project_manager": project_manager.id, "developer": developer.id},
         )
 
         project = project_service.create_project_from_template(template.id, project_dto)
@@ -264,7 +254,7 @@ class TestProjectService(BaseTestCase):
         # ========== Test assertions ==========
         # Verify project was created correctly
         self.assertIsNotNone(project)
-        self.assertEqual(project.title, 'My New Project')
+        self.assertEqual(project.title, "My New Project")
         self.assertEqual(project.start_date, datetime(2025, 1, 1))
         # End date is calculated from template (not from actual created tasks)
         # Max template: dev task at offset 5, duration 10 = 5+10-1 = 14 days total = Jan 15
@@ -292,8 +282,8 @@ class TestProjectService(BaseTestCase):
         self.assertEqual(len(root_tasks), 2)
 
         # Find planning and development tasks
-        planning_created = next(t for t in root_tasks if t.title == 'Planning Phase')
-        development_created = next(t for t in root_tasks if t.title == 'Development Phase')
+        planning_created = next(t for t in root_tasks if t.title == "Planning Phase")
+        development_created = next(t for t in root_tasks if t.title == "Development Phase")
 
         # Verify planning task
         # Note: Parent task dates are calculated from subtasks
@@ -323,14 +313,18 @@ class TestProjectService(BaseTestCase):
         # Verify subtasks were created
         planning_subtasks = Task.get_subtasks_of_task(planning_created.id)
         self.assertEqual(len(planning_subtasks), 1)
-        self.assertEqual(planning_subtasks[0].title, 'Requirements Gathering')
+        self.assertEqual(planning_subtasks[0].title, "Requirements Gathering")
         self.assertEqual(planning_subtasks[0].assign_to.id, project_manager.id)
         # Verify subtask description was copied from template
-        self.assert_json(planning_subtasks[0].description.to_json_dict(), planning_subtask_rich_text.to_dto().to_json_dict())
+        self.assert_json(
+            planning_subtasks[0].description.to_json_dict(), planning_subtask_rich_text.to_dto().to_json_dict()
+        )
 
         development_subtasks = Task.get_subtasks_of_task(development_created.id)
         self.assertEqual(len(development_subtasks), 1)
-        self.assertEqual(development_subtasks[0].title, 'Backend Implementation')
+        self.assertEqual(development_subtasks[0].title, "Backend Implementation")
         self.assertEqual(development_subtasks[0].assign_to.id, developer.id)
         # Verify subtask description was copied from template
-        self.assert_json(development_subtasks[0].description.to_json_dict(), dev_subtask_rich_text.to_dto().to_json_dict())
+        self.assert_json(
+            development_subtasks[0].description.to_json_dict(), dev_subtask_rich_text.to_dto().to_json_dict()
+        )
