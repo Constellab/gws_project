@@ -221,7 +221,7 @@ class Task(ModelWithUser):
         :rtype: List[Task]
         """
         return list(
-            cls.select().where((cls.project == project_id) & (cls.parent_task.is_null())).order_by(cls.created_at)
+            cls.select().where((cls.project == project_id) & (cls.parent_task.is_null())).order_by(cls.start_date)
         )
 
     @classmethod
@@ -233,7 +233,7 @@ class Task(ModelWithUser):
         :return: List of subtasks
         :rtype: List[Task]
         """
-        return list(cls.select().where(cls.parent_task == parent_task_id).order_by(cls.created_at))
+        return list(cls.select().where(cls.parent_task == parent_task_id).order_by(cls.start_date))
 
     @classmethod
     def get_tasks_of_user(cls, user_id: str) -> list["Task"]:
@@ -244,7 +244,7 @@ class Task(ModelWithUser):
         :return: List of tasks
         :rtype: List[Task]
         """
-        return list(cls.select().where(cls.assign_to == user_id).order_by(cls.created_at))
+        return list(cls.select().where(cls.assign_to == user_id).order_by(cls.start_date))
 
     @classmethod
     def count_tasks_of_user_in_project(cls, user_id: str, project_id: str) -> int:

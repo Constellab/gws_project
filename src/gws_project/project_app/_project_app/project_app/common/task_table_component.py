@@ -33,7 +33,7 @@ def task_table_component(tasks: list[TaskDTO], empty_message: str = "No tasks fo
                     rx.table.column_header_cell("Status"),
                     rx.table.column_header_cell("Priority"),
                     rx.table.column_header_cell("Assigned To"),
-                    rx.table.column_header_cell("Actions", width="100px"),
+                    rx.table.column_header_cell("Actions", width="100px", justify="end"),
                 ),
             ),
             rx.table.body(rx.foreach(tasks, lambda task: _task_row(task))),
@@ -85,10 +85,7 @@ def _task_row(task: TaskDTO) -> rx.Component:
         rx.table.cell(
             rx.vstack(
                 status_chip(task.status),
-                rx.cond(
-                    task.progress > 0,
-                    progress_bar(task.progress, width="50px"),
-                ),
+                progress_bar(task.progress, width="50px"),
                 spacing="2",
                 align="start",
                 width="100%",
@@ -96,7 +93,7 @@ def _task_row(task: TaskDTO) -> rx.Component:
         ),
         rx.table.cell(priority_chip(task.priority)),
         rx.table.cell(user_inline_component(task.assign_to)),
-        rx.table.cell(_actions_menu(task)),
+        rx.table.cell(rx.box(_actions_menu(task), display="flex", justify_content="flex-end", align_items="center")),
         style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
         on_click=lambda: rx.redirect(ProjectAppRouter.get_task_detail_url(task.id)),
     )

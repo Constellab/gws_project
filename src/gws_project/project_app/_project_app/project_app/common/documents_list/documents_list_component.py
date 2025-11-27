@@ -149,7 +149,7 @@ def _documents_table() -> rx.Component:
             rx.table.row(
                 rx.table.column_header_cell("Name"),
                 rx.table.column_header_cell("Type"),
-                rx.table.column_header_cell("Actions"),
+                rx.table.column_header_cell("Actions", justify="end"),
             ),
         ),
         rx.table.body(

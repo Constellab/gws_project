@@ -339,9 +339,6 @@ class TaskService:
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
-        # Store parent task reference before deletion if this is a subtask
-        parent_task = task.parent_task if not task.is_root_task() else None
-
         # Store root task info for Space folder deletion before deletion
         is_root = task.is_root_task()
         space_folder_id = task.space_folder_id
@@ -360,7 +357,6 @@ class TaskService:
         # Delete the task from the database
         task.delete_instance()
 
-        # If this was a subtask, update all ancestor tasks in the hierarchy
         # Recursively update ancestors
         self._recalculate_parent_info(task)
 
