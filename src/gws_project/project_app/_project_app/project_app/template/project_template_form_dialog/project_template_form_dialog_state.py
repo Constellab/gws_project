@@ -1,10 +1,7 @@
-from typing import Optional
 
 import reflex as rx
-from gws_project.template.project_template_dto import (ProjectTemplateDTO,
-                                                       SaveProjectTemplateDTO)
-from gws_project.template.project_template_service import \
-    ProjectTemplateService
+from gws_project.template.project_template_dto import ProjectTemplateDTO, SaveProjectTemplateDTO
+from gws_project.template.project_template_service import ProjectTemplateService
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 from ...common.project_app_router import ProjectAppRouter
@@ -14,7 +11,7 @@ class ProjectTemplateFormDialogState(FormDialogState, rx.State):
     """State management for the create/update template dialog functionality."""
 
     # Template being edited (None for create mode)
-    _editing_template: Optional[ProjectTemplateDTO] = None
+    _editing_template: ProjectTemplateDTO | None = None
 
     # Form field default values
     form_name: str = ""
@@ -38,7 +35,7 @@ class ProjectTemplateFormDialogState(FormDialogState, rx.State):
         # Open the dialog
         await self.open_dialog()
 
-    def _validate_and_parse_form_data(self, form_data: dict) -> Optional[SaveProjectTemplateDTO]:
+    def _validate_and_parse_form_data(self, form_data: dict) -> SaveProjectTemplateDTO | None:
         """Validate and parse form data into a template DTO.
 
         Args:

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 import reflex as rx
 from gws_project.project.project import Project
@@ -10,7 +9,7 @@ from ..project_page_state import ProjectPageState
 
 
 @dataclass
-class BreadcrumbItem():
+class BreadcrumbItem:
     """Represents a single item in the breadcrumb trail.
 
     :param label: The display text for this breadcrumb item
@@ -29,7 +28,7 @@ class BreadcrumbState(ReflexMainState):
     """
 
     @rx.var
-    async def breadcrumbs(self) -> List[BreadcrumbItem]:
+    async def breadcrumbs(self) -> list[BreadcrumbItem]:
         """Get breadcrumb items for the current page.
 
         This method gets the current object from ProjectPageState and builds
@@ -58,7 +57,7 @@ class BreadcrumbState(ReflexMainState):
 
         return items
 
-    def _build_breadcrumb_for_project(self, project: Project) -> List[BreadcrumbItem]:
+    def _build_breadcrumb_for_project(self, project: Project) -> list[BreadcrumbItem]:
         """Build breadcrumb items for a project.
 
         :param project: The project object
@@ -70,7 +69,7 @@ class BreadcrumbState(ReflexMainState):
             BreadcrumbItem(label=project.title, url=f"/project/{project.id}")
         ]
 
-    def _build_breadcrumb_for_task(self, task: Task) -> List[BreadcrumbItem]:
+    def _build_breadcrumb_for_task(self, task: Task) -> list[BreadcrumbItem]:
         """Build breadcrumb items for a task.
 
         This includes the project, all ancestor tasks (for unlimited hierarchy), and the task itself.

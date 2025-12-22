@@ -2,7 +2,9 @@ import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
 
 from ...common.page_layout import page_layout
-from ..project_template_form_dialog.project_template_form_dialog_component import create_template_dialog
+from ..project_template_form_dialog.project_template_form_dialog_component import (
+    create_template_dialog,
+)
 from .project_template_list_state import ProjectTemplateDTO, ProjectTemplateListState
 
 

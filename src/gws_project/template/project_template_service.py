@@ -1,8 +1,8 @@
 
 
-from typing import List
 
 from gws_core import BadRequestException, RichText, RichTextDTO
+
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.project_template_dto import SaveProjectTemplateDTO
@@ -27,7 +27,7 @@ class ProjectTemplateService:
         """
         return ProjectTemplate.get_by_id_and_check(template_id)
 
-    def get_all_templates(self) -> List[ProjectTemplate]:
+    def get_all_templates(self) -> list[ProjectTemplate]:
         """Get all project templates.
         :return: List of all project templates
         :rtype: List[ProjectTemplate]
@@ -35,7 +35,7 @@ class ProjectTemplateService:
         query = ProjectTemplate.select()
         return list(query.order_by(ProjectTemplate.created_at.desc()))
 
-    def get_task_templates_for_template(self, template_id: str) -> List[TaskTemplate]:
+    def get_task_templates_for_template(self, template_id: str) -> list[TaskTemplate]:
         """Get all root task templates for a project template.
 
         :param template_id: The ID of the project template
@@ -152,7 +152,7 @@ class ProjectTemplateService:
 
         return template
 
-    def get_all_roles_for_template(self, template_id: str) -> List[str]:
+    def get_all_roles_for_template(self, template_id: str) -> list[str]:
         """Get all distinct assign_to_role values from all task templates in a project template.
 
         :param template_id: The ID of the project template

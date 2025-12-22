@@ -2,7 +2,6 @@
 
 from datetime import date
 from enum import Enum
-from typing import Optional
 
 from gws_core import BaseModelDTO, ModelDTO, RichTextDTO, UserDTO
 
@@ -26,12 +25,12 @@ class CreateTaskDTO(BaseModelDTO):
     status: TaskStatus | None = TaskStatus.TODO
     priority: TaskPriority | None = TaskPriority.MEDIUM
     allow_subtasks: bool = False
-    assign_to_id: Optional[str] = None
+    assign_to_id: str | None = None
 
 
 class CreateSubTaskDTO(BaseModelDTO):
     title: str
-    assign_to_id: Optional[str] = None
+    assign_to_id: str | None = None
 
 
 class UpdateTaskDTO(BaseModelDTO):
@@ -40,13 +39,13 @@ class UpdateTaskDTO(BaseModelDTO):
     end_date: date | None
     status: TaskStatus | None
     priority: TaskPriority | None
-    assign_to_id: Optional[str] = None
+    assign_to_id: str | None = None
 
 
 class TaskDTO(ModelDTO):
     """DTO for displaying task information in the frontend."""
     title: str
-    description: Optional[RichTextDTO]
+    description: RichTextDTO | None
     start_date: date
     end_date: date
     status: TaskStatus
@@ -54,9 +53,9 @@ class TaskDTO(ModelDTO):
     allow_subtasks: bool
     assign_to: UserDTO
     project_id: str
-    parent_task_id: Optional[str]
-    parent_task_title: Optional[str]
-    space_folder_id: Optional[str]
+    parent_task_id: str | None
+    parent_task_title: str | None
+    space_folder_id: str | None
     progress: int
     created_by: UserDTO
     last_modified_by: UserDTO

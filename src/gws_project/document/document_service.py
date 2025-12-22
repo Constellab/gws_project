@@ -2,11 +2,17 @@
 
 from typing import Optional
 
-from gws_core import (BadRequestException, DocumentUploadOverrideMode, PageDTO,
-                      SearchOperator, SpaceHierarchyObjectDTO,
-                      SpaceHierarchyObjectSearchParams, SpaceService)
-from gws_project.project.project_security_service import (
-    ProjectSecurityService, ProjectUserRole)
+from gws_core import (
+    BadRequestException,
+    DocumentUploadOverrideMode,
+    PageDTO,
+    SearchOperator,
+    SpaceHierarchyObjectDTO,
+    SpaceHierarchyObjectSearchParams,
+    SpaceService,
+)
+
+from gws_project.project.project_security_service import ProjectSecurityService, ProjectUserRole
 from gws_project.task.task_service import TaskService
 
 
@@ -21,7 +27,7 @@ class DocumentService:
     :type space_service: Optional[SpaceService]
     """
 
-    def __init__(self, space_service: Optional[SpaceService] = None, task_service: Optional['TaskService'] = None):
+    def __init__(self, space_service: SpaceService | None = None, task_service: Optional['TaskService'] = None):
         """Initialize the DocumentService with optional SpaceService and TaskService instances.
 
         :param space_service: Optional SpaceService instance to use for Space operations
@@ -100,7 +106,7 @@ class DocumentService:
         self,
         project_id: str,
         file_path: str,
-        filename: Optional[str] = None,
+        filename: str | None = None,
         override_mode: DocumentUploadOverrideMode = DocumentUploadOverrideMode.RENAME
     ) -> SpaceHierarchyObjectDTO:
         """Upload a document to a project's space folder without tagging.
@@ -142,7 +148,7 @@ class DocumentService:
         self,
         task_id: str,
         file_path: str,
-        filename: Optional[str] = None,
+        filename: str | None = None,
         override_mode: DocumentUploadOverrideMode = DocumentUploadOverrideMode.RENAME
     ) -> SpaceHierarchyObjectDTO:
         """Upload a document to a task's space folder and tag it with the task's space tag.

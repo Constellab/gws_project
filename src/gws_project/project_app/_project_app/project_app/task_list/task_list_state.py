@@ -1,4 +1,3 @@
-from typing import List, Optional
 
 import reflex as rx
 from gws_project.task.task_dto import TaskDTO
@@ -17,8 +16,8 @@ class TaskListState(ReflexMainState):
     as well as managing task deletion.
     """
 
-    _url_params: Optional[ProjectUrlParam] = None
-    _tasks: List[Task] = []
+    _url_params: ProjectUrlParam | None = None
+    _tasks: list[Task] = []
     is_loading: bool = False
 
     @rx.var
@@ -41,7 +40,7 @@ class TaskListState(ReflexMainState):
         return current_object.id
 
     @rx.var
-    async def get_tasks(self) -> List[TaskDTO]:
+    async def get_tasks(self) -> list[TaskDTO]:
         """Return the list of tasks as DTOs.
 
         Tasks are loaded on component mount via fetch_tasks_on_mount event.

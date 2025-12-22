@@ -1,8 +1,9 @@
 
 
 from gws_core import CurrentUserService, Model
-from gws_project.user.user import User
 from peewee import ForeignKeyField
+
+from gws_project.user.user import User
 
 
 class ModelWithUser(Model):

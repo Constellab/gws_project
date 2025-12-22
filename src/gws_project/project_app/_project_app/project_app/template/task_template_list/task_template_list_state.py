@@ -1,4 +1,3 @@
-from typing import List, Optional
 
 import reflex as rx
 from gws_project.template.task_template import TaskTemplate
@@ -17,9 +16,9 @@ class TaskTemplateListState(ReflexMainState):
     as well as managing task template deletion.
     """
 
-    _url_params: Optional[TemplateUrlParam] = None
+    _url_params: TemplateUrlParam | None = None
 
-    _task_templates: List[TaskTemplate] = []
+    _task_templates: list[TaskTemplate] = []
 
     @rx.var
     async def current_url_id(self) -> str:
@@ -40,7 +39,7 @@ class TaskTemplateListState(ReflexMainState):
         return current_object.id
 
     @rx.var
-    async def get_task_templates(self) -> List[TaskTemplateDTO]:
+    async def get_task_templates(self) -> list[TaskTemplateDTO]:
         """Get all task templates for the current project template.
 
         :return: List of task template DTOs

@@ -1,14 +1,15 @@
 """Generic updatable chip component for displaying values with color-coded badges and update options."""
 
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable, List, Literal
+from typing import Literal
 
 import reflex as rx
 
 
 def updatable_chip(
     value: Enum,
-    all_values: List[Enum],
+    all_values: list[Enum],
     get_color_scheme: Callable[[Enum], str],
     size: Literal['1', '2', '3'] = None,
     on_value_change: Callable[[str], None] = None,

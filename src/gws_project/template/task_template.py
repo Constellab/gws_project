@@ -1,14 +1,14 @@
 
 
-from typing import List
 
 from gws_core import EnumField, RichTextDbField, RichTextDTO
+from peewee import BooleanField, CharField, ForeignKeyField, IntegerField
+
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.task.task_dto import TaskPriority
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.task_template_dto import TaskTemplateDTO
-from peewee import BooleanField, CharField, ForeignKeyField, IntegerField
 
 
 class TaskTemplate(ModelWithUser):
@@ -45,7 +45,7 @@ class TaskTemplate(ModelWithUser):
     # Assignment options (optional - can be assigned during project creation)
     assign_to_role = CharField(max_length=100, null=True)
 
-    subtasks: List['TaskTemplate']
+    subtasks: list['TaskTemplate']
 
     def is_root_task(self) -> bool:
         """Check if the template task is a root task (i.e., has no parent task)"""
@@ -55,11 +55,11 @@ class TaskTemplate(ModelWithUser):
         """Check if the template task is a leaf task (i.e., has no subtasks)"""
         return not self.allow_subtasks
 
-    def get_subtasks(self) -> List['TaskTemplate']:
+    def get_subtasks(self) -> list['TaskTemplate']:
         """Get the list of subtasks for this template task"""
         return self.subtasks
 
-    def get_ancestors(self) -> List['TaskTemplate']:
+    def get_ancestors(self) -> list['TaskTemplate']:
         """Get all ancestor task templates from immediate parent up to root task.
 
         Returns a list of ancestor task templates ordered from immediate parent to root.
@@ -75,7 +75,7 @@ class TaskTemplate(ModelWithUser):
             current = current.parent_task
         return ancestors
 
-    def get_all_descendants(self) -> List['TaskTemplate']:
+    def get_all_descendants(self) -> list['TaskTemplate']:
         """Recursively get all descendant task templates (children, grandchildren, etc.).
 
         Returns a flat list of all task templates in the subtree below this template.
@@ -119,7 +119,7 @@ class TaskTemplate(ModelWithUser):
             return self.parent_task.get_root_task()
 
     @classmethod
-    def get_root_tasks_of_template(cls, template_id: str) -> List['TaskTemplate']:
+    def get_root_tasks_of_template(cls, template_id: str) -> list['TaskTemplate']:
         """Get all root template tasks for a template
 
         :param template_id: The template ID
@@ -132,7 +132,7 @@ class TaskTemplate(ModelWithUser):
         ).order_by(cls.created_at))
 
     @classmethod
-    def get_subtasks_of_template_task(cls, parent_task_id: str) -> List['TaskTemplate']:
+    def get_subtasks_of_template_task(cls, parent_task_id: str) -> list['TaskTemplate']:
         """Get all subtasks of a parent template task
 
         :param parent_task_id: The parent template task ID

@@ -1,10 +1,8 @@
-from typing import List, Optional
 
 import reflex as rx
 from gws_core import RichTextDTO
 from gws_project.template.project_template_dto import ProjectTemplateDTO
-from gws_project.template.project_template_service import \
-    ProjectTemplateService
+from gws_project.template.project_template_service import ProjectTemplateService
 from gws_reflex_main import ReflexMainState
 
 from ...common.project_app_router import ProjectAppRouter
@@ -23,8 +21,8 @@ class TemplateDetailState(ReflexMainState):
     # Description edit mode
     description_edit_mode: bool = False
     # Cache for template roles
-    _template_id: Optional[str] = None
-    _template_roles: List[str] = []
+    _template_id: str | None = None
+    _template_roles: list[str] = []
 
     def set_delete_dialog_opened(self, value: bool):
         """Explicitly set the delete_dialog_opened state.
@@ -35,7 +33,7 @@ class TemplateDetailState(ReflexMainState):
         self.delete_dialog_opened = value
 
     @rx.var
-    async def project_template(self) -> Optional[ProjectTemplateDTO]:
+    async def project_template(self) -> ProjectTemplateDTO | None:
         """Get the current template as DTO.
 
         :return: The current template DTO
@@ -48,7 +46,7 @@ class TemplateDetailState(ReflexMainState):
         return None
 
     @rx.var
-    async def template_roles(self) -> List[str]:
+    async def template_roles(self) -> list[str]:
         """Get all distinct roles from task templates in this project template.
 
         :return: List of distinct role names

@@ -1,15 +1,15 @@
 from enum import Enum
-from typing import Optional
 
 import reflex as rx
 from gws_project.task.task_dto import TaskPriority
 from gws_project.template.task_template import TaskTemplate
-from gws_project.template.task_template_dto import (SaveTaskTemplateDTO,
-                                                    TaskTemplateDTO,
-                                                    UpdateTaskTemplateDTO)
+from gws_project.template.task_template_dto import (
+    SaveTaskTemplateDTO,
+    TaskTemplateDTO,
+    UpdateTaskTemplateDTO,
+)
 from gws_project.template.task_template_service import TaskTemplateService
-from gws_reflex_main import (FormDialogState, ReflexDialogCloseEvent,
-                             ReflexMainState)
+from gws_reflex_main import FormDialogState, ReflexDialogCloseEvent, ReflexMainState
 
 
 class TaskTemplateFormMode(Enum):
@@ -23,7 +23,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
     """State management for the create/update task template dialog functionality."""
 
     # Task template being edited (None for create mode)
-    _editing_task_template: Optional[TaskTemplateDTO] = None
+    _editing_task_template: TaskTemplateDTO | None = None
 
     # Project template for creating new task templates
     _project_template_id: str = ""
@@ -45,7 +45,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
     # Track selected task type in create root mode
     selected_task_type: str = "without_children"
 
-    _callback_after_close: Optional[ReflexDialogCloseEvent[TaskTemplate]] = None
+    _callback_after_close: ReflexDialogCloseEvent[TaskTemplate] | None = None
 
     def set_selected_task_type(self, value: str):
         """Set the selected task type (with_children or without_children).
@@ -92,7 +92,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
         # Show for all other cases (create root without subtasks, update regular task, update subtask)
         return True
 
-    def _init_form_fields(self, task_template: Optional[TaskTemplateDTO] = None):
+    def _init_form_fields(self, task_template: TaskTemplateDTO | None = None):
         """Initialize form fields for create or update mode.
 
         Args:
@@ -238,7 +238,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
         # Open the dialog
         await self.open_dialog()
 
-    def _validate_and_parse_create_task_template_form_data(self, form_data: dict) -> Optional[SaveTaskTemplateDTO]:
+    def _validate_and_parse_create_task_template_form_data(self, form_data: dict) -> SaveTaskTemplateDTO | None:
         """Validate and parse form data into a CreateTaskTemplateDTO for create operations.
 
         Args:
@@ -264,7 +264,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
             assign_to_role=common_fields.get('assign_to_role')
         )
 
-    def _validate_and_parse_update_task_template_form_data(self, form_data: dict) -> Optional[UpdateTaskTemplateDTO]:
+    def _validate_and_parse_update_task_template_form_data(self, form_data: dict) -> UpdateTaskTemplateDTO | None:
         """Validate and parse form data into an UpdateTaskTemplateDTO for update operations.
 
         Args:

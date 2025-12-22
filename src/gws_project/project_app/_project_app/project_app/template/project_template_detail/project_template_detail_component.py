@@ -4,8 +4,12 @@ from gws_reflex_main.gws_components import rich_text_component
 
 from ...common.detail_page_layout import detail_page_layout
 from ...common.page_layout import page_layout
-from ..project_template_form_dialog.project_template_form_dialog_component import project_template_update_dialog
-from ..project_template_form_dialog.project_template_form_dialog_state import ProjectTemplateFormDialogState
+from ..project_template_form_dialog.project_template_form_dialog_component import (
+    project_template_update_dialog,
+)
+from ..project_template_form_dialog.project_template_form_dialog_state import (
+    ProjectTemplateFormDialogState,
+)
 from ..task_template_list.task_template_list_component import task_template_list_view
 from ..template_breadcrumb_state import TemplateBreadcrumbState
 from .project_template_detail_state import TemplateDetailState

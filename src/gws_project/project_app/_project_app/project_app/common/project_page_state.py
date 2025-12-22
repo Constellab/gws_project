@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from gws_project.project.project import Project
 from gws_project.project.project_service import ProjectService
@@ -23,9 +23,9 @@ class ProjectPageState(ReflexMainState):
     """
 
     # Private cache for storing the loaded object
-    _cached_object: Optional[Union[Project, Task]] = None
+    _cached_object: Project | Task | None = None
 
-    async def get_url_params(self) -> Optional[ProjectUrlParam]:
+    async def get_url_params(self) -> ProjectUrlParam | None:
         """Get the current object ID from URL parameters.
 
         This method checks for task_id_param and project_id_param in the URL
@@ -44,7 +44,7 @@ class ProjectPageState(ReflexMainState):
 
         return None
 
-    async def project(self) -> Optional[Project]:
+    async def project(self) -> Project | None:
         """Get the current project from URL parameters.
         The method should not be named get_project because the get_object method
         call a get_project which make the reflex compiler confused.
@@ -60,7 +60,7 @@ class ProjectPageState(ReflexMainState):
             return obj.project
         return None
 
-    async def task(self) -> Optional[Task]:
+    async def task(self) -> Task | None:
         """Get the current task from URL parameters.
 
         :return: The loaded Task object, or None if not found
@@ -71,7 +71,7 @@ class ProjectPageState(ReflexMainState):
             return obj
         return None
 
-    async def get_object(self) -> Union[Project, Task, None]:
+    async def get_object(self) -> Project | Task | None:
         """Get the current project or task from URL parameters with caching.
 
         This method automatically detects the object type and ID from URL parameters:
@@ -120,7 +120,7 @@ class ProjectPageState(ReflexMainState):
             else:
                 return None
 
-    async def refresh_object(self) -> Union[Project, Task, None]:
+    async def refresh_object(self) -> Project | Task | None:
         """Refresh (reload) the current object from URL parameters.
 
         This method forces a reload of the object from the database, even if it's cached.

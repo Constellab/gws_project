@@ -2,6 +2,7 @@
 from datetime import date
 
 from gws_core import SearchBuilder
+
 from gws_project.task.task import Task
 
 

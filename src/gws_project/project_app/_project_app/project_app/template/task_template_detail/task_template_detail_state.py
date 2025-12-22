@@ -1,17 +1,14 @@
-from typing import Optional
 
 import reflex as rx
 from gws_core import RichTextDTO
 from gws_project.template.project_template_dto import ProjectTemplateDTO
 from gws_project.template.task_template import TaskTemplate
-from gws_project.template.task_template_dto import (TaskPriority,
-                                                    TaskTemplateDTO)
+from gws_project.template.task_template_dto import TaskPriority, TaskTemplateDTO
 from gws_project.template.task_template_service import TaskTemplateService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ...common.project_app_router import ProjectAppRouter
-from ..task_template_form_dialog.task_template_form_dialog_state import \
-    TaskTemplateFormDialogState
+from ..task_template_form_dialog.task_template_form_dialog_state import TaskTemplateFormDialogState
 from ..template_page_state import TemplatePageState
 
 
@@ -25,7 +22,7 @@ class TaskTemplateDetailState(ReflexMainState):
     description_edit_mode: bool = False  # Track if description is in edit mode
 
     @rx.var
-    async def task_template(self) -> Optional[TaskTemplateDTO]:
+    async def task_template(self) -> TaskTemplateDTO | None:
         """Return the current task template DTO.
 
         :return: The current task template DTO
@@ -37,7 +34,7 @@ class TaskTemplateDetailState(ReflexMainState):
             return current_object.to_dto()
         return None
 
-    async def _get_project_template(self) -> Optional[ProjectTemplateDTO]:
+    async def _get_project_template(self) -> ProjectTemplateDTO | None:
         """Return the current project template DTO.
 
         :return: The current project template DTO
@@ -50,7 +47,7 @@ class TaskTemplateDetailState(ReflexMainState):
         return None
 
     @rx.var
-    async def parent_task_template(self) -> Optional[TaskTemplateDTO]:
+    async def parent_task_template(self) -> TaskTemplateDTO | None:
         """Return the parent task template DTO if this is a subtask template.
 
         :return: The parent task template DTO or None
@@ -66,8 +63,9 @@ class TaskTemplateDetailState(ReflexMainState):
 
     async def open_create_subtask_template_dialog(self):
         """Open the create subtask template dialog."""
-        from ..task_template_form_dialog.task_template_form_dialog_state import \
-            TaskTemplateFormDialogState
+        from ..task_template_form_dialog.task_template_form_dialog_state import (
+            TaskTemplateFormDialogState,
+        )
 
         form_state = await self.get_state(TaskTemplateFormDialogState)
 
@@ -83,8 +81,7 @@ class TaskTemplateDetailState(ReflexMainState):
     async def _on_create_subtask_template_dialog_close(self, task_template: TaskTemplate):
         """Callback after the create subtask template dialog is closed to refresh subtasks."""
         # Refresh the page to show the new subtask template
-        from ..task_template_list.task_template_list_state import \
-            TaskTemplateListState
+        from ..task_template_list.task_template_list_state import TaskTemplateListState
         task_template_list_state = await self.get_state(TaskTemplateListState)
         task_template_list_state.add_or_update_task_template(task_template)
 

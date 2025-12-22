@@ -1,17 +1,21 @@
 from datetime import datetime
 from enum import Enum
-from typing import List, Literal, Optional
+from typing import Literal
 
 import reflex as rx
 from gws_core import UserDTO
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
-from gws_project.task.task_dto import (CreateTaskDTO, TaskDTO, TaskPriority,
-                                       TaskStatus, UpdateTaskDTO)
+from gws_project.task.task_dto import (
+    CreateTaskDTO,
+    TaskDTO,
+    TaskPriority,
+    TaskStatus,
+    UpdateTaskDTO,
+)
 from gws_project.task.task_service import TaskService
-from gws_reflex_main import (FormDialogState, ReflexDialogCloseEvent,
-                             ReflexMainState)
+from gws_reflex_main import FormDialogState, ReflexDialogCloseEvent, ReflexMainState
 
 
 class TaskFormMode(Enum):
@@ -24,10 +28,10 @@ class TaskFormMode(Enum):
 class TaskFormDialogState(FormDialogState, rx.State):
     """State management for the create/update task dialog functionality."""
 
-    _project: Optional[ProjectDTO] = None
+    _project: ProjectDTO | None = None
 
     # Task being edited (None for create mode)
-    _editing_task: Optional[TaskDTO] = None
+    _editing_task: TaskDTO | None = None
 
     # Project for creating new tasks
     _project: ProjectDTO | None = None
@@ -39,7 +43,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
     _form_mode: str = TaskFormMode.CREATE_ROOT.value
 
     # List of users available for assignment
-    users: List[UserDTO] = []
+    users: list[UserDTO] = []
 
     # Form field default values
     form_title: str = ""
@@ -53,7 +57,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
     # Track selected task type in create root mode
     selected_task_type: Literal['with_children', 'without_children'] = "without_children"
 
-    _callback_after_close: Optional[ReflexDialogCloseEvent[Task]] = None
+    _callback_after_close: ReflexDialogCloseEvent[Task] | None = None
 
     def set_selected_task_type(self, value: str):
         """Set the selected task type (with_children or without_children).
@@ -91,7 +95,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         # Show for all other cases (create root without subtasks, update regular task, update subtask)
         return True
 
-    async def _init_form_fields(self, task: Optional[TaskDTO] = None):
+    async def _init_form_fields(self, task: TaskDTO | None = None):
         """Initialize form fields for create or update mode.
 
         Args:
@@ -251,7 +255,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         # Open the dialog
         await self.open_dialog()
 
-    def _validate_and_parse_create_task_form_data(self, form_data: dict) -> Optional[CreateTaskDTO]:
+    def _validate_and_parse_create_task_form_data(self, form_data: dict) -> CreateTaskDTO | None:
         """Validate and parse form data into a CreateTaskDTO for create operations.
 
         Args:
@@ -277,7 +281,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
             assign_to_id=common_fields.get('assign_to_id')
         )
 
-    def _validate_and_parse_update_task_form_data(self, form_data: dict) -> Optional[UpdateTaskDTO]:
+    def _validate_and_parse_update_task_form_data(self, form_data: dict) -> UpdateTaskDTO | None:
         """Validate and parse form data into an UpdateTaskDTO for update operations.
 
         Args:

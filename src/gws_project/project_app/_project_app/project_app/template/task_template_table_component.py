@@ -1,4 +1,3 @@
-from typing import List
 
 import reflex as rx
 from gws_project.template.task_template_dto import TaskTemplateDTO
@@ -9,7 +8,7 @@ from ..common.project_app_router import ProjectAppRouter
 
 
 def task_template_table_component(
-    task_templates: List[TaskTemplateDTO],
+    task_templates: list[TaskTemplateDTO],
     empty_message: str = "No task templates found"
 ) -> rx.Component:
     """Create a reusable task template table component.
@@ -122,8 +121,7 @@ def _actions_menu(task_template: TaskTemplateDTO) -> rx.Component:
     :return: The actions menu component
     :rtype: rx.Component
     """
-    from .task_template_list.task_template_list_state import \
-        TaskTemplateListState
+    from .task_template_list.task_template_list_state import TaskTemplateListState
 
     return rx.menu.root(
         rx.menu.trigger(

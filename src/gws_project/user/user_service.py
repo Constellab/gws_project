@@ -1,11 +1,10 @@
 
 
-from typing import List
 
 from .user import User
 
 
-class UserService():
+class UserService:
     """
     Service for managing users in the gws_project database.
 
@@ -14,7 +13,7 @@ class UserService():
     """
 
     @classmethod
-    def get_all_users(cls) -> List[User]:
+    def get_all_users(cls) -> list[User]:
         """
         Get all users from gws_project database.
 

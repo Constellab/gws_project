@@ -1,7 +1,20 @@
-from gws_core import (AppConfig, AppType, ConfigParams, ConfigSpecs,
-                      InputSpecs, OutputSpec, OutputSpecs, ReflexResource,
-                      Task, TaskInputs, TaskOutputs, TypingIconColor,
-                      TypingStyle, app_decorator, task_decorator)
+from gws_core import (
+    AppConfig,
+    AppType,
+    ConfigParams,
+    ConfigSpecs,
+    InputSpecs,
+    OutputSpec,
+    OutputSpecs,
+    ReflexResource,
+    Task,
+    TaskInputs,
+    TaskOutputs,
+    TypingIconColor,
+    TypingStyle,
+    app_decorator,
+    task_decorator,
+)
 
 
 @app_decorator("ProjectAppAppConfig", app_type=AppType.REFLEX,

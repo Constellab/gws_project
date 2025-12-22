@@ -1,10 +1,8 @@
-from typing import List
 
 import reflex as rx
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.project_template_dto import ProjectTemplateDTO
-from gws_project.template.project_template_service import \
-    ProjectTemplateService
+from gws_project.template.project_template_service import ProjectTemplateService
 from gws_reflex_main import ReflexMainState
 
 from ...common.project_app_router import ProjectAppRouter
@@ -16,7 +14,7 @@ class ProjectTemplateListState(ReflexMainState):
     This state handles fetching and displaying the list of project templates.
     """
 
-    project_templates: List[ProjectTemplateDTO] = []
+    project_templates: list[ProjectTemplateDTO] = []
     is_loading: bool = False
     error_message: str = ""
 
@@ -35,7 +33,7 @@ class ProjectTemplateListState(ReflexMainState):
         self.error_message = ""
 
         try:
-            templates: List[ProjectTemplate]
+            templates: list[ProjectTemplate]
             with await self.authenticate_user():
                 template_service = ProjectTemplateService()
                 templates = template_service.get_all_templates()

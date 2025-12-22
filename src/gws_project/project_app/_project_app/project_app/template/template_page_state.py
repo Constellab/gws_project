@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from gws_project.template.project_template import ProjectTemplate
-from gws_project.template.project_template_service import \
-    ProjectTemplateService
+from gws_project.template.project_template_service import ProjectTemplateService
 from gws_project.template.task_template import TaskTemplate
 from gws_project.template.task_template_service import TaskTemplateService
 from gws_reflex_main import ReflexMainState
@@ -24,9 +23,9 @@ class TemplatePageState(ReflexMainState):
     """
 
     # Private cache for storing the loaded object
-    _cached_object: Optional[Union[ProjectTemplate, TaskTemplate]] = None
+    _cached_object: ProjectTemplate | TaskTemplate | None = None
 
-    async def get_url_params(self) -> Optional[TemplateUrlParam]:
+    async def get_url_params(self) -> TemplateUrlParam | None:
         """Get the current object ID from URL parameters.
 
         This method checks for task_template_id_param and project_template_id_param in the URL
@@ -45,7 +44,7 @@ class TemplatePageState(ReflexMainState):
 
         return None
 
-    async def project_template(self) -> Optional[ProjectTemplate]:
+    async def project_template(self) -> ProjectTemplate | None:
         """Get the current project template from URL parameters.
 
         :return: The loaded ProjectTemplate object, or None if not found
@@ -60,7 +59,7 @@ class TemplatePageState(ReflexMainState):
 
         return None
 
-    async def task_template(self) -> Optional[TaskTemplate]:
+    async def task_template(self) -> TaskTemplate | None:
         """Get the current task template from URL parameters.
 
         :return: The loaded TaskTemplate object, or None if not found
@@ -71,7 +70,7 @@ class TemplatePageState(ReflexMainState):
             return obj
         return None
 
-    async def get_object(self) -> Union[ProjectTemplate, TaskTemplate, None]:
+    async def get_object(self) -> ProjectTemplate | TaskTemplate | None:
         """Get the current project template or task template from URL parameters with caching.
 
         This method automatically detects the object type and ID from URL parameters:
@@ -119,7 +118,7 @@ class TemplatePageState(ReflexMainState):
             else:
                 return None
 
-    async def refresh_object(self) -> Union[ProjectTemplate, TaskTemplate, None]:
+    async def refresh_object(self) -> ProjectTemplate | TaskTemplate | None:
         """Refresh (reload) the current object from URL parameters.
 
         This method forces a reload of the object from the database, even if it's cached.

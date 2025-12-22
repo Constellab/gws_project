@@ -6,7 +6,9 @@ from ...common.detail_page_layout import detail_page_layout
 from ...common.page_layout import page_layout
 from ...common.priority_chip_component import priority_chip
 from ...common.task_components import task_template_icon_component
-from ..task_template_form_dialog.task_template_form_dialog_component import task_template_form_dialog
+from ..task_template_form_dialog.task_template_form_dialog_component import (
+    task_template_form_dialog,
+)
 from ..task_template_list.task_template_list_component import task_template_list_component
 from ..template_breadcrumb_state import TemplateBreadcrumbState
 from .task_template_detail_state import TaskTemplateDetailState

@@ -1,4 +1,3 @@
-from typing import List
 
 import reflex as rx
 from gws_project.template.project_template import ProjectTemplate
@@ -16,7 +15,7 @@ class TemplateBreadcrumbState(ReflexMainState):
     """
 
     @rx.var
-    async def breadcrumbs(self) -> List[BreadcrumbItem]:
+    async def breadcrumbs(self) -> list[BreadcrumbItem]:
         """Get breadcrumb items for the current template page.
 
         This method gets the current template object from TemplatePageState and builds
@@ -45,7 +44,7 @@ class TemplateBreadcrumbState(ReflexMainState):
 
         return items
 
-    def _build_breadcrumb_for_project_template(self, project_template: ProjectTemplate) -> List[BreadcrumbItem]:
+    def _build_breadcrumb_for_project_template(self, project_template: ProjectTemplate) -> list[BreadcrumbItem]:
         """Build breadcrumb items for a project template.
 
         :param project_template: The project template object
@@ -57,7 +56,7 @@ class TemplateBreadcrumbState(ReflexMainState):
             BreadcrumbItem(label=project_template.name, url=f"/template/project/{project_template.id}")
         ]
 
-    def _build_breadcrumb_for_task_template(self, task_template: TaskTemplate) -> List[BreadcrumbItem]:
+    def _build_breadcrumb_for_task_template(self, task_template: TaskTemplate) -> list[BreadcrumbItem]:
         """Build breadcrumb items for a task template.
 
         This includes the project template, all ancestor task templates (for unlimited hierarchy),

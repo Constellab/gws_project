@@ -1,13 +1,12 @@
 
 
-from typing import List
 
 from gws_core import BadRequestException, RichText, RichTextDTO
+
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.task_template import TaskTemplate
-from gws_project.template.task_template_dto import (SaveTaskTemplateDTO,
-                                                    UpdateTaskTemplateDTO)
+from gws_project.template.task_template_dto import SaveTaskTemplateDTO, UpdateTaskTemplateDTO
 
 
 class TaskTemplateService:
@@ -28,7 +27,7 @@ class TaskTemplateService:
         """
         return TaskTemplate.get_by_id_and_check(task_template_id)
 
-    def get_root_tasks_of_template(self, template_id: str) -> List[TaskTemplate]:
+    def get_root_tasks_of_template(self, template_id: str) -> list[TaskTemplate]:
         """Get all root task templates for a project template.
 
         :param template_id: The ID of the project template
@@ -38,7 +37,7 @@ class TaskTemplateService:
         """
         return TaskTemplate.get_root_tasks_of_template(template_id)
 
-    def get_subtasks_of_task_template(self, task_template_id: str) -> List[TaskTemplate]:
+    def get_subtasks_of_task_template(self, task_template_id: str) -> list[TaskTemplate]:
         """Get all subtasks for a task template.
 
         :param task_template_id: The ID of the task template

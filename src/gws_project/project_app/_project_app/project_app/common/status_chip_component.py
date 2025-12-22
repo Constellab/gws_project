@@ -1,6 +1,7 @@
 """Status chip component for displaying task status with color-coded badges."""
 
-from typing import Callable, Literal
+from collections.abc import Callable
+from typing import Literal
 
 import reflex as rx
 from gws_project.task.task_dto import TaskStatus

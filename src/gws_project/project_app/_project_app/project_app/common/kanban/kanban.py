@@ -1,12 +1,11 @@
 """Reflex wrapper for React Kanban board component using @dnd-kit."""
 
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
 import reflex as rx
 from gws_core import BaseModelDTO
-from reflex.vars import Var
-
 from gws_project.task.task_dto import TaskDTO, TaskStatus
+from reflex.vars import Var
 
 # Path to the custom TSX component
 kanban_path = rx.asset("kanban_board.tsx", shared=True)
@@ -28,12 +27,12 @@ class CardDTO(BaseModelDTO):
     """
     id: str
     title: str
-    description: Optional[str] = None
-    priority: Optional[str] = None
-    assignee: Optional[str] = None
-    parent_task_title: Optional[str] = None
+    description: str | None = None
+    priority: str | None = None
+    assignee: str | None = None
+    parent_task_title: str | None = None
     is_leaf: bool = True
-    project_name: Optional[str] = None
+    project_name: str | None = None
 
 
 class ColumnDTO(BaseModelDTO):
@@ -46,7 +45,7 @@ class ColumnDTO(BaseModelDTO):
     """
     id: str
     title: str
-    cards: List[CardDTO] = []
+    cards: list[CardDTO] = []
 
 
 class BoardDataDTO(BaseModelDTO):
@@ -55,7 +54,7 @@ class BoardDataDTO(BaseModelDTO):
     Attributes:
         columns: List of columns in the board
     """
-    columns: List[ColumnDTO]
+    columns: list[ColumnDTO]
 
 
 class CardMoveEvent(BaseModelDTO):
@@ -139,7 +138,7 @@ kanban_board = KanbanBoard.create
 
 
 def build_kanban_board_data(
-    tasks: List[TaskDTO],
+    tasks: list[TaskDTO],
     task_to_card_converter: Callable[[TaskDTO], CardDTO]
 ) -> BoardDataDTO:
     """Build kanban board data from a list of tasks.

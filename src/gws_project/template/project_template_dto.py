@@ -1,6 +1,5 @@
 
 
-from typing import Optional
 
 from gws_core import BaseModelDTO, ModelDTO, RichTextDTO, UserDTO
 
@@ -13,6 +12,6 @@ class SaveProjectTemplateDTO(BaseModelDTO):
 class ProjectTemplateDTO(ModelDTO):
     """DTO for displaying project template information in the frontend"""
     name: str
-    description: Optional[RichTextDTO]
+    description: RichTextDTO | None
     created_by: UserDTO
     last_modified_by: UserDTO
