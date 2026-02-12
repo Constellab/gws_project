@@ -3,13 +3,16 @@ from gws_project.project_app._project_app.project_app.common.progress_bar import
 from gws_project.task.task_dto import TaskDTO
 from gws_reflex_main import user_inline_component
 
-from ..common.project_app_router import ProjectAppRouter
-from ..common.task_components import task_icon_component
-from .priority_chip_component import priority_chip
-from .status_chip_component import status_chip
+from ..priority_chip_component import priority_chip
+from ..project_app_router import ProjectAppRouter
+from ..status_chip_component import status_chip
+from .task_actions_menu import task_actions_menu
+from .task_components import task_icon_component
 
 
-def task_table_component(tasks: list[TaskDTO], empty_message: str = "No tasks found") -> rx.Component:
+def task_table_component(
+    tasks: list[TaskDTO], empty_message: str = "No tasks found"
+) -> rx.Component:
     """Create a reusable task table component.
 
     This component displays a table of tasks with columns for title, description,
@@ -62,6 +65,8 @@ def _task_row(task: TaskDTO) -> rx.Component:
     :return: The task row component
     :rtype: rx.Component
     """
+    from ...task_list.task_list_state import TaskListState
+
     return rx.table.row(
         rx.table.cell(
             rx.hstack(
@@ -93,35 +98,21 @@ def _task_row(task: TaskDTO) -> rx.Component:
         ),
         rx.table.cell(priority_chip(task.priority)),
         rx.table.cell(user_inline_component(task.assign_to)),
-        rx.table.cell(rx.box(_actions_menu(task), display="flex", justify_content="flex-end", align_items="center")),
+        rx.table.cell(
+            rx.box(
+                task_actions_menu(
+                    on_update=lambda: TaskListState.open_update_task_dialog(task.id),
+                    on_delete=lambda: TaskListState.open_delete_task_dialog(task),
+                    on_change_type=lambda: TaskListState.open_change_task_type_dialog(task),
+                    stop_propagation=True,
+                ),
+                display="flex",
+                justify_content="flex-end",
+                align_items="center",
+            )
+        ),
         style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
         on_click=lambda: rx.redirect(ProjectAppRouter.get_task_detail_url(task.id)),
     )
 
 
-def _actions_menu(subtask: TaskDTO) -> rx.Component:
-    """Create the actions menu for a subtask.
-
-    :param subtask: The subtask data transfer object
-    :type subtask: TaskDTO
-    :return: The actions menu component
-    :rtype: rx.Component
-    """
-    from ..task_list.task_list_state import TaskListState
-
-    return rx.menu.root(
-        rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", size="2")),
-        rx.menu.content(
-            rx.menu.item(
-                rx.icon("pencil", size=16), "Update", on_click=lambda: TaskListState.open_update_task_dialog(subtask.id)
-            ),
-            rx.menu.separator(),
-            rx.menu.item(
-                rx.icon("trash_2", size=16),
-                "Delete",
-                color="red",
-                on_click=lambda: TaskListState.open_delete_task_dialog(subtask),
-            ),
-            on_click=lambda: rx.stop_propagation,  # Prevent row click event
-        ),
-    )

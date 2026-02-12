@@ -1,7 +1,6 @@
-
 import reflex as rx
 
-from ..common.task_table_component import task_table_component
+from ..common.tasks.task_table_component import task_table_component
 from ..project_detail.project_detail_state import ProjectDetailState
 from .task_list_state import TaskListState
 
@@ -26,24 +25,16 @@ def task_list_component() -> rx.Component:
                 rx.center(
                     rx.vstack(
                         rx.spinner(size="3"),
-                        rx.text(
-                            "Loading tasks...",
-                            size="3",
-                            color="gray",
-                            margin_top="1rem"
-                        ),
+                        rx.text("Loading tasks...", size="3", color="gray", margin_top="1rem"),
                         spacing="2",
-                        align="center"
+                        align="center",
                     ),
                     padding="3rem",
                     width="100%",
                     flex="1",
                     min_height="0",
                 ),
-                task_table_component(
-                    tasks=TaskListState.get_tasks,
-                    empty_message="No tasks found"
-                ),
+                task_table_component(tasks=TaskListState.get_tasks, empty_message="No tasks found"),
             ),
             # Trigger background fetch when component mounts
             on_mount=TaskListState.fetch_tasks_on_mount,
@@ -77,11 +68,10 @@ def task_list_view() -> rx.Component:
                 "Create Task",
                 variant="soft",
                 size="2",
-                on_click=ProjectDetailState.open_create_task_dialog
+                on_click=ProjectDetailState.open_create_task_dialog,
             ),
             width="100%",
-            align="center"
-
+            align="center",
         ),
         # Tasks list content
         task_list_component(),
@@ -91,5 +81,4 @@ def task_list_view() -> rx.Component:
         # full height but not overflow parent
         flex="1",
         min_height="0",
-
     )

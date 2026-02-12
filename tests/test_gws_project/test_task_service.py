@@ -1016,3 +1016,227 @@ class TestTaskService(BaseTestCase):
         # Project progress should be 100%
         refreshed_project = Project.get_by_id(project.id)
         self.assertEqual(refreshed_project.progress, 100)
+
+    def test_update_allow_subtasks_leaf_to_parent(self):
+        """Test converting a normal task (leaf) to a parent task (allow_subtasks=True).
+        Properties should be reset to empty-parent defaults."""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # Create a leaf task with specific values
+        task_dto = CreateTaskDTO(
+            title="Leaf Task",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 15),
+            status=TaskStatus.DOING,
+            priority=TaskPriority.HIGH,
+            allow_subtasks=False,
+            assign_to_id=current_user.id,
+        )
+        task = task_service.create_root_task(project.id, task_dto)
+        self.assertFalse(task.allow_subtasks)
+        self.assertEqual(task.status, TaskStatus.DOING)
+        self.assertEqual(task.priority, TaskPriority.HIGH)
+
+        # Convert to parent task
+        updated_task = task_service.update_allow_subtasks(task.id, True)
+
+        # Verify conversion
+        self.assertTrue(updated_task.allow_subtasks)
+        # Properties should be reset to empty-parent defaults
+        self.assertEqual(updated_task.status, TaskStatus.TODO)
+        self.assertEqual(updated_task.priority, TaskPriority.MEDIUM)
+        self.assertEqual(updated_task.start_date, project.start_date.date())
+        self.assertEqual(updated_task.end_date, project.end_date.date())
+        self.assertEqual(updated_task.progress, 0)
+
+        # Verify subtask creation now works
+        sub_dto = CreateTaskDTO(
+            title="New Subtask",
+            start_date=date(2025, 3, 5),
+            end_date=date(2025, 3, 10),
+            assign_to_id=current_user.id,
+        )
+        subtask = task_service.create_sub_task(updated_task.id, sub_dto)
+        self.assertIsNotNone(subtask)
+
+    def test_update_allow_subtasks_parent_to_leaf_no_subtasks(self):
+        """Test converting a parent task to a leaf task when it has no subtasks"""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # Create a parent task with no subtasks
+        task_dto = CreateTaskDTO(
+            title="Parent Task",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 31),
+            status=TaskStatus.TODO,
+            allow_subtasks=True,
+            assign_to_id=current_user.id,
+        )
+        task = task_service.create_root_task(project.id, task_dto)
+        self.assertTrue(task.allow_subtasks)
+
+        # Convert to leaf task
+        updated_task = task_service.update_allow_subtasks(task.id, False)
+
+        # Verify conversion
+        self.assertFalse(updated_task.allow_subtasks)
+        self.assertEqual(updated_task.progress, 0)  # TODO -> progress 0
+
+        # Verify manual status update now works (was blocked for parent tasks)
+        updated_task = task_service.update_status(updated_task.id, TaskStatus.DONE)
+        self.assertEqual(updated_task.status, TaskStatus.DONE)
+
+    def test_update_allow_subtasks_parent_to_leaf_with_subtasks_fails(self):
+        """Test that converting a parent task to leaf fails if it has existing subtasks"""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # Create a parent task
+        parent_dto = CreateTaskDTO(
+            title="Parent Task",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 31),
+            allow_subtasks=True,
+            assign_to_id=current_user.id,
+        )
+        parent_task = task_service.create_root_task(project.id, parent_dto)
+
+        # Create a subtask
+        sub_dto = CreateTaskDTO(
+            title="Subtask",
+            start_date=date(2025, 3, 5),
+            end_date=date(2025, 3, 10),
+            assign_to_id=current_user.id,
+        )
+        task_service.create_sub_task(parent_task.id, sub_dto)
+
+        # Try to convert to leaf - should fail
+        with self.assertRaises(BadRequestException) as context:
+            task_service.update_allow_subtasks(parent_task.id, False)
+        self.assertIn("existing subtasks", str(context.exception))
+
+        # Verify task is still a parent
+        refreshed = Task.get_by_id(parent_task.id)
+        self.assertTrue(refreshed.allow_subtasks)
+
+    def test_update_allow_subtasks_no_op_same_value(self):
+        """Test that calling update_allow_subtasks with the same value is a no-op"""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        task_dto = CreateTaskDTO(
+            title="Leaf Task",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 15),
+            allow_subtasks=False,
+            assign_to_id=current_user.id,
+        )
+        task = task_service.create_root_task(project.id, task_dto)
+
+        # No-op call
+        result = task_service.update_allow_subtasks(task.id, False)
+        self.assertFalse(result.allow_subtasks)
+        self.assertEqual(result.id, task.id)
+
+    def test_update_allow_subtasks_parent_to_leaf_progress_done(self):
+        """Test progress adjustment when converting a parent with TODO status to leaf,
+        then verify DONE status gives progress 100"""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # Create parent, add subtask, complete it, delete it
+        parent_dto = CreateTaskDTO(
+            title="Parent Task",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 31),
+            allow_subtasks=True,
+            assign_to_id=current_user.id,
+        )
+        parent = task_service.create_root_task(project.id, parent_dto)
+
+        sub_dto = CreateTaskDTO(
+            title="Subtask",
+            start_date=date(2025, 3, 5),
+            end_date=date(2025, 3, 10),
+            assign_to_id=current_user.id,
+        )
+        subtask = task_service.create_sub_task(parent.id, sub_dto)
+        task_service.update_status(subtask.id, TaskStatus.DONE)
+
+        # Delete the subtask - parent resets to TODO/0 via update_from_subtasks
+        task_service.delete_task(subtask.id)
+
+        refreshed_parent = Task.get_by_id(parent.id)
+        self.assertEqual(refreshed_parent.status, TaskStatus.TODO)
+
+        # Convert to leaf - progress should be 0 (status is TODO)
+        updated = task_service.update_allow_subtasks(parent.id, False)
+        self.assertFalse(updated.allow_subtasks)
+        self.assertEqual(updated.progress, 0)
+
+        # Set status to DONE and verify progress
+        updated = task_service.update_status(updated.id, TaskStatus.DONE)
+        self.assertEqual(updated.progress, 100)
+
+    def test_update_allow_subtasks_subtask_propagates_to_ancestors(self):
+        """Test that changing allow_subtasks on a nested task propagates to ancestors"""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # Create grandparent (allows subtasks)
+        grandparent_dto = CreateTaskDTO(
+            title="Grandparent",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 31),
+            allow_subtasks=True,
+            assign_to_id=current_user.id,
+        )
+        grandparent = task_service.create_root_task(project.id, grandparent_dto)
+
+        # Create child as leaf task
+        child_dto = CreateTaskDTO(
+            title="Child (leaf)",
+            start_date=date(2025, 3, 5),
+            end_date=date(2025, 3, 15),
+            allow_subtasks=False,
+            assign_to_id=current_user.id,
+        )
+        child = task_service.create_sub_task(grandparent.id, child_dto)
+        self.assertFalse(child.allow_subtasks)
+
+        # Convert child to parent
+        child = task_service.update_allow_subtasks(child.id, True)
+        self.assertTrue(child.allow_subtasks)
+
+        # Now add a subtask to the converted child and mark it DONE
+        grandchild_dto = CreateTaskDTO(
+            title="Grandchild",
+            start_date=date(2025, 3, 6),
+            end_date=date(2025, 3, 10),
+            assign_to_id=current_user.id,
+        )
+        grandchild = task_service.create_sub_task(child.id, grandchild_dto)
+        task_service.update_status(grandchild.id, TaskStatus.DONE)
+
+        # Verify propagation: child should be DONE (100%), grandparent should reflect it
+        refreshed_child = Task.get_by_id(child.id)
+        self.assertEqual(refreshed_child.status, TaskStatus.DONE)
+        self.assertEqual(refreshed_child.progress, 100)
+
+        refreshed_grandparent = Task.get_by_id(grandparent.id)
+        self.assertEqual(refreshed_grandparent.progress, 100)
+        self.assertEqual(refreshed_grandparent.status, TaskStatus.DONE)

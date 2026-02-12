@@ -9,7 +9,8 @@ from ..common.page_layout import page_layout
 from ..common.priority_chip_component import priority_chip
 from ..common.progress_bar import progress_bar
 from ..common.status_chip_component import status_chip
-from ..common.task_components import task_icon_component
+from ..common.tasks.task_actions_menu import task_actions_menu
+from ..common.tasks.task_components import task_icon_component
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_list.task_list_component import task_list_component
 from .task_detail_state import TaskDetailState
@@ -30,18 +31,11 @@ def task_header() -> rx.Component:
             size="6",
         ),
         rx.spacer(),
-        # Action menu (Update and Delete)
-        rx.menu.root(
-            rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray")),
-            rx.menu.content(
-                rx.menu.item(
-                    rx.icon("pencil", size=16), "Update Task", on_click=TaskDetailState.open_update_task_dialog
-                ),
-                rx.menu.separator(),
-                rx.menu.item(
-                    rx.icon("trash_2", size=16), "Delete", color="red", on_click=TaskDetailState.open_delete_task_dialog
-                ),
-            ),
+        # Action menu (Update, Change Type, and Delete)
+        task_actions_menu(
+            on_update=TaskDetailState.open_update_task_dialog,
+            on_delete=TaskDetailState.open_delete_task_dialog,
+            on_change_type=TaskDetailState.open_change_task_type_dialog,
         ),
         width="100%",
         align="center",
@@ -74,7 +68,9 @@ def task_description() -> rx.Component:
             value=TaskDetailState.task.description,
             disabled=~TaskDetailState.description_edit_mode,
             output_event=TaskDetailState.handle_description_change,
-            custom_style=rx.cond(TaskDetailState.description_edit_mode, {"minHeight": "750px"}, {"padding": "0"}),
+            custom_style=rx.cond(
+                TaskDetailState.description_edit_mode, {"minHeight": "750px"}, {"padding": "0"}
+            ),
         ),
         width="100%",
         spacing="2",
@@ -166,7 +162,10 @@ def details_sidebar() -> rx.Component:
                     rx.cond(
                         TaskDetailState.subtask_members.length() > 0,
                         rx.flex(
-                            rx.foreach(TaskDetailState.subtask_members, lambda user: user_inline_component(user)),
+                            rx.foreach(
+                                TaskDetailState.subtask_members,
+                                lambda user: user_inline_component(user),
+                            ),
                             direction="column",
                             spacing="1",
                         ),
@@ -251,7 +250,9 @@ def task_detail() -> rx.Component:
     return rx.cond(
         TaskDetailState.task,
         detail_page_layout(
-            main_content=main_content_area(), sidebar_content=details_sidebar(), breadcrumbs=BreadcrumbState.breadcrumbs
+            main_content=main_content_area(),
+            sidebar_content=details_sidebar(),
+            breadcrumbs=BreadcrumbState.breadcrumbs,
         ),
     )
 

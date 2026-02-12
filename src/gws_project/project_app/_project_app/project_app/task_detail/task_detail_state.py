@@ -204,6 +204,57 @@ class TaskDetailState(ReflexMainState):
                 # If we are on the deleted task's detail page, redirect to project detail
                 yield rx.redirect(ProjectAppRouter.get_project_detail_url(current_object.project.id))
 
+    @rx.event
+    async def open_change_task_type_dialog(self):
+        """Open a confirmation dialog to change the task type (allow_subtasks)."""
+        task = await self.task
+        if not task:
+            yield
+            return
+
+        confirm_dialog_state = await self.get_state(ConfirmDialogState)
+
+        if task.allow_subtasks:
+            # Converting parent -> leaf
+            confirm_dialog_state.open_dialog(
+                title="Convert to normal task",
+                content="Are you sure you want to convert this task to a normal task? "
+                "Status, priority, dates and progress will become manually managed.",
+                action=self._change_task_type_action,
+            )
+        else:
+            # Converting leaf -> parent
+            confirm_dialog_state.open_dialog(
+                title="Convert to task with subtasks",
+                content="Are you sure you want to convert this task to a task with subtasks? "
+                "Status, priority, dates and progress will be automatically calculated from subtasks.",
+                action=self._change_task_type_action,
+            )
+
+    async def _change_task_type_action(self):
+        """Action to toggle the task type after confirmation."""
+        task = await self.task
+        if not task:
+            yield
+            return
+
+        new_allow_subtasks = not task.allow_subtasks
+
+        with await self.authenticate_user():
+            task_service = TaskService()
+            task_service.update_allow_subtasks(task.id, new_allow_subtasks)
+
+        yield rx.toast.success("Task type changed successfully")
+
+        # Refresh the current task
+        project_page_state = await self.get_state(ProjectPageState)
+        await project_page_state.refresh_object()
+
+        # Refresh the task list
+        task_list_state = await self.get_state(TaskListState)
+        task_list_state._url_params = None
+        task_list_state._tasks = []
+
     async def update_status(self, new_status: str):
         """Handle status change for the task.
 

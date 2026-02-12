@@ -18,7 +18,8 @@ class Task(ModelWithUser):
     Business rules:
     - If allow_subtasks = TRUE: status calculated automatically from subtasks
     - If allow_subtasks = FALSE: status managed manually
-    - The allow_subtasks field cannot be modified after creation
+    - The allow_subtasks field can be changed via TaskService.update_allow_subtasks()
+    - Converting parent->leaf is only allowed if the task has no existing subtasks
     """
 
     project = ForeignKeyField(Project, on_delete="CASCADE", null=False, backref="+")

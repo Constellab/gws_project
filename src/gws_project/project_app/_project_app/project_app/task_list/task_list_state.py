@@ -146,6 +146,40 @@ class TaskListState(ReflexMainState):
         )
 
     @rx.event
+    async def open_change_task_type_dialog(self, task: TaskDTO):
+        """Open a confirmation dialog to change the task type (allow_subtasks).
+
+        :param task: The task to change the type of
+        :type task: TaskDTO
+        """
+        confirm_dialog_state = await self.get_state(ConfirmDialogState)
+
+        if task.allow_subtasks:
+            confirm_dialog_state.open_dialog(
+                title="Convert to normal task",
+                content="Are you sure you want to convert this task to a normal task? "
+                "Status, priority, dates and progress will become manually managed.",
+                action=lambda: self._change_task_type_action(task.id, False),
+            )
+        else:
+            confirm_dialog_state.open_dialog(
+                title="Convert to task with subtasks",
+                content="Are you sure you want to convert this task to a task with subtasks? "
+                "Status, priority, dates and progress will be automatically calculated from subtasks.",
+                action=lambda: self._change_task_type_action(task.id, True),
+            )
+
+    async def _change_task_type_action(self, task_id: str, allow_subtasks: bool):
+        """Action to change the task type after confirmation."""
+        with await self.authenticate_user():
+            task_service = TaskService()
+            updated_task = task_service.update_allow_subtasks(task_id, allow_subtasks)
+
+        yield rx.toast.success("Task type changed successfully")
+
+        await self.add_or_update_task(updated_task)
+
+    @rx.event
     async def open_delete_task_dialog(self, task: TaskDTO):
         """Open the delete task confirmation dialog.
 
