@@ -25,7 +25,10 @@ def documents_list_view() -> rx.Component:
                 id="document_upload",
                 multiple=True,
                 on_drop=DocumentsListState.handle_upload(
-                    rx.upload_files("document_upload", on_upload_progress=DocumentsListState.handle_upload_progress)
+                    rx.upload_files(
+                        "document_upload",
+                        on_upload_progress=DocumentsListState.handle_upload_progress,
+                    )
                 ),
             ),
             width="100%",
@@ -57,7 +60,8 @@ def _documents_content() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.cond(
-        DocumentsListState.pagination_state.is_loading & (DocumentsListState.pagination_state.documents.length() == 0),
+        DocumentsListState.pagination_state.is_loading
+        & (DocumentsListState.pagination_state.documents.length() == 0),
         # Loading state - show spinner
         rx.center(
             rx.vstack(
@@ -156,7 +160,11 @@ def _document_row(document: DocumentInfo) -> rx.Component:
     :rtype: rx.Component
     """
     return rx.table.row(
-        rx.table.cell(rx.hstack(_document_icon(document.type), rx.text(document.name), spacing="2", align="center")),
+        rx.table.cell(
+            rx.hstack(
+                _document_icon(document.type), rx.text(document.name), spacing="2", align="center"
+            )
+        ),
         rx.table.cell(rx.text(document.type, size="2", color="gray")),
         rx.table.cell(
             rx.hstack(
@@ -304,6 +312,8 @@ def _rename_document_dialog() -> rx.Component:
                 justify="end",
             ),
             style={"max_width": 450},
+            on_interact_outside=DocumentsListState.close_rename_dialog,
+            on_escape_key_down=DocumentsListState.close_rename_dialog,
         ),
         open=DocumentsListState.rename_dialog_open,
     )

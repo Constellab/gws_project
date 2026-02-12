@@ -163,6 +163,7 @@ def manage_users_dialog() -> rx.Component:
                     margin_top="1rem",
                 ),
                 max_width="600px",
+                on_interact_outside=ManageUsersDialogState.close_dialog,
             ),
             open=ManageUsersDialogState.dialog_opened,
         ),

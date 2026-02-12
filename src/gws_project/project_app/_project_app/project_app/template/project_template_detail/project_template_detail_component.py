@@ -22,7 +22,9 @@ def template_action_menu() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.menu.root(
-        rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray")),
+        rx.menu.trigger(
+            rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray")
+        ),
         rx.menu.content(
             rx.menu.item(
                 rx.icon("pencil", size=16),
@@ -51,7 +53,9 @@ def delete_confirmation_dialog() -> rx.Component:
     return rx.alert_dialog.root(
         rx.alert_dialog.content(
             rx.alert_dialog.title("Delete Template"),
-            rx.alert_dialog.description("Are you sure you want to delete this template? This action cannot be undone."),
+            rx.alert_dialog.description(
+                "Are you sure you want to delete this template? This action cannot be undone."
+            ),
             rx.hstack(
                 rx.alert_dialog.cancel(
                     rx.button(
@@ -158,14 +162,23 @@ def info_section() -> rx.Component:
             user_inline_component(TemplateDetailState.project_template.created_by),
             # Created at
             rx.text("Created at", size="2", color="gray", weight="medium"),
-            rx.text(rx.moment(TemplateDetailState.project_template.created_at, format="MMM D, YYYY HH:mm"), size="2"),
+            rx.text(
+                rx.moment(
+                    TemplateDetailState.project_template.created_at, format="MMM D, YYYY HH:mm"
+                ),
+                size="2",
+            ),
             # Last modified by
             rx.text("Last modified by", size="2", color="gray", weight="medium"),
             user_inline_component(TemplateDetailState.project_template.last_modified_by),
             # Last modified at
             rx.text("Last modified at", size="2", color="gray", weight="medium"),
             rx.text(
-                rx.moment(TemplateDetailState.project_template.last_modified_at, format="MMM D, YYYY HH:mm"), size="2"
+                rx.moment(
+                    TemplateDetailState.project_template.last_modified_at,
+                    format="MMM D, YYYY HH:mm",
+                ),
+                size="2",
             ),
             columns="2",
             spacing="3",
