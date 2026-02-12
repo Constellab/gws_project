@@ -162,7 +162,8 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
         main_state: ReflexMainState = await self.get_state(ReflexMainState)
 
         with await main_state.authenticate_user():
-            space_service = SpaceService()
+            # we use the SpaceService with token mode because this app is used within the space so the user might not be in the lab
+            space_service = SpaceService("gws-project")
             self.groups = space_service.get_current_lab_all_groups()
 
     async def _get_project_id(self) -> str:

@@ -35,7 +35,10 @@ class TaskService:
         :param space_service: Optional SpaceService instance to use for Space operations
         :type space_service: Optional[SpaceService]
         """
-        self._space_service = space_service if space_service is not None else SpaceService()
+        # we use the SpaceService with token mode because this app is used within the space so the user might not be in the lab
+        self._space_service = (
+            space_service if space_service is not None else SpaceService("gws-project")
+        )
 
     def get_task(self, task_id: str) -> Task:
         """Get a task by ID and check if the current user has access to it.
@@ -76,7 +79,9 @@ class TaskService:
         :raises UnauthorizedException: If the user doesn't have access to the parent task
         """
         security_service = ProjectSecurityService()
-        parent_task = security_service.get_and_check_role_for_task(parent_task_id, ProjectUserRole.USER)
+        parent_task = security_service.get_and_check_role_for_task(
+            parent_task_id, ProjectUserRole.USER
+        )
 
         return Task.get_subtasks_of_task(parent_task.id)
 
@@ -129,7 +134,9 @@ class TaskService:
         """
         # Get the parent task and ensure it exists
         security_service = ProjectSecurityService()
-        parent_task = security_service.get_and_check_role_for_task(parent_task_id, ProjectUserRole.USER)
+        parent_task = security_service.get_and_check_role_for_task(
+            parent_task_id, ProjectUserRole.USER
+        )
 
         # Check that the parent task allows subtasks
         if not parent_task.allow_subtasks:
@@ -176,12 +183,16 @@ class TaskService:
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
         title_has_changed = task.title != task_dto.title
-        dates_have_changed = (task.start_date != task_dto.start_date) or (task.end_date != task_dto.end_date)
+        dates_have_changed = (task.start_date != task_dto.start_date) or (
+            task.end_date != task_dto.end_date
+        )
 
         # Check if this task has subtasks (is a parent task)
         if task.is_leaf_task():
             # For root tasks, validate against project dates
-            self._validate_task_dates_within_project(task.project, task_dto.start_date, task_dto.end_date)
+            self._validate_task_dates_within_project(
+                task.project, task_dto.start_date, task_dto.end_date
+            )
 
             # Update the task fields from DTO
             if task_dto.start_date:
@@ -195,7 +206,9 @@ class TaskService:
 
         task.title = task_dto.title
         if task_dto.assign_to_id is not None:
-            task.assign_to = self._validate_assign_to_in_project(task.project.id, task_dto.assign_to_id)
+            task.assign_to = self._validate_assign_to_in_project(
+                task.project.id, task_dto.assign_to_id
+            )
 
         # Save the task to the database
         task.save()
@@ -206,7 +219,11 @@ class TaskService:
         # If this is a task with a space folder, update the folder in Space
         if task.space_folder_id and (title_has_changed or dates_have_changed):
             space_folder = ExternalSpaceCreateFolder(
-                name=task.title, code=None, tags=None, starting_date=task.start_date, ending_date=task.end_date
+                name=task.title,
+                code=None,
+                tags=None,
+                starting_date=task.start_date,
+                ending_date=task.end_date,
             )
 
             # Call space service to update the folder
@@ -367,7 +384,9 @@ class TaskService:
             except BaseHTTPException as e:
                 if e.status_code == 404:
                     # Folder not found in Space, proceed with task deletion
-                    Logger.warning(f"Space folder {space_folder_id} not found. Proceeding with task deletion.")
+                    Logger.warning(
+                        f"Space folder {space_folder_id} not found. Proceeding with task deletion."
+                    )
                 else:
                     # Reraise other exceptions
                     raise e
@@ -413,7 +432,9 @@ class TaskService:
         )
 
         # Call space service to create the child folder
-        created_folder = self._space_service.create_child_folder(root_task.project.space_folder_id, space_folder)
+        created_folder = self._space_service.create_child_folder(
+            root_task.project.space_folder_id, space_folder
+        )
 
         # Update task with the space folder ID
         root_task.space_folder_id = created_folder.id
@@ -421,7 +442,9 @@ class TaskService:
 
         return root_task.space_folder_id
 
-    def _validate_task_dates_within_project(self, project: Project, task_start_date: date, task_end_date: date) -> None:
+    def _validate_task_dates_within_project(
+        self, project: Project, task_start_date: date, task_end_date: date
+    ) -> None:
         """Validate that task dates are within project dates.
 
         :param project: The project
@@ -640,7 +663,9 @@ class TaskService:
         task_end_date = task_start_date + timedelta(days=max(task_template.duration_days - 1, 0))
 
         # Determine the user to assign the task to using role mapping
-        assign_to_user_id = self._get_assign_to_user_id_from_role(task_template.assign_to_role, role_mapping)
+        assign_to_user_id = self._get_assign_to_user_id_from_role(
+            task_template.assign_to_role, role_mapping
+        )
 
         # Create task DTO
         task_dto = CreateTaskDTO(
@@ -672,7 +697,9 @@ class TaskService:
         # Create subtasks recursively
         subtasks = TaskTemplate.get_subtasks_of_template_task(task_template.id)
         for subtask_template in subtasks:
-            self.create_task_from_template(project, subtask_template, project_start_date, role_mapping, task)
+            self.create_task_from_template(
+                project, subtask_template, project_start_date, role_mapping, task
+            )
 
         return task
 

@@ -35,7 +35,8 @@ class DocumentService:
         :param task_service: Optional TaskService instance to use for task operations
         :type task_service: Optional[TaskService]
         """
-        self._space_service = space_service if space_service is not None else SpaceService()
+        # we use the SpaceService with token mode because this app is used within the space so the user might not be in the lab
+        self._space_service = space_service if space_service is not None else SpaceService('gws-project')
         self._task_service = task_service if task_service is not None else TaskService()
 
     def get_project_documents(self, project_id: str, page: int, size: int) -> PageDTO[SpaceHierarchyObjectDTO]:

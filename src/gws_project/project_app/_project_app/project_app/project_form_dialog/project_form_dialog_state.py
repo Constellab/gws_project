@@ -52,7 +52,8 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             self.available_templates = [t.to_dto() for t in templates]
 
             # Load users from space. Load only user because role assignemnt is per user.
-            space_service = SpaceService()
+            # we use the SpaceService with token mode because this app is used within the space so the user might not be in the lab
+            space_service = SpaceService("gws-project")
             groups = space_service.get_current_lab_all_groups()
             available_users: list[UserDTO] = []
             for group in groups:
@@ -124,7 +125,9 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         main_state = await self.get_state(ReflexMainState)
         with await main_state.authenticate_user():
             project_service = ProjectService()
-            self.project_users = [pu.user.to_dto() for pu in project_service.get_project_users(project.id)]
+            self.project_users = [
+                pu.user.to_dto() for pu in project_service.get_project_users(project.id)
+            ]
 
         # Mark as editing
         self.is_update_mode = True
@@ -163,7 +166,10 @@ class ProjectFormDialogState(FormDialogState, rx.State):
 
         # Create and return the SaveProjectDTO
         return SaveProjectDTO(
-            name=name, start_date=start_date, end_date=end_date, project_manager_id=project_manager_id
+            name=name,
+            start_date=start_date,
+            end_date=end_date,
+            project_manager_id=project_manager_id,
         )
 
     async def _create(self, form_data: dict):
@@ -226,7 +232,9 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         # Validate that all roles have been assigned
         if len(self.role_mapping) != len(self.template_roles):
             missing_roles = [role for role in self.template_roles if role not in self.role_mapping]
-            raise Exception(f"Please assign users to all roles. Missing: {', '.join(missing_roles)}")
+            raise Exception(
+                f"Please assign users to all roles. Missing: {', '.join(missing_roles)}"
+            )
 
         # Parse start date
         start_date = datetime.fromisoformat(start_date_str)
@@ -242,7 +250,9 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         # Create the project from template
         with await main_state.authenticate_user():
             project_service = ProjectService()
-            created_project = project_service.create_project_from_template(self.selected_template_id, create_dto)
+            created_project = project_service.create_project_from_template(
+                self.selected_template_id, create_dto
+            )
 
         return created_project
 

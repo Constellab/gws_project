@@ -47,7 +47,10 @@ class ProjectService:
         :param space_service: Optional SpaceService instance to use for Space operations
         :type space_service: Optional[SpaceService]
         """
-        self._space_service = space_service if space_service is not None else SpaceService()
+        # we use the SpaceService with token mode because this app is used within the space so the user might not be in the lab
+        self._space_service = (
+            space_service if space_service is not None else SpaceService("gws-project")
+        )
 
     def get_project(self, project_id: str) -> Project:
         """Get a project by ID and check if the current user has access to it.
@@ -84,7 +87,10 @@ class ProjectService:
         current_user = CurrentUserService.get_and_check_current_user()
 
         return list(
-            Project.select().join(ProjectUser).where(ProjectUser.user == current_user.id).order_by(Project.title)
+            Project.select()
+            .join(ProjectUser)
+            .where(ProjectUser.user == current_user.id)
+            .order_by(Project.title)
         )
 
     def search_current_user_projects_with_root_tasks(
@@ -126,7 +132,9 @@ class ProjectService:
             root_tasks_dtos = [task.to_dto() for task in root_tasks]
 
             # Create the combined DTO
-            project_with_tasks = ProjectWithRootTasksDTO(project=project.to_dto(), root_tasks=root_tasks_dtos)
+            project_with_tasks = ProjectWithRootTasksDTO(
+                project=project.to_dto(), root_tasks=root_tasks_dtos
+            )
             result.append(project_with_tasks)
 
         return result
@@ -161,11 +169,15 @@ class ProjectService:
 
         # Create the project model from DTO
         project_manager = (
-            User.get_by_id_and_check(project_dto.project_manager_id) if project_dto.project_manager_id else current_user
+            User.get_by_id_and_check(project_dto.project_manager_id)
+            if project_dto.project_manager_id
+            else current_user
         )
         project = Project()
         project.title = project_dto.name
-        project.description = project_dto.description or RichText().to_dto()  # Initialize with empty rich text
+        project.description = (
+            project_dto.description or RichText().to_dto()
+        )  # Initialize with empty rich text
         project.start_date = project_dto.start_date
         project.end_date = project_dto.end_date
         project.project_manager = project_manager
@@ -228,7 +240,9 @@ class ProjectService:
         project.end_date = project_dto.end_date
         if project_dto.project_manager_id:
             # Verify that the user is in the project
-            project_user = ProjectUser.get_by_project_and_user(project.id, project_dto.project_manager_id)
+            project_user = ProjectUser.get_by_project_and_user(
+                project.id, project_dto.project_manager_id
+            )
 
             if not project_user:
                 raise BadRequestException("The new project manager is not a member of the project.")
@@ -304,7 +318,9 @@ class ProjectService:
         if project.space_folder_id:
             # Convert ProjectUserRole to SpaceRootFolderUserRole
             space_role = SpaceRootFolderUserRole[role.name]
-            folder_users = self._space_service.share_root_folder(project.space_folder_id, group_id, space_role)
+            folder_users = self._space_service.share_root_folder(
+                project.space_folder_id, group_id, space_role
+            )
 
             # Handle the case where folder_users is None (for mock testing)
             for folder_user in folder_users:
@@ -318,7 +334,9 @@ class ProjectService:
                 # use the role return from Space to ensure consistency (it might be different than provided
                 # role, if user was already shared with different role)
                 space_folder_role = ProjectUserRole.from_space_folder_user_role(folder_user.role)
-                project_user = ProjectUser.create_or_update(project=project, user=user, role=space_folder_role)
+                project_user = ProjectUser.create_or_update(
+                    project=project, user=user, role=space_folder_role
+                )
                 project_users.append(project_user)
 
         return project_users
@@ -417,7 +435,9 @@ class ProjectService:
             # Convert ProjectUserRole to SpaceRootFolderUserRole
             space_role = SpaceRootFolderUserRole[role.name]
             # Update the user role in the folder
-            self._space_service.update_folder_user_role(project.space_folder_id, user_id, space_role)
+            self._space_service.update_folder_user_role(
+                project.space_folder_id, user_id, space_role
+            )
 
         return project_user
 
@@ -467,7 +487,9 @@ class ProjectService:
         root_task_templates = TaskTemplate.get_root_tasks_of_template(project_template_id)
 
         # Calculate the project end_date based on template tasks
-        end_date = self._calculate_project_end_date_from_template(project_dto.start_date, root_task_templates)
+        end_date = self._calculate_project_end_date_from_template(
+            project_dto.start_date, root_task_templates
+        )
 
         # Create the project using SaveProjectDTO
         save_project_dto = SaveProjectDTO(
@@ -500,7 +522,9 @@ class ProjectService:
 
         return project
 
-    def _calculate_project_end_date_from_template(self, project_start_date, task_templates: list[TaskTemplate]):
+    def _calculate_project_end_date_from_template(
+        self, project_start_date, task_templates: list[TaskTemplate]
+    ):
         """Calculate the project end date based on all task templates.
 
         Recursively processes all task templates (including subtasks) to find
