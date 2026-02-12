@@ -1,4 +1,3 @@
-
 import reflex as rx
 from gws_project.task.task_dto import TaskDTO
 from gws_project.task.task_service import TaskService
@@ -59,19 +58,12 @@ class TaskListState(ReflexMainState):
         """
         # Get current URL params and check if we need to fetch
         async with self:
-
+            self._tasks = []  # Clear current tasks before loading new ones
             project_state = await self.get_state(ProjectPageState)
             url_param = await project_state.get_url_params()
 
             if not url_param:
                 return
-
-            # Check if we already have tasks for this URL param
-            previous_id = self._url_params.id if self._url_params else None
-            current_id = url_param.id if url_param else None
-
-            if previous_id == current_id and len(self._tasks) > 0:
-                return  # Already loaded for this URL param
 
             # Set loading state
             self._url_params = url_param
@@ -140,10 +132,7 @@ class TaskListState(ReflexMainState):
 
         form_state = await self.get_state(TaskFormDialogState)
 
-        await form_state.open_update_dialog(
-            task=task,
-            callback_after_close=self.add_or_update_task
-        )
+        await form_state.open_update_dialog(task=task, callback_after_close=self.add_or_update_task)
 
     @rx.event
     async def open_change_task_type_dialog(self, task: TaskDTO):
@@ -196,7 +185,7 @@ class TaskListState(ReflexMainState):
         delete_dialog_state.open_dialog(
             title="Delete Task",
             content=f"Are you sure you want to delete this task?{warning}",
-            action=lambda: self._delete_action(task.id)
+            action=lambda: self._delete_action(task.id),
         )
 
     async def _delete_action(self, task_id: str):

@@ -83,14 +83,18 @@ class DocumentsListState(ReflexMainState):
             DocumentInfo(
                 id=doc.id,
                 name=doc.name,
-                url=space_front_service.get_hierarchy_object_url(object_id=doc.id, object_type=doc.objectType),
+                url=space_front_service.get_hierarchy_object_url(
+                    object_id=doc.id, object_type=doc.objectType
+                ),
                 type=doc.objectType,
             )
             for doc in self._pagination.documents
         ]
 
         return PaginationStateFront(
-            documents=documents, has_more=self._pagination.has_more, is_loading=self._pagination.is_loading
+            documents=documents,
+            has_more=self._pagination.has_more,
+            is_loading=self._pagination.is_loading,
         )
 
     @rx.event(background=True)  # type: ignore
@@ -112,13 +116,11 @@ class DocumentsListState(ReflexMainState):
             if not current_object:
                 return
 
-            # Check if we already have documents for this object
-            if self._cached_object_id == current_object.id:
-                return  # Already loaded for this object
-
             # Set loading state
             self._cached_object_id = current_object.id
-            self._pagination = PaginationState(documents=[], page=0, page_size=20, has_more=True, is_loading=True)
+            self._pagination = PaginationState(
+                documents=[], page=0, page_size=20, has_more=True, is_loading=True
+            )
 
         # Fetch documents outside of async with block
         try:
@@ -127,9 +129,13 @@ class DocumentsListState(ReflexMainState):
 
                 # Use the appropriate service method based on object type
                 if isinstance(current_object, Task):
-                    page_result = document_service.get_task_documents(task_id=current_object.id, page=0, size=20)
+                    page_result = document_service.get_task_documents(
+                        task_id=current_object.id, page=0, size=20
+                    )
                 else:  # Project
-                    page_result = document_service.get_project_documents(project_id=current_object.id, page=0, size=20)
+                    page_result = document_service.get_project_documents(
+                        project_id=current_object.id, page=0, size=20
+                    )
 
                 async with self:
                     self._pagination = PaginationState(
@@ -141,7 +147,9 @@ class DocumentsListState(ReflexMainState):
                     )
         except Exception as e:
             async with self:
-                self._pagination = PaginationState(documents=[], page=0, page_size=20, has_more=False, is_loading=False)
+                self._pagination = PaginationState(
+                    documents=[], page=0, page_size=20, has_more=False, is_loading=False
+                )
             raise e
 
     async def _get_current_object(self) -> Task | Project | None:
@@ -182,7 +190,9 @@ class DocumentsListState(ReflexMainState):
         else:  # Project
             return current_object.id
 
-    async def _fetch_documents_page(self, current_object: Task | Project, page: int, append: bool = False):
+    async def _fetch_documents_page(
+        self, current_object: Task | Project, page: int, append: bool = False
+    ):
         """Fetch a page of documents from the appropriate service.
 
         :param current_object: The current task or project object
@@ -389,7 +399,9 @@ class DocumentsListState(ReflexMainState):
         try:
             with await self.authenticate_user():
                 document_service = DocumentService()
-                document_service.rename_document(project_id=project_id, document_id=document_id, name=document_name)
+                document_service.rename_document(
+                    project_id=project_id, document_id=document_id, name=document_name
+                )
 
             # Update the document name in the local list
             updated_documents = []
@@ -488,7 +500,9 @@ class DocumentsListState(ReflexMainState):
                 document_service.delete_document(project_id=project_id, document_id=document_id)
 
             # Remove the document from the local list
-            filtered_documents = [doc for doc in self._pagination.documents if doc.id != document_id]
+            filtered_documents = [
+                doc for doc in self._pagination.documents if doc.id != document_id
+            ]
             self._pagination = PaginationState(
                 documents=filtered_documents,
                 page=self._pagination.page,
