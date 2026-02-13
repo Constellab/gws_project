@@ -342,6 +342,65 @@ class TaskService:
         return task
 
     @ProjectDbManager.transaction()
+    def update_allow_subtasks(self, task_id: str, allow_subtasks: bool) -> Task:
+        """Update whether a task allows subtasks (convert between parent and leaf task).
+
+        Converting to allow_subtasks=True (leaf -> parent):
+        - Always allowed since leaf tasks have no children.
+        - Status, priority, dates, and progress are recalculated to empty-parent defaults
+          (TODO, MEDIUM, project dates, 0 progress) via update_from_subtasks().
+
+        Converting to allow_subtasks=False (parent -> leaf):
+        - Only allowed if the task has NO existing subtasks.
+        - Progress is adjusted to match the current status: 0 for TODO/DOING, 100 for DONE.
+
+        After either conversion, the ancestor chain is recalculated.
+
+        :param task_id: The ID of the task to update
+        :type task_id: str
+        :param allow_subtasks: The new value for allow_subtasks
+        :type allow_subtasks: bool
+        :return: The updated task
+        :rtype: Task
+        :raises BadRequestException: If converting parent->leaf and task has existing subtasks
+        """
+        # Get the task and ensure it exists
+        security_service = ProjectSecurityService()
+        task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
+
+        # No-op if value is already the same
+        if task.allow_subtasks == allow_subtasks:
+            return task
+
+        if allow_subtasks:
+            # Converting leaf -> parent
+            task.allow_subtasks = True
+            # Reset to empty-parent defaults (auto-calculated mode)
+            task.update_from_subtasks()
+        else:
+            # Converting parent -> leaf: validate no existing subtasks
+            existing_subtasks = Task.get_subtasks_of_task(task.id)
+            if existing_subtasks:
+                raise BadRequestException(
+                    "Cannot convert to a normal task because this task has existing subtasks. "
+                    "Please delete all subtasks first."
+                )
+            task.allow_subtasks = False
+            # Adjust progress to match status for the new leaf task
+            if task.status == TaskStatus.DONE:
+                task.progress = 100
+            else:
+                task.progress = 0
+
+        # Save the task to the database
+        task.save()
+
+        # Propagate changes up the ancestor chain
+        self._recalculate_parent_info(task)
+
+        return task
+
+    @ProjectDbManager.transaction()
     def delete_task(self, task_id: str) -> None:
         """Delete a task and all its descendants recursively.
 

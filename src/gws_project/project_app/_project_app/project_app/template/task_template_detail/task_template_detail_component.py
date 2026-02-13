@@ -5,7 +5,7 @@ from gws_reflex_main.gws_components import rich_text_component
 from ...common.detail_page_layout import detail_page_layout
 from ...common.page_layout import page_layout
 from ...common.priority_chip_component import priority_chip
-from ...common.task_components import task_template_icon_component
+from ...common.tasks.task_components import task_template_icon_component
 from ..task_template_form_dialog.task_template_form_dialog_component import (
     task_template_form_dialog,
 )
@@ -31,7 +31,11 @@ def task_template_header() -> rx.Component:
         rx.spacer(),
         # Action menu (Update and Delete)
         rx.menu.root(
-            rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray")),
+            rx.menu.trigger(
+                rx.button(
+                    rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray"
+                )
+            ),
             rx.menu.content(
                 rx.menu.item(
                     rx.icon("pencil", size=16),
@@ -40,7 +44,7 @@ def task_template_header() -> rx.Component:
                 ),
                 rx.menu.separator(),
                 rx.menu.item(
-                    rx.icon("trash_2", size=16),
+                    rx.icon("trash-2", size=16),
                     "Delete",
                     color="red",
                     on_click=TaskTemplateDetailState.open_delete_task_template_dialog,
@@ -65,7 +69,9 @@ def task_template_description() -> rx.Component:
             rx.heading("Description", size="4", weight="bold"),
             rx.spacer(),
             rx.button(
-                rx.icon(rx.cond(TaskTemplateDetailState.description_edit_mode, "eye", "pencil"), size=16),
+                rx.icon(
+                    rx.cond(TaskTemplateDetailState.description_edit_mode, "eye", "pencil"), size=16
+                ),
                 rx.cond(TaskTemplateDetailState.description_edit_mode, "View", "Edit"),
                 variant="soft",
                 size="2",
@@ -79,7 +85,9 @@ def task_template_description() -> rx.Component:
             disabled=~TaskTemplateDetailState.description_edit_mode,
             output_event=TaskTemplateDetailState.handle_description_change,
             custom_style=rx.cond(
-                TaskTemplateDetailState.description_edit_mode, {"minHeight": "750px"}, {"padding": "0"}
+                TaskTemplateDetailState.description_edit_mode,
+                {"minHeight": "750px"},
+                {"padding": "0"},
             ),
         ),
         width="100%",
@@ -129,7 +137,12 @@ def main_content_area() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        task_template_description(), task_template_subtasks(), width="100%", spacing="3", align_items="start", flex="1"
+        task_template_description(),
+        task_template_subtasks(),
+        width="100%",
+        spacing="3",
+        align_items="start",
+        flex="1",
     )
 
 
@@ -160,7 +173,10 @@ def details_sidebar() -> rx.Component:
             rx.cond(
                 TaskTemplateDetailState.task_template.assign_to_role,
                 rx.badge(
-                    TaskTemplateDetailState.task_template.assign_to_role, variant="soft", color_scheme="blue", size="2"
+                    TaskTemplateDetailState.task_template.assign_to_role,
+                    variant="soft",
+                    color_scheme="blue",
+                    size="2",
                 ),
                 rx.text("Unassigned", size="2", color="gray", font_style="italic"),
             ),
@@ -188,7 +204,9 @@ def details_sidebar() -> rx.Component:
             # Created at
             rx.text("Created at", size="2", color="gray", weight="medium"),
             rx.text(
-                rx.moment(TaskTemplateDetailState.task_template.created_at, format="MMM D, YYYY HH:mm"),
+                rx.moment(
+                    TaskTemplateDetailState.task_template.created_at, format="MMM D, YYYY HH:mm"
+                ),
                 size="2",
             ),
             # Last modified by
@@ -197,7 +215,10 @@ def details_sidebar() -> rx.Component:
             # Last modified at
             rx.text("Last modified at", size="2", color="gray", weight="medium"),
             rx.text(
-                rx.moment(TaskTemplateDetailState.task_template.last_modified_at, format="MMM D, YYYY HH:mm"),
+                rx.moment(
+                    TaskTemplateDetailState.task_template.last_modified_at,
+                    format="MMM D, YYYY HH:mm",
+                ),
                 size="2",
             ),
             columns="2",
