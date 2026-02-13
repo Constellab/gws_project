@@ -164,7 +164,7 @@ def details_sidebar() -> rx.Component:
                         rx.flex(
                             rx.foreach(
                                 TaskDetailState.subtask_members,
-                                lambda user: user_inline_component(user),
+                                user_inline_component,
                             ),
                             direction="column",
                             spacing="1",

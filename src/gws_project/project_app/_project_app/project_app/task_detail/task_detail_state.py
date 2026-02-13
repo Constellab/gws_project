@@ -111,7 +111,9 @@ class TaskDetailState(ReflexMainState):
             yield rx.toast.error("Task not found")
             return
 
-        await form_state.open_update_dialog(task=task, callback_after_close=self._on_update_task_dialog_close)
+        await form_state.open_update_dialog(
+            task=task, callback_after_close=self._on_update_task_dialog_close
+        )
 
     async def _on_update_task_dialog_close(self, _: Task):
         """Callback after the update task dialog is closed to refresh the task.
@@ -199,10 +201,14 @@ class TaskDetailState(ReflexMainState):
         if isinstance(current_object, Task):
             if current_object.parent_task:
                 # If we are on a subtask's detail page, redirect to parent task
-                yield rx.redirect(ProjectAppRouter.get_task_detail_url(current_object.parent_task.id))
+                yield rx.redirect(
+                    ProjectAppRouter.get_task_detail_url(current_object.parent_task.id)
+                )
             else:
                 # If we are on the deleted task's detail page, redirect to project detail
-                yield rx.redirect(ProjectAppRouter.get_project_detail_url(current_object.project.id))
+                yield rx.redirect(
+                    ProjectAppRouter.get_project_detail_url(current_object.project.id)
+                )
 
     @rx.event
     async def open_change_task_type_dialog(self):
@@ -252,8 +258,7 @@ class TaskDetailState(ReflexMainState):
 
         # Refresh the task list
         task_list_state = await self.get_state(TaskListState)
-        task_list_state._url_params = None
-        task_list_state._tasks = []
+        task_list_state.clear_state()  # Clear task list state to force reload of tasks when navigating back to list
 
     async def update_status(self, new_status: str):
         """Handle status change for the task.

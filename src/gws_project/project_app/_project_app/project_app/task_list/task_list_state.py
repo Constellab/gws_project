@@ -212,3 +212,9 @@ class TaskListState(ReflexMainState):
         # Refresh current object because sub task might affect parent task data
         project_state = await self.get_state(ProjectPageState)
         await project_state.refresh_object()
+
+    def clear_state(self):
+        """Clear the state when leaving the page."""
+        self._tasks = []
+        self._url_params = None
+        self.is_loading = False

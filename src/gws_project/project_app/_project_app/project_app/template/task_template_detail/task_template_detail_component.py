@@ -44,7 +44,7 @@ def task_template_header() -> rx.Component:
                 ),
                 rx.menu.separator(),
                 rx.menu.item(
-                    rx.icon("trash_2", size=16),
+                    rx.icon("trash-2", size=16),
                     "Delete",
                     color="red",
                     on_click=TaskTemplateDetailState.open_delete_task_template_dialog,

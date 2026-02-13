@@ -47,17 +47,25 @@ def project_action_menu() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.menu.root(
-        rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray")),
+        rx.menu.trigger(
+            rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray")
+        ),
         rx.menu.content(
             rx.menu.item(
                 rx.icon("pencil", size=16),
                 "Update Project",
-                on_click=lambda: ProjectFormDialogState.open_update_dialog(ProjectDetailState.project),
+                on_click=lambda: ProjectFormDialogState.open_update_dialog(
+                    ProjectDetailState.project
+                ),
             ),
-            rx.menu.item(rx.icon("users", size=16), "Manage Users", on_click=ManageUsersDialogState.open_dialog),
+            rx.menu.item(
+                rx.icon("users", size=16),
+                "Manage Users",
+                on_click=ManageUsersDialogState.open_dialog,
+            ),
             rx.menu.separator(),
             rx.menu.item(
-                rx.icon("trash_2", size=16),
+                rx.icon("trash-2", size=16),
                 "Delete Project",
                 color="red",
                 on_click=ProjectDetailState.open_delete_project_dialog,
@@ -142,7 +150,9 @@ def details_sidebar() -> rx.Component:
             ),
             # Start date
             rx.text("Start date", size="2", color="gray", weight="medium"),
-            rx.text(rx.moment(ProjectDetailState.project.start_date, format="MMM D, YYYY"), size="2"),
+            rx.text(
+                rx.moment(ProjectDetailState.project.start_date, format="MMM D, YYYY"), size="2"
+            ),
             # End date
             rx.text("End date", size="2", color="gray", weight="medium"),
             rx.text(rx.moment(ProjectDetailState.project.end_date, format="MMM D, YYYY"), size="2"),
