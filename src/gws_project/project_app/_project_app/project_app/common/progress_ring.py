@@ -1,19 +1,27 @@
+from typing import Literal
+
 import reflex as rx
 
 
-def progress_ring(progress: rx.Var[int], size: int = 44) -> rx.Component:
-    """Create a circular progress ring component inspired by example.jsx ProgressRing.
+def progress_ring(
+    progress: rx.Var[int],
+    size: Literal["normal", "big"] = "normal",
+) -> rx.Component:
+    """Create a circular progress ring component.
 
     :param progress: The progress value (0-100)
     :type progress: rx.Var[int]
-    :param size: The size of the ring in pixels
-    :type size: int
+    :param size: Predefined size - "normal" (44px) for tables/lists, "big" (80px) for detail views
+    :type size: Literal["normal", "big"]
     :return: The progress ring component
     :rtype: rx.Component
     """
-    r = (size - 6) / 2
+    pixel_size = 80 if size == "big" else 44
+    font_size = "14px" if size == "big" else "10px"
+
+    r = (pixel_size - 6) / 2
     circ = 2 * 3.14159265 * r
-    half = size / 2
+    half = pixel_size / 2
 
     return rx.box(
         rx.el.svg(
@@ -49,8 +57,8 @@ def progress_ring(progress: rx.Var[int], size: int = 44) -> rx.Component:
                     "transition": "stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1)",
                 },
             ),
-            width=str(size),
-            height=str(size),
+            width=str(pixel_size),
+            height=str(pixel_size),
             style={"transform": "rotate(-90deg)"},
         ),
         rx.text(
@@ -63,10 +71,10 @@ def progress_ring(progress: rx.Var[int], size: int = 44) -> rx.Component:
                 "display": "flex",
                 "align-items": "center",
                 "justify-content": "center",
-                "font-size": "10px",
+                "font-size": font_size,
             },
         ),
         position="relative",
-        width=f"{size}px",
-        height=f"{size}px",
+        width=f"{pixel_size}px",
+        height=f"{pixel_size}px",
     )

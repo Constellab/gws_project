@@ -21,15 +21,7 @@ from .template.project_template_list.project_template_list_component import (
 from .template.project_template_list.project_template_list_state import ProjectTemplateListState
 from .template.task_template_detail.task_template_detail_component import task_template_detail_page
 
-app = register_gws_reflex_app(
-    app=rx.App(
-        theme=rx.theme(
-            gray_color="sage",
-            appearance=os.environ.get("GWS_THEME", "light"),
-            radius="large",
-        )
-    )
-)
+app = register_gws_reflex_app()
 
 
 # Declare the project list page as the index page

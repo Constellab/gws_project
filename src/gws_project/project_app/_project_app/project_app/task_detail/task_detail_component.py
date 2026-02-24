@@ -1,7 +1,8 @@
 import reflex as rx
-from gws_reflex_main import main_component, user_inline_component
+from gws_reflex_main import main_component, right_sidebar_open_button, user_inline_component
 from gws_reflex_main.gws_components import rich_text_component
 
+from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
 from ..common.detail_page_layout import detail_page_layout
 from ..common.documents_list.documents_list_component import documents_list_view
@@ -238,25 +239,6 @@ def details_sidebar() -> rx.Component:
     )
 
 
-def task_detail() -> rx.Component:
-    """Create the task detail page component.
-
-    This component displays all details of a single task using a Jira-like layout
-    with main content on the left and a details sidebar on the right.
-
-    :return: The task detail page component
-    :rtype: rx.Component
-    """
-    return rx.cond(
-        TaskDetailState.task,
-        detail_page_layout(
-            main_content=main_content_area(),
-            sidebar_content=details_sidebar(),
-            breadcrumbs=BreadcrumbState.breadcrumbs,
-        ),
-    )
-
-
 def task_detail_page() -> rx.Component:
     """Create the task detail page component.
 
@@ -268,12 +250,16 @@ def task_detail_page() -> rx.Component:
     """
     return main_component(
         page_layout(
-            rx.vstack(
-                # Task details in two-column layout with breadcrumb
-                task_detail(),
-                width="100%",
+            rx.cond(
+                TaskDetailState.task,
+                detail_page_layout(
+                    main_content=main_content_area(),
+                    header_content=task_header(),
+                    header_right_content=right_sidebar_open_button(),
+                ),
             ),
-            header_content=task_header(),
+            header_content=breadcrumb_component(BreadcrumbState.breadcrumbs),
+            right_sidebar_content=details_sidebar(),
         ),
         # Add the task form dialog
         task_form_dialog(),

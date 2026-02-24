@@ -38,6 +38,8 @@ def page_layout(
     content: rx.Component,
     header_content: rx.Component | None = None,
     height: str | None = None,
+    right_sidebar_content: rx.Component | None = None,
+    right_sidebar_width: str = "450px",
     **kwargs,
 ) -> rx.Component:
     """Create a common page layout with left sidebar menu and main content area.
@@ -50,6 +52,10 @@ def page_layout(
     :type header_content: rx.Component | None
     :param height: The height of the layout (optional)
     :type height: str | None
+    :param right_sidebar_content: Optional content for a right sidebar panel (optional)
+    :type right_sidebar_content: rx.Component | None
+    :param right_sidebar_width: The width of the right sidebar (default: "450px")
+    :type right_sidebar_width: str
     :return: The page layout component
     :rtype: rx.Component
     """
@@ -58,5 +64,7 @@ def page_layout(
         content=content,
         header_content=header_content,
         height=height,
+        right_sidebar_content=right_sidebar_content,
+        right_sidebar_width=right_sidebar_width,
         **kwargs,
     )

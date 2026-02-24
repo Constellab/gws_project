@@ -1,7 +1,8 @@
 import reflex as rx
-from gws_reflex_main import main_component, user_inline_component
+from gws_reflex_main import main_component, right_sidebar_open_button, user_inline_component
 from gws_reflex_main.gws_components import rich_text_component
 
+from ...common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ...common.detail_page_layout import detail_page_layout
 from ...common.page_layout import page_layout
 from ..project_template_form_dialog.project_template_form_dialog_component import (
@@ -231,10 +232,11 @@ def project_template_detail_page() -> rx.Component:
         page_layout(
             detail_page_layout(
                 main_content=main_content_area(),
-                sidebar_content=info_section(),
-                breadcrumbs=TemplateBreadcrumbState.breadcrumbs,
+                header_content=header(),
+                header_right_content=right_sidebar_open_button(),
             ),
-            header_content=header(),
+            header_content=breadcrumb_component(TemplateBreadcrumbState.breadcrumbs),
+            right_sidebar_content=info_section(),
             on_mount=TemplateDetailState.init,
         ),
         # Dialogs

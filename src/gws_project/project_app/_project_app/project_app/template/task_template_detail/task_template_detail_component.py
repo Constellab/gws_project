@@ -1,7 +1,8 @@
 import reflex as rx
-from gws_reflex_main import main_component, user_inline_component
+from gws_reflex_main import main_component, right_sidebar_open_button, user_inline_component
 from gws_reflex_main.gws_components import rich_text_component
 
+from ...common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ...common.detail_page_layout import detail_page_layout
 from ...common.page_layout import page_layout
 from ...common.priority_chip_component import priority_chip
@@ -232,25 +233,6 @@ def details_sidebar() -> rx.Component:
     )
 
 
-def task_template_detail() -> rx.Component:
-    """Create the task template detail page component.
-
-    This component displays all details of a single task template using a Jira-like layout
-    with main content in the middle and a details sidebar on the right.
-
-    :return: The task template detail page component
-    :rtype: rx.Component
-    """
-    return rx.cond(
-        TaskTemplateDetailState.task_template,
-        detail_page_layout(
-            main_content=main_content_area(),
-            sidebar_content=details_sidebar(),
-            breadcrumbs=TemplateBreadcrumbState.breadcrumbs,
-        ),
-    )
-
-
 def task_template_detail_page() -> rx.Component:
     """Create the task template detail page component.
 
@@ -262,12 +244,16 @@ def task_template_detail_page() -> rx.Component:
     """
     return main_component(
         page_layout(
-            rx.vstack(
-                # Task template details in two-column layout
-                task_template_detail(),
-                width="100%",
+            rx.cond(
+                TaskTemplateDetailState.task_template,
+                detail_page_layout(
+                    main_content=main_content_area(),
+                    header_content=task_template_header(),
+                    header_right_content=right_sidebar_open_button(),
+                ),
             ),
-            header_content=task_template_header(),
+            header_content=breadcrumb_component(TemplateBreadcrumbState.breadcrumbs),
+            right_sidebar_content=details_sidebar(),
         ),
         # Add the task template form dialog
         task_template_form_dialog(),

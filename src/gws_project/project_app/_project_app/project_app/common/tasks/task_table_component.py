@@ -90,7 +90,7 @@ def _task_row(task: TaskDTO) -> rx.Component:
         rx.table.cell(
             rx.vstack(
                 status_chip(task.status),
-                progress_ring(task.progress, size=36),
+                progress_ring(task.progress),
                 spacing="2",
                 align="start",
                 width="100%",

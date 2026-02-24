@@ -35,7 +35,6 @@ a[href="https://reflex.dev"] {
   font-display: swap;
 }
 
-
 .dense-markdown {
   line-height: 1;
 }
@@ -98,7 +97,7 @@ a[href="https://reflex.dev"] {
   --accent-surface: #d3f0eb33;
   --accent-indicator: var(--accent-9);
   --accent-track: var(--accent-9);
-  --accent-contrast: #ffffff;
+  --accent-contrast: #e9f7f5;
 
   /* Custom secondary color palette (purple/violet) */
   --secondary-1: #f9f8fd;
@@ -127,10 +126,29 @@ a[href="https://reflex.dev"] {
   --secondary-a11: #584a90fa;
   --secondary-a12: #291a67fc;
 
-  --secondary-contrast: #ffffff;
+  --secondary-contrast: #f9f8fd;
+
+  /* Custom tertiary color palette (pink/magenta) */
+  --tertiary-0: #6a003c;
+  --tertiary-5: #790f4b;
+  --tertiary-10: #881d5a;
+  --tertiary-15: #972c68;
+  --tertiary-20: #a63b77;
+  --tertiary-30: #c35895;
+  --tertiary-40: #e176b2;
+  --tertiary-50: #ff93d0;
+  --tertiary-60: #ffa9d9;
+  --tertiary-70: #ffbee3;
+  --tertiary-80: #ffd4ec;
+  --tertiary-85: #ffdff1;
+  --tertiary-90: #ffe9f6;
+  --tertiary-95: #fff4fa;
+  --tertiary-100: #fff;
+
+  --tertiary-contrast: #fff4fa;
+
+
 }
-
-
 
 .AccordionTrigger {
   cursor: pointer;
