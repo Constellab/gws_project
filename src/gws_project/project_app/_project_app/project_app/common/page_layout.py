@@ -15,12 +15,20 @@ def sidebar_content() -> rx.Component:
     :rtype: rx.Component
     """
     return sidebar_menu_component(
-        title="Constellab project",
+        title="Project",
+        subtitle="By Constellab",
         menu_items=[
-            menu_item_component("folder", "Projects", "/"),
+            menu_item_component(
+                "folder", "Projects", "/", additional_active_route_prefixes=["/project"]
+            ),
             menu_item_component("kanban", "Kanban", "/kanban"),
             menu_item_component("gantt_chart", "Gantt", "/gantt"),
-            menu_item_component("layout_template", "Templates", "/templates"),
+            menu_item_component(
+                "layout_template",
+                "Templates",
+                "/templates",
+                additional_active_route_prefixes=["/template"],
+            ),
         ],
         logo_src="/constellab-logo.svg",
     )

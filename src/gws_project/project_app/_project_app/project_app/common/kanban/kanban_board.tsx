@@ -123,7 +123,7 @@ function SortableCard({ id, card, onCardClick, customRenderer }: SortableCardPro
               <span style={{ fontSize: '14px' }}>
                 {card.is_leaf ? '📄' : '📁'}
               </span>
-              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>{card.title}</h4>
+              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', lineHeight: '1.1em' }}>{card.title}</h4>
             </div>
             {card.priority && (
               <span

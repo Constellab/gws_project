@@ -7,7 +7,7 @@ from ..common.detail_page_layout import detail_page_layout
 from ..common.documents_list.documents_list_component import documents_list_view
 from ..common.page_layout import page_layout
 from ..common.priority_chip_component import priority_chip
-from ..common.progress_bar import progress_bar
+from ..common.progress_ring import progress_ring
 from ..common.status_chip_component import status_chip
 from ..common.tasks.task_actions_menu import task_actions_menu
 from ..common.tasks.task_components import task_icon_component
@@ -198,7 +198,7 @@ def details_sidebar() -> rx.Component:
                 TaskDetailState.task.progress > 0,
                 rx.fragment(
                     rx.text("Progress", size="2", color="gray", weight="medium"),
-                    progress_bar(TaskDetailState.task.progress, width="150px"),
+                    progress_ring(TaskDetailState.task.progress),
                 ),
             ),
             # Start date

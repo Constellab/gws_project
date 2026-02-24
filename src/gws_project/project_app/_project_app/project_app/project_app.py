@@ -1,5 +1,8 @@
+import os
+
 import reflex as rx
 from gws_reflex_main import register_gws_reflex_app
+from numpy import greater
 
 from .gantt.gantt_page_component import gantt_page_component
 from .gantt.gantt_page_state import GanttPageState
@@ -18,7 +21,15 @@ from .template.project_template_list.project_template_list_component import (
 from .template.project_template_list.project_template_list_state import ProjectTemplateListState
 from .template.task_template_detail.task_template_detail_component import task_template_detail_page
 
-app = register_gws_reflex_app()
+app = register_gws_reflex_app(
+    app=rx.App(
+        theme=rx.theme(
+            gray_color="sage",
+            appearance=os.environ.get("GWS_THEME", "light"),
+            radius="large",
+        )
+    )
+)
 
 
 # Declare the project list page as the index page
@@ -31,6 +42,16 @@ def index():
     return project_list_page()
 
 
+# Declare the task detail page with URL parameter
+@rx.page(route="/project/task/[task_id_param]")
+def task_detail():
+    """Task detail page displaying all information about a specific task.
+
+    The task_id is extracted from the URL path.
+    """
+    return task_detail_page()
+
+
 # Declare the project detail page with URL parameter
 @rx.page(route="/project/[project_id_param]")
 def project_detail():
@@ -39,16 +60,6 @@ def project_detail():
     The project_id is extracted from the URL path.
     """
     return project_detail_page()
-
-
-# Declare the task detail page with URL parameter
-@rx.page(route="/task/[task_id_param]")
-def task_detail():
-    """Task detail page displaying all information about a specific task.
-
-    The task_id is extracted from the URL path.
-    """
-    return task_detail_page()
 
 
 # Declare the kanban board page

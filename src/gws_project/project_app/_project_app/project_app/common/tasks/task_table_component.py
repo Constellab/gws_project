@@ -1,5 +1,5 @@
 import reflex as rx
-from gws_project.project_app._project_app.project_app.common.progress_bar import progress_bar
+from gws_project.project_app._project_app.project_app.common.progress_ring import progress_ring
 from gws_project.task.task_dto import TaskDTO
 from gws_reflex_main import user_inline_component
 
@@ -90,7 +90,7 @@ def _task_row(task: TaskDTO) -> rx.Component:
         rx.table.cell(
             rx.vstack(
                 status_chip(task.status),
-                progress_bar(task.progress, width="50px"),
+                progress_ring(task.progress, size=36),
                 spacing="2",
                 align="start",
                 width="100%",

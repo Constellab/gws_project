@@ -6,6 +6,14 @@ from gws_core import BaseModelDTO, ModelDTO, RichTextDTO, SpaceRootFolderUserRol
 from gws_project.task.task_dto import TaskDTO
 
 
+class ProjectStatus(Enum):
+    """Status of a project"""
+
+    DRAFT = "draft"
+    ACTIVE = "active"
+    COMPLETED = "completed"
+
+
 class ProjectUserRole(Enum):
     """Role of a user in a project - corresponds to Space folder user roles"""
 
@@ -29,7 +37,9 @@ class ProjectUserRole(Enum):
             return 0  # No access
 
     @staticmethod
-    def from_space_folder_user_role(space_folder_user_role: SpaceRootFolderUserRole) -> "ProjectUserRole":
+    def from_space_folder_user_role(
+        space_folder_user_role: SpaceRootFolderUserRole,
+    ) -> "ProjectUserRole":
         """Convert a SpaceFolderUserRole string to a ProjectUserRole enum.
 
         :param space_folder_user_role: The SpaceFolderUserRole as a string
@@ -82,6 +92,7 @@ class ProjectDTO(ModelDTO):
     end_date: datetime
     project_manager: UserDTO
     progress: int
+    status: ProjectStatus
     created_by: UserDTO
     last_modified_by: UserDTO
 

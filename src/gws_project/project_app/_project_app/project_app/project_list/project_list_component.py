@@ -3,7 +3,8 @@ from gws_reflex_main import main_component, user_inline_component
 from gws_reflex_main.components.reflex_user_components import user_select
 
 from ..common.page_layout import page_layout
-from ..common.progress_bar import progress_bar
+from ..common.progress_ring import progress_ring
+from ..common.projects.project_components import project_status_badge
 from ..project_form_dialog.project_form_dialog_component import create_project_dialog
 from .project_list_state import ProjectDTO, ProjectListState
 
@@ -17,6 +18,7 @@ def _filter_bar() -> rx.Component:
     return rx.hstack(
         # Text search input
         rx.input(
+            rx.input.slot(rx.icon("search", size=16)),
             placeholder="Search projects...",
             value=ProjectListState.search_text,
             on_change=ProjectListState.handle_search_change,
@@ -34,8 +36,10 @@ def _filter_bar() -> rx.Component:
         rx.button(
             "Clear",
             on_click=ProjectListState.clear_filters,
-            variant="outline",
+            variant="surface",
             size="2",
+            color_scheme="gray",
+            radius="large",
         ),
         width="100%",
         spacing="3",
@@ -83,7 +87,6 @@ def project_list_page() -> rx.Component:
                                     rx.table.column_header_cell("Dates"),
                                     rx.table.column_header_cell("Progress"),
                                     rx.table.column_header_cell("Manager"),
-                                    rx.table.column_header_cell("Created At"),
                                 ),
                             ),
                             rx.table.body(rx.foreach(ProjectListState.projects, _row)),
@@ -94,7 +97,9 @@ def project_list_page() -> rx.Component:
                         rx.center(
                             rx.vstack(
                                 rx.icon("folder_open", size=48, color="gray"),
-                                rx.text("No projects found", size="4", color="gray", margin_top="1rem"),
+                                rx.text(
+                                    "No projects found", size="4", color="gray", margin_top="1rem"
+                                ),
                                 spacing="2",
                                 align="center",
                             ),
@@ -120,25 +125,32 @@ def project_list_page() -> rx.Component:
 def _row(project: ProjectDTO) -> rx.Component:
     return rx.table.row(
         rx.table.cell(
-            rx.text(project.title),
+            rx.hstack(
+                project_status_badge(project.status),
+                rx.text(project.title),
+                align="center",
+                spacing="3",
+            ),
         ),
         rx.table.cell(
             rx.vstack(
                 rx.text(rx.moment(project.start_date, format="MMM D, YYYY"), size="2"),
-                rx.text(rx.moment(project.end_date, format="MMM D, YYYY"), size="2"),
+                rx.hstack(
+                    rx.text("→", size="2", color="var(--gray-9)"),
+                    rx.text(
+                        rx.moment(project.end_date, format="MMM D, YYYY"),
+                        size="2",
+                        color="var(--gray-9)",
+                    ),
+                    spacing="1",
+                ),
                 spacing="1",
                 align="start",
             )
         ),
-        rx.table.cell(
-            rx.cond(
-                project.progress > 0,
-                progress_bar(project.progress, width="100px"),
-                rx.text("0%", size="2", color="gray"),
-            )
-        ),
+        rx.table.cell(progress_ring(project.progress)),
         rx.table.cell(user_inline_component(project.project_manager)),
-        rx.table.cell(rx.moment(project.created_at, format="MMM D, YYYY")),
+        align="center",
         style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
         on_click=lambda: ProjectListState.go_to_project(project.id),
     )

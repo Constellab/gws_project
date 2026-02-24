@@ -1,10 +1,10 @@
-
 import reflex as rx
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.task_template import TaskTemplate
 from gws_reflex_main import ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbItem
+from ..common.project_app_router import ProjectAppRouter
 from .template_page_state import TemplatePageState
 
 
@@ -34,7 +34,9 @@ class TemplateBreadcrumbState(ReflexMainState):
             return []
 
         # Start with base breadcrumb
-        items = [BreadcrumbItem(label="Templates", url="/templates")]
+        items = [
+            BreadcrumbItem(label="Templates", url=ProjectAppRouter.get_project_template_list_url())
+        ]
 
         # Build breadcrumb based on object type
         if isinstance(obj, TaskTemplate):
@@ -44,7 +46,9 @@ class TemplateBreadcrumbState(ReflexMainState):
 
         return items
 
-    def _build_breadcrumb_for_project_template(self, project_template: ProjectTemplate) -> list[BreadcrumbItem]:
+    def _build_breadcrumb_for_project_template(
+        self, project_template: ProjectTemplate
+    ) -> list[BreadcrumbItem]:
         """Build breadcrumb items for a project template.
 
         :param project_template: The project template object
@@ -53,10 +57,15 @@ class TemplateBreadcrumbState(ReflexMainState):
         :rtype: List[BreadcrumbItem]
         """
         return [
-            BreadcrumbItem(label=project_template.name, url=f"/template/project/{project_template.id}")
+            BreadcrumbItem(
+                label=project_template.name,
+                url=ProjectAppRouter.get_project_template_detail_url(project_template.id),
+            )
         ]
 
-    def _build_breadcrumb_for_task_template(self, task_template: TaskTemplate) -> list[BreadcrumbItem]:
+    def _build_breadcrumb_for_task_template(
+        self, task_template: TaskTemplate
+    ) -> list[BreadcrumbItem]:
         """Build breadcrumb items for a task template.
 
         This includes the project template, all ancestor task templates (for unlimited hierarchy),
@@ -72,7 +81,10 @@ class TemplateBreadcrumbState(ReflexMainState):
         # Add project template
         project_template = task_template.project_template
         items.append(
-            BreadcrumbItem(label=project_template.name, url=f"/template/project/{project_template.id}")
+            BreadcrumbItem(
+                label=project_template.name,
+                url=ProjectAppRouter.get_project_template_detail_url(project_template.id),
+            )
         )
 
         # Add all ancestor task templates in order from root to immediate parent
@@ -85,13 +97,16 @@ class TemplateBreadcrumbState(ReflexMainState):
                 items.append(
                     BreadcrumbItem(
                         label=ancestor.title,
-                        url=f"/template/task/{ancestor.id}"
+                        url=ProjectAppRouter.get_task_template_detail_url(ancestor.id),
                     )
                 )
 
         # Add current task template
         items.append(
-            BreadcrumbItem(label=task_template.title, url=f"/template/task/{task_template.id}")
+            BreadcrumbItem(
+                label=task_template.title,
+                url=ProjectAppRouter.get_task_template_detail_url(task_template.id),
+            )
         )
 
         return items

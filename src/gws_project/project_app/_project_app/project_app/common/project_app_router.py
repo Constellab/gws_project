@@ -1,7 +1,4 @@
-
-
 class ProjectAppRouter:
-
     @staticmethod
     def get_project_list_url() -> str:
         """Get the URL for the project list page.
@@ -31,7 +28,7 @@ class ProjectAppRouter:
         :return: The task detail URL
         :rtype: str
         """
-        return f"/task/{task_id}"
+        return f"/project/task/{task_id}"
 
     @staticmethod
     def get_kanban_url() -> str:
