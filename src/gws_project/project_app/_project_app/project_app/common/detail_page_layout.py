@@ -47,7 +47,6 @@ def detail_page_layout(
         # Main content area
         rx.vstack(
             main_content,
-            max_width="1200px",
             width="100%",
             flex="1",
             min_height="0",

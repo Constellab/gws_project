@@ -20,8 +20,8 @@ def project_description_content() -> rx.Component:
             output_event=ProjectDetailState.handle_description_change,
             custom_style=rx.cond(
                 ProjectDetailState.description_edit_mode,
-                {"minHeight": "750px", "flex": "1", "display": "block"},
-                {"padding": "0", "flex": "1", "display": "block", "minHeight": "0"}
+                {"minHeight": "750px", "flex": "1", "display": "block", "backgroundColor": "white"},
+                {"padding": "0", "flex": "1", "display": "block", "minHeight": "0", "backgroundColor": "white"}
             )
         ),
         width="100%",

@@ -60,7 +60,7 @@ def _tab_action_button() -> rx.Component:
                     "View",
                     "Edit",
                 ),
-                variant="soft",
+                variant="solid",
                 size="2",
                 on_click=TaskDetailState.toggle_description_edit_mode,
             ),
@@ -147,8 +147,14 @@ def _task_description_content() -> rx.Component:
             output_event=TaskDetailState.handle_description_change,
             custom_style=rx.cond(
                 TaskDetailState.description_edit_mode,
-                {"minHeight": "750px", "flex": "1", "display": "block"},
-                {"padding": "0", "flex": "1", "display": "block", "minHeight": "0"},
+                {"minHeight": "750px", "flex": "1", "display": "block", "backgroundColor": "white"},
+                {
+                    "padding": "0",
+                    "flex": "1",
+                    "display": "block",
+                    "minHeight": "0",
+                    "backgroundColor": "white",
+                },
             ),
         ),
         width="100%",
@@ -300,7 +306,7 @@ def details_sidebar() -> rx.Component:
     - Parent task (conditional)
     - Subtask members (conditional)
     - Priority section
-    - Period section with styled date box
+    - Dates section with styled date box
     - Metadata section with divider
 
     :return: The details sidebar component
@@ -399,9 +405,9 @@ def details_sidebar() -> rx.Component:
             align="start",
             width="100%",
         ),
-        # Period section
+        # Dates section
         rx.vstack(
-            _sidebar_section_label("Period"),
+            _sidebar_section_label("Dates"),
             rx.hstack(
                 rx.text(
                     rx.moment(TaskDetailState.task.start_date, format="MMM D, YYYY"),
@@ -484,6 +490,7 @@ def task_detail_page() -> rx.Component:
             ),
             right_sidebar_content=details_sidebar(),
             header_content=breadcrumb_component(BreadcrumbState.breadcrumbs),
+            max_content_width="1200px",
             height="100vh",
             padding="0",
         ),

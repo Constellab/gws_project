@@ -61,7 +61,7 @@ def _tab_action_button() -> rx.Component:
                     "View",
                     "Edit",
                 ),
-                variant="soft",
+                variant="solid",
                 size="2",
                 on_click=ProjectDetailState.toggle_description_edit_mode,
             ),
@@ -286,7 +286,7 @@ def details_sidebar() -> rx.Component:
     - Heading
     - Centered progress ring
     - Manager section
-    - Period section with styled date box
+    - Dates section with styled date box
     - Members list
     - Metadata section with divider
 
@@ -317,9 +317,9 @@ def details_sidebar() -> rx.Component:
             align_items="start",
             width="100%",
         ),
-        # Period section
+        # Dates section
         rx.vstack(
-            _sidebar_section_label("Period"),
+            _sidebar_section_label("Dates"),
             rx.hstack(
                 rx.text(
                     rx.moment(ProjectDetailState.project.start_date, format="MMM D, YYYY"),
@@ -426,6 +426,7 @@ def project_detail_page() -> rx.Component:
             # Right sidebar with project details
             right_sidebar_content=details_sidebar(),
             header_content=breadcrumb_component(BreadcrumbState.breadcrumbs),
+            max_content_width="1200px",
             height="100vh",
             padding="0",
         ),

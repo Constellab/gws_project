@@ -61,7 +61,7 @@ def document_card(document: DocumentInfo) -> rx.Component:
                     rx.button(
                         rx.icon("external-link", size=14),
                         "Open",
-                        variant="outline",
+                        variant="solid",
                         size="2",
                     ),
                     href=document.url,

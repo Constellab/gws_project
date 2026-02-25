@@ -27,11 +27,21 @@ class TaskDetailState(rx.State):
     async def view_mode(self) -> str:
         """Get the current view mode from ViewModeState.
 
+        If the task does not allow subtasks and the current mode is "list",
+        falls back to "description" since the subtasks tab is not available.
+
         :return: The current view mode
         :rtype: str
         """
         view_mode_state = await self.get_state(ViewModeState)
-        return view_mode_state.view_mode
+        mode = view_mode_state.view_mode
+
+        # If the task has no subtasks tab, prevent "list" mode
+        task = await self.task
+        if task and not task.allow_subtasks and mode == "list":
+            return "description"
+
+        return mode
 
     async def set_view_mode(self, value: str | list[str]):
         """Set the view mode by delegating to ViewModeState.

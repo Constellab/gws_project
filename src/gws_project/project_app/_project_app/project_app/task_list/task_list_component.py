@@ -1,7 +1,6 @@
 import reflex as rx
 
 from ..common.tasks.task_card_component import task_card_list_component
-from ..common.tasks.task_table_component import task_table_component
 from .task_list_state import TaskListState
 
 
@@ -47,45 +46,6 @@ def task_list_component() -> rx.Component:
             overflow_y="auto",
         ),
         # Key forces remount when URL changes
-        key=TaskListState.current_object_id,
-        width="100%",
-        flex="1",
-        min_height="0",
-    )
-
-
-def task_table_list_component() -> rx.Component:
-    """Create the task list component using a table layout.
-
-    This is the original table-based task list, kept for alternative usage.
-
-    :return: The task table list component
-    :rtype: rx.Component
-    """
-    return rx.box(
-        rx.vstack(
-            rx.cond(
-                TaskListState.is_loading & (TaskListState.get_tasks.length() == 0),
-                rx.center(
-                    rx.vstack(
-                        rx.spinner(size="3"),
-                        rx.text("Loading tasks...", size="3", color="gray", margin_top="1rem"),
-                        spacing="2",
-                        align="center",
-                    ),
-                    padding="3rem",
-                    width="100%",
-                    flex="1",
-                    min_height="0",
-                ),
-                task_table_component(tasks=TaskListState.get_tasks, empty_message="No tasks found"),
-            ),
-            on_mount=TaskListState.fetch_tasks_on_mount,
-            width="100%",
-            flex="1",
-            min_height="0",
-            overflow_y="auto",
-        ),
         key=TaskListState.current_object_id,
         width="100%",
         flex="1",
