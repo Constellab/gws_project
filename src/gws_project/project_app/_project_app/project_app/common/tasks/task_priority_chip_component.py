@@ -9,6 +9,17 @@ from gws_project.task.task_dto import TaskPriority
 from ..updatable_chip_component import updatable_chip
 
 
+class PriorityColors:
+    """Centralized color mapping for HIGH/MEDIUM/LOW priorities.
+
+    Used across priority chip and kanban card components to ensure consistent coloring.
+    """
+
+    HIGH = "tertiary"
+    MEDIUM = "secondary"
+    LOW = "gray"
+
+
 def _get_priority_color(priority: TaskPriority):
     """Get the color scheme for a given priority.
 
@@ -18,7 +29,7 @@ def _get_priority_color(priority: TaskPriority):
     :rtype: str
     """
     return rx.match(
-        priority, (TaskPriority.HIGH, "tertiary"), (TaskPriority.MEDIUM, "secondary"), "gray"
+        priority, (TaskPriority.HIGH, PriorityColors.HIGH), (TaskPriority.MEDIUM, PriorityColors.MEDIUM), PriorityColors.LOW
     )
 
 

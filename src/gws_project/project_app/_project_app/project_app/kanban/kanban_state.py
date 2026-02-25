@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 import reflex as rx
 from gws_core import UserDTO
+from gws_core.space.space_service import SpaceService
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.project.project_service import ProjectService
@@ -237,6 +238,11 @@ class KanbanState(rx.State):
         """Convert a TaskDTO to a Kanban card format."""
         assignee = task.assign_to.first_name + " " + task.assign_to.last_name if task.assign_to else "Unassigned"
 
+        # Get assignee profile picture URL
+        assignee_profile_picture_url = None
+        if task.assign_to and task.assign_to.photo:
+            assignee_profile_picture_url = SpaceService.get_user_profile_picture_url(task.assign_to.photo)
+
         # Get project name from project_id
         project_name = None
         if task.project_id:
@@ -251,9 +257,12 @@ class KanbanState(rx.State):
             title=task.title,
             priority=task.priority.value,
             assignee=assignee,
+            assignee_profile_picture_url=assignee_profile_picture_url,
             parent_task_title=task.parent_task_title,
             is_leaf=not task.allow_subtasks,
             project_name=project_name,
+            start_date=task.start_date.isoformat() if task.start_date else None,
+            end_date=task.end_date.isoformat() if task.end_date else None,
         )
 
     @rx.event(background=True)  # type: ignore
