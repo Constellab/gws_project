@@ -50,6 +50,32 @@ def documents_list_view() -> rx.Component:
     )
 
 
+def documents_list_content() -> rx.Component:
+    """Create the documents content without header.
+
+    The header (title and action button) is managed at the tab level
+    in the project detail page.
+
+    :return: The documents content component
+    :rtype: rx.Component
+    """
+    return rx.vstack(
+        # Documents content
+        _documents_content(),
+        # Rename dialog
+        _rename_document_dialog(),
+        width="100%",
+        spacing="3",
+        align_items="start",
+        # full height but not overflow parent
+        flex="1",
+        min_height="0",
+        key=DocumentsListState.current_object_id,
+        # Trigger background fetch when component mounts
+        on_mount=DocumentsListState.fetch_documents_on_mount,
+    )
+
+
 def _documents_content() -> rx.Component:
     """Create the documents content with a table and load more functionality.
 

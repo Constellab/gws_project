@@ -9,9 +9,9 @@ from ..common.documents_list.documents_list_component import documents_list_view
 from ..common.page_layout import page_layout
 from ..common.priority_chip_component import priority_chip
 from ..common.progress_ring import progress_ring
-from ..common.status_chip_component import status_chip
 from ..common.tasks.task_actions_menu import task_actions_menu
 from ..common.tasks.task_components import task_icon_component
+from ..common.tasks.task_status_chip_component import task_status_chip
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_list.task_list_component import task_list_component
 from .task_detail_state import TaskDetailState
@@ -177,7 +177,7 @@ def details_sidebar() -> rx.Component:
             # Status
             rx.text("Status", size="2", color="gray", weight="medium"),
             rx.box(
-                status_chip(
+                task_status_chip(
                     TaskDetailState.task.status,
                     on_status_change=TaskDetailState.update_status,
                     allow_subtask=TaskDetailState.task.allow_subtasks,

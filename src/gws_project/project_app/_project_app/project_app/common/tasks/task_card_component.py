@@ -2,14 +2,14 @@
 
 import reflex as rx
 from gws_project.task.task_dto import TaskDTO, TaskStatus
-from gws_reflex_main import user_inline_component
+from gws_reflex_main import user_profile_picture
 
 from ...task_list.task_list_state import TaskListState
 from ..priority_chip_component import priority_chip
 from ..project_app_router import ProjectAppRouter
-from ..status_chip_component import status_chip
 from .task_actions_menu import task_actions_menu
 from .task_components import task_icon_component
+from .task_status_chip_component import task_status_chip
 
 
 def _get_status_background(status: TaskStatus) -> rx.Var:
@@ -97,8 +97,8 @@ def _task_card(task: TaskDTO) -> rx.Component:
                 # Right side: priority, status, assignee, actions
                 rx.hstack(
                     priority_chip(task.priority, size="1", show_icon=True),
-                    status_chip(task.status, size="1", show_icon=True),
-                    user_inline_component(task.assign_to, size="small"),
+                    task_status_chip(task.status, size="1", show_icon=True),
+                    user_profile_picture(task.assign_to, size="small"),
                     task_actions_menu(
                         on_update=lambda: TaskListState.open_update_task_dialog(task.id),
                         on_delete=lambda: TaskListState.open_delete_task_dialog(task),

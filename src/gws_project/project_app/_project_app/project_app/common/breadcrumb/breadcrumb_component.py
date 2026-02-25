@@ -13,10 +13,7 @@ def breadcrumb_component(breadcrumbs: list[BreadcrumbItem]) -> rx.Component:
     :rtype: rx.Component
     """
     return rx.hstack(
-        rx.foreach(
-            breadcrumbs,
-            _render_item_with_separator
-        ),
+        rx.foreach(breadcrumbs, _render_item_with_separator),
         spacing="0",
         align="center",
     )
@@ -34,23 +31,12 @@ def _render_item_with_separator(item: BreadcrumbItem, idx: int) -> rx.Component:
     return rx.fragment(
         rx.cond(
             idx > 0,
-            rx.icon(
-                "chevron-right",
-                size=16,
-                color="gray",
-                margin_x="0.5rem"
-            ),
-            rx.fragment()
+            rx.icon("chevron-right", size=16, color="gray", margin_x="0.25rem"),
+            rx.fragment(),
         ),
         rx.link(
-            rx.text(
-                item.label,
-                size="3",
-                weight="medium",
-                _hover={"text_decoration": "underline"}
-            ),
+            rx.text(item.label, size="2", weight="medium", _hover={"text_decoration": "underline"}),
             href=item.url,
-            style={"text_decoration": "none"}
-
+            style={"text_decoration": "none"},
         ),
     )

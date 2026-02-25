@@ -5,9 +5,9 @@ from gws_reflex_main import user_inline_component
 
 from ..priority_chip_component import priority_chip
 from ..project_app_router import ProjectAppRouter
-from ..status_chip_component import status_chip
 from .task_actions_menu import task_actions_menu
 from .task_components import task_icon_component
+from .task_status_chip_component import task_status_chip
 
 
 def task_table_component(
@@ -89,7 +89,7 @@ def _task_row(task: TaskDTO) -> rx.Component:
         ),
         rx.table.cell(
             rx.vstack(
-                status_chip(task.status),
+                task_status_chip(task.status),
                 progress_ring(task.progress),
                 spacing="2",
                 align="start",
@@ -114,5 +114,3 @@ def _task_row(task: TaskDTO) -> rx.Component:
         style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
         on_click=lambda: rx.redirect(ProjectAppRouter.get_task_detail_url(task.id)),
     )
-
-

@@ -9,9 +9,9 @@ from gws_project.task.task_dto import TaskDTO
 class ProjectStatus(Enum):
     """Status of a project"""
 
-    DRAFT = "draft"
-    ACTIVE = "active"
-    COMPLETED = "completed"
+    DRAFT = "DRAFT"
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
 
 
 class ProjectUserRole(Enum):
