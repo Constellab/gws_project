@@ -8,6 +8,7 @@ from ...task_list.task_list_state import TaskListState
 from ..project_app_router import ProjectAppRouter
 from .task_actions_menu import task_actions_menu
 from .task_components import task_icon_component
+from ..progress_bar import progress_bar
 from .task_priority_chip_component import task_priority_chip
 from .task_status_chip_component import task_status_chip
 
@@ -113,21 +114,8 @@ def _task_card(task: TaskDTO) -> rx.Component:
                 align="center",
                 justify="between",
             ),
-            # Bottom: progress bar (no percentage text, thin bar)
-            rx.box(
-                rx.box(
-                    width=f"{task.progress}%",
-                    height="100%",
-                    background="var(--accent-9)",
-                    border_radius="4px",
-                    transition="width 0.3s ease",
-                ),
-                width="100%",
-                height="6px",
-                background="var(--gray-3)",
-                border_radius="4px",
-                overflow="hidden",
-            ),
+            # Bottom: progress bar
+            progress_bar(task.progress, height="6px"),
             spacing="3",
             width="100%",
         ),

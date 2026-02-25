@@ -29,12 +29,15 @@ def _filter_bar() -> rx.Component:
         rx.button(
             "Clear",
             on_click=GanttPageState.clear_filters,
-            variant="outline",
+            variant="surface",
             size="2",
+            color_scheme="gray",
+            radius="large",
         ),
         width="100%",
         spacing="3",
         wrap="wrap",
+        margin_top="16px",
     )
 
 
@@ -48,7 +51,11 @@ def empty_state() -> rx.Component:
         rx.vstack(
             rx.text("📊", font_size="48px"),
             rx.heading("No Projects Available", size="5", font_weight="600"),
-            rx.text("Create a project with tasks to see the Gantt chart.", font_size="14px", color="gray"),
+            rx.text(
+                "Create a project with tasks to see the Gantt chart.",
+                font_size="14px",
+                color="gray",
+            ),
             spacing="3",
             align="center",
         ),

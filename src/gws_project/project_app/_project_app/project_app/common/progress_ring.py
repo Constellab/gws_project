@@ -2,6 +2,8 @@ from typing import Literal
 
 import reflex as rx
 
+from .status_colors import StatusColors
+
 
 def progress_ring(
     progress: rx.Var[int],
@@ -42,11 +44,11 @@ def progress_ring(
                 fill="none",
                 stroke=rx.cond(
                     progress == 100,
-                    "var(--accent-9)",
+                    StatusColors.css_var_done(),
                     rx.cond(
                         progress > 0,
-                        "var(--secondary-9)",
-                        "var(--gray-4)",
+                        StatusColors.css_var_ongoing(),
+                        StatusColors.css_var_todo(shade=4),
                     ),
                 ),
                 stroke_width="4",

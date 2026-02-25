@@ -4,6 +4,8 @@ import reflex as rx
 
 from gws_project.project.project_count_dto import ProjectCountDTO
 
+from ..common.status_colors import StatusColors
+
 
 def _stat_card(
     label: str,
@@ -78,25 +80,25 @@ def project_stats_header(project_count: rx.Var[ProjectCountDTO]) -> rx.Component
             label="Total projects",
             value=project_count.total,
             icon_name="bar_chart_3",
-            accent_color="var(--secondary-9)",
+            accent_color="var(--accent-9)",
         ),
         _stat_card(
             label="Ongoing",
             value=project_count.ongoing,
             icon_name="rocket",
-            accent_color="var(--tertiary-9)",
+            accent_color=StatusColors.css_var_ongoing(),
         ),
         _stat_card(
             label="Completed",
             value=project_count.done,
             icon_name="circle_check",
-            accent_color="var(--accent-9)",
+            accent_color=StatusColors.css_var_done(),
         ),
         _stat_card(
             label="Not started",
             value=project_count.todo,
             icon_name="clock",
-            accent_color="var(--gray-9)",
+            accent_color=StatusColors.css_var_todo(),
         ),
         columns="4",
         spacing="4",

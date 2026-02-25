@@ -39,6 +39,16 @@ class TaskTemplateListState(rx.State):
         return current_object.id
 
     @rx.var
+    async def task_template_count(self) -> int:
+        """Get the count of task templates in the current list.
+
+        :return: Number of task templates
+        :rtype: int
+        """
+        templates = await self.get_task_templates
+        return len(templates)
+
+    @rx.var
     async def get_task_templates(self) -> list[TaskTemplateDTO]:
         """Get all task templates for the current project template.
 

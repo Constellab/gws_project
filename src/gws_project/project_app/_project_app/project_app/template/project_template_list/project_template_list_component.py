@@ -46,7 +46,9 @@ def project_template_list_page() -> rx.Component:
                                     rx.table.column_header_cell("Created At"),
                                 ),
                             ),
-                            rx.table.body(rx.foreach(ProjectTemplateListState.project_templates, _row)),
+                            rx.table.body(
+                                rx.foreach(ProjectTemplateListState.project_templates, _row)
+                            ),
                             width="100%",
                             variant="surface",
                         ),
@@ -54,8 +56,14 @@ def project_template_list_page() -> rx.Component:
                         rx.center(
                             rx.vstack(
                                 rx.icon("layout_template", size=48, color="gray"),
-                                rx.text("No templates found", size="4", color="gray", margin_top="1rem"),
-                                rx.text("Create your first template to get started", size="2", color="gray"),
+                                rx.text(
+                                    "No templates found", size="4", color="gray", margin_top="1rem"
+                                ),
+                                rx.text(
+                                    "Create your first template to get started",
+                                    size="2",
+                                    color="gray",
+                                ),
                                 spacing="2",
                                 align="center",
                             ),
@@ -66,6 +74,7 @@ def project_template_list_page() -> rx.Component:
                 ),
                 width="100%",
                 spacing="4",
+                margin_top="16px",
             ),
             header_content=rx.hstack(
                 rx.heading("Project Templates", size="6"),

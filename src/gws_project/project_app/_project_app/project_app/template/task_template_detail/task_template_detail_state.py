@@ -20,6 +20,7 @@ class TaskTemplateDetailState(rx.State):
     """
 
     description_edit_mode: bool = False  # Track if description is in edit mode
+    view_mode: str = "subtasks"  # View mode for tabs
 
     @rx.var
     async def task_template(self) -> TaskTemplateDTO | None:
@@ -115,6 +116,17 @@ class TaskTemplateDetailState(rx.State):
     def toggle_description_edit_mode(self):
         """Toggle the description edit mode."""
         self.description_edit_mode = not self.description_edit_mode
+
+    def set_view_mode(self, value: str | list[str]):
+        """Set the view mode for the tabs.
+
+        :param value: The view mode value
+        :type value: Union[str, List[str]]
+        """
+        if isinstance(value, list):
+            self.view_mode = value[0] if value else "subtasks"
+        else:
+            self.view_mode = value
 
     @rx.event
     async def handle_description_change(self, event_data: dict):

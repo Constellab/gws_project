@@ -55,52 +55,52 @@ def project_detail():
 
 
 # Declare the kanban board page
-# @rx.page(route="/kanban", on_load=[KanbanState.on_load])
-# def kanban():
-#     """Kanban board page displaying all tasks across all projects.
+@rx.page(route="/kanban", on_load=[KanbanState.on_load])
+def kanban():
+    """Kanban board page displaying all tasks across all projects.
 
-#     This page shows a kanban view of all tasks accessible to the current user.
-#     """
-#     return kanban_page()
-
-
-# # Declare the gantt chart page
-# @rx.page(route="/gantt", on_load=[GanttPageState.on_load])
-# def gantt():
-#     """Gantt chart page displaying all projects with their root tasks.
-
-#     This page shows a timeline view of all projects and their root tasks.
-#     """
-#     return gantt_page_component()
+    This page shows a kanban view of all tasks accessible to the current user.
+    """
+    return kanban_page()
 
 
-# # Declare the template list page
-# @rx.page(route="/templates", on_load=[ProjectTemplateListState.on_load])
-# def template_list():
-#     """Template list page displaying all project templates.
+# Declare the gantt chart page
+@rx.page(route="/gantt", on_load=[GanttPageState.on_load])
+def gantt():
+    """Gantt chart page displaying all projects with their root tasks.
 
-#     This page shows a list of all available project templates.
-#     """
-#     return project_template_list_page()
-
-
-# # Declare the template detail page with URL parameter
-# @rx.page(route="/template/project/[project_template_id_param]")
-# def project_template_detail():
-#     """Template detail page displaying all information about a specific template.
-
-#     The template_id is extracted from the URL path.
-#     """
-#     return project_template_detail_page()
+    This page shows a timeline view of all projects and their root tasks.
+    """
+    return gantt_page_component()
 
 
-# # Declare the template detail page with URL parameter
+# Declare the template list page
+@rx.page(route="/templates", on_load=[ProjectTemplateListState.on_load])
+def template_list():
+    """Template list page displaying all project templates.
+
+    This page shows a list of all available project templates.
+    """
+    return project_template_list_page()
 
 
-# @rx.page(route="/template/task/[task_template_id_param]")
-# def task_template_detail():
-#     """Template detail page displaying all information about a specific template.
+# Declare the template detail page with URL parameter
+@rx.page(route="/template/project/[project_template_id_param]")
+def project_template_detail():
+    """Template detail page displaying all information about a specific template.
 
-#     The template_id is extracted from the URL path.
-#     """
-#     return task_template_detail_page()
+    The template_id is extracted from the URL path.
+    """
+    return project_template_detail_page()
+
+
+# Declare the template detail page with URL parameter
+
+
+@rx.page(route="/template/task/[task_template_id_param]")
+def task_template_detail():
+    """Template detail page displaying all information about a specific template.
+
+    The template_id is extracted from the URL path.
+    """
+    return task_template_detail_page()

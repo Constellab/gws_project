@@ -20,6 +20,8 @@ class TemplateDetailState(rx.State):
     delete_dialog_opened: bool = False
     # Description edit mode
     description_edit_mode: bool = False
+    # View mode for tabs
+    view_mode: str = "task_templates"
     # Cache for template roles
     _template_id: str | None = None
     _template_roles: list[str] = []
@@ -136,8 +138,20 @@ class TemplateDetailState(rx.State):
         except Exception as e:
             yield rx.toast.error(f"Error updating description: {str(e)}")
 
+    def set_view_mode(self, value: str | list[str]):
+        """Set the view mode for the tabs.
+
+        :param value: The view mode value
+        :type value: Union[str, List[str]]
+        """
+        if isinstance(value, list):
+            self.view_mode = value[0] if value else "task_templates"
+        else:
+            self.view_mode = value
+
     @rx.event
     def init(self):
         """Initialize the state."""
         self.description_edit_mode = False
         self.delete_dialog_opened = False
+        self.view_mode = "task_templates"

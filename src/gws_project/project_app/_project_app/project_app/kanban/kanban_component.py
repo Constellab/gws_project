@@ -65,12 +65,15 @@ def _filter_bar() -> rx.Component:
         rx.button(
             "Clear",
             on_click=KanbanState.clear_filters,
-            variant="outline",
+            variant="surface",
             size="2",
+            color_scheme="gray",
+            radius="large",
         ),
         width="100%",
         spacing="3",
         wrap="wrap",
+        margin_top="16px",
     )
 
 

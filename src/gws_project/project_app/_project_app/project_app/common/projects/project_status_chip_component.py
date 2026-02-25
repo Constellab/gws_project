@@ -6,6 +6,7 @@ from typing import Literal
 import reflex as rx
 from gws_project.project.project_dto import ProjectStatus
 
+from ..status_colors import StatusColors
 from ..updatable_chip_component import updatable_chip
 
 
@@ -17,7 +18,7 @@ def _get_status_color(status: ProjectStatus):
     :return: The color scheme name
     :rtype: str
     """
-    return rx.match(status, (ProjectStatus.DRAFT, "gray"), (ProjectStatus.ACTIVE, "secondary"), (ProjectStatus.COMPLETED, "accent"), "gray")
+    return rx.match(status, (ProjectStatus.DRAFT, StatusColors.TODO), (ProjectStatus.ACTIVE, StatusColors.ONGOING), (ProjectStatus.COMPLETED, StatusColors.DONE), StatusColors.TODO)
 
 
 def _get_status_icon(status: ProjectStatus) -> rx.Component:

@@ -1,5 +1,10 @@
 import reflex as rx
-from gws_reflex_main import main_component, right_sidebar_open_button, user_inline_component
+from gws_reflex_main import (
+    main_component,
+    right_sidebar_close_button,
+    right_sidebar_open_button,
+    user_inline_component,
+)
 from gws_reflex_main.gws_components import rich_text_component
 
 from ...common.breadcrumb.breadcrumb_component import breadcrumb_component
@@ -11,6 +16,7 @@ from ..task_template_form_dialog.task_template_form_dialog_component import (
     task_template_form_dialog,
 )
 from ..task_template_list.task_template_list_component import task_template_list_component
+from ..task_template_list.task_template_list_state import TaskTemplateListState
 from ..template_breadcrumb_state import TemplateBreadcrumbState
 from .task_template_detail_state import TaskTemplateDetailState
 
@@ -34,7 +40,7 @@ def task_template_header() -> rx.Component:
         rx.menu.root(
             rx.menu.trigger(
                 rx.button(
-                    rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray"
+                    rx.icon("ellipsis-vertical", size=18), variant="ghost", color_scheme="gray"
                 )
             ),
             rx.menu.content(
@@ -58,29 +64,79 @@ def task_template_header() -> rx.Component:
     )
 
 
+def _tab_count_badge(count: rx.Var[int]) -> rx.Component:
+    """Create a small count badge for a tab title.
+
+    :param count: The count value to display
+    :type count: rx.Var[int]
+    :return: The styled count badge component
+    :rtype: rx.Component
+    """
+    return rx.badge(
+        count,
+        variant="soft",
+        size="1",
+        radius="full",
+    )
+
+
+def _tab_action_button() -> rx.Component:
+    """Create the action button that changes based on the active tab.
+
+    - Subtasks tab: "Create Subtask Template" button (only if allows subtasks)
+    - Description tab: "Edit"/"View" toggle button
+
+    :return: The conditional action button component
+    :rtype: rx.Component
+    """
+    return rx.match(
+        TaskTemplateDetailState.view_mode,
+        (
+            "subtasks",
+            rx.cond(
+                TaskTemplateDetailState.task_template.allow_subtasks,
+                rx.button(
+                    rx.icon("plus", size=16),
+                    "Create Subtask Template",
+                    variant="solid",
+                    size="2",
+                    on_click=TaskTemplateDetailState.open_create_subtask_template_dialog,
+                ),
+                rx.fragment(),
+            ),
+        ),
+        (
+            "description",
+            rx.button(
+                rx.icon(
+                    rx.cond(
+                        TaskTemplateDetailState.description_edit_mode,
+                        "eye",
+                        "pencil",
+                    ),
+                    size=16,
+                ),
+                rx.cond(
+                    TaskTemplateDetailState.description_edit_mode,
+                    "View",
+                    "Edit",
+                ),
+                variant="solid",
+                size="2",
+                on_click=TaskTemplateDetailState.toggle_description_edit_mode,
+            ),
+        ),
+        rx.fragment(),
+    )
+
+
 def task_template_description() -> rx.Component:
-    """Create the task template description section with edit/view toggle.
+    """Create the task template description section.
 
     :return: The task template description component
     :rtype: rx.Component
     """
-    return rx.vstack(
-        # Description header with edit toggle
-        rx.hstack(
-            rx.heading("Description", size="4", weight="bold"),
-            rx.spacer(),
-            rx.button(
-                rx.icon(
-                    rx.cond(TaskTemplateDetailState.description_edit_mode, "eye", "pencil"), size=16
-                ),
-                rx.cond(TaskTemplateDetailState.description_edit_mode, "View", "Edit"),
-                variant="soft",
-                size="2",
-                on_click=TaskTemplateDetailState.toggle_description_edit_mode,
-            ),
-            width="100%",
-            align="center",
-        ),
+    return rx.box(
         rich_text_component(
             value=TaskTemplateDetailState.task_template.description,
             disabled=~TaskTemplateDetailState.description_edit_mode,
@@ -92,13 +148,14 @@ def task_template_description() -> rx.Component:
             ),
         ),
         width="100%",
-        spacing="2",
-        align_items="start",
+        background="white",
+        border_radius="8px",
+        padding="1rem",
     )
 
 
 def task_template_subtasks() -> rx.Component:
-    """Create the subtask templates section with header and list.
+    """Create the subtask templates section.
 
     Only displayed if the task template allows subtasks.
 
@@ -107,70 +164,143 @@ def task_template_subtasks() -> rx.Component:
     """
     return rx.cond(
         TaskTemplateDetailState.task_template.allow_subtasks,
-        rx.vstack(
-            # Header with title and create button
-            rx.hstack(
-                rx.heading("Subtask Templates", size="5", margin_top="1.5rem"),
-                rx.spacer(),
-                rx.button(
-                    rx.icon("plus", size=16),
-                    "Create Subtask Template",
-                    variant="soft",
-                    size="2",
-                    on_click=TaskTemplateDetailState.open_create_subtask_template_dialog,
-                ),
-                width="100%",
+        task_template_list_component(),
+        rx.center(
+            rx.vstack(
+                rx.icon("list_todo", size=48, color="gray"),
+                rx.text("This task template does not allow subtasks", size="4", color="gray", margin_top="1rem"),
+                spacing="2",
                 align="center",
             ),
-            # Subtask template list component
-            task_template_list_component(),
+            padding="3rem",
             width="100%",
-            spacing="3",
-            align_items="start",
         ),
     )
 
 
 def main_content_area() -> rx.Component:
-    """Create the main content area (middle) with title, description, and subtask templates.
+    """Create the main content area with tabs for switching between views.
+
+    The tab bar includes the view triggers on the left and a contextual
+    action button on the right.
 
     :return: The main content area component
     :rtype: rx.Component
     """
-    return rx.vstack(
-        task_template_description(),
-        task_template_subtasks(),
+    return rx.tabs.root(
+        # Tab bar row: triggers on the left, action button on the right
+        rx.hstack(
+            rx.tabs.list(
+                rx.tabs.trigger(
+                    rx.hstack(
+                        rx.text("Subtasks"),
+                        _tab_count_badge(TaskTemplateListState.task_template_count),
+                        align="center",
+                        spacing="2",
+                    ),
+                    value="subtasks",
+                ),
+                rx.tabs.trigger(
+                    rx.text("Description"),
+                    value="description",
+                ),
+            ),
+            rx.spacer(),
+            _tab_action_button(),
+            width="100%",
+            align="center",
+        ),
+        # Tab content panels
+        rx.tabs.content(
+            task_template_subtasks(),
+            value="subtasks",
+            padding_top="1rem",
+        ),
+        rx.tabs.content(
+            task_template_description(),
+            value="description",
+            padding_top="1rem",
+        ),
+        value=TaskTemplateDetailState.view_mode,
+        on_change=TaskTemplateDetailState.set_view_mode,
         width="100%",
-        spacing="3",
-        align_items="start",
         flex="1",
+        min_height="0",
+    )
+
+
+def _sidebar_section_label(label: str) -> rx.Component:
+    """Create a small uppercase gray label for a sidebar section.
+
+    :param label: The label text
+    :type label: str
+    :return: The styled label component
+    :rtype: rx.Component
+    """
+    return rx.text(
+        label,
+        size="1",
+        color="gray",
+        weight="bold",
+        style={
+            "text-transform": "uppercase",
+            "letter-spacing": "0.06em",
+        },
+    )
+
+
+def _sidebar_metadata_row(label: str, value: rx.Component) -> rx.Component:
+    """Create a metadata row with a label on the left and value on the right.
+
+    :param label: The label text
+    :type label: str
+    :param value: The value component
+    :type value: rx.Component
+    :return: The metadata row component
+    :rtype: rx.Component
+    """
+    return rx.hstack(
+        rx.text(label, size="2", color="gray"),
+        rx.spacer(),
+        value,
+        width="100%",
+        align="center",
     )
 
 
 def details_sidebar() -> rx.Component:
-    """Create the details sidebar (right side) with technical information.
+    """Create the details sidebar (right side) with task template metadata.
 
     :return: The details sidebar component
     :rtype: rx.Component
     """
     return rx.vstack(
-        rx.heading("Details", size="5", margin_bottom="1rem"),
-        # Details grid - single parent grid with all fields
-        rx.grid(
-            # Parent task template (conditional row)
-            rx.cond(
-                TaskTemplateDetailState.parent_task_template,
-                rx.fragment(
-                    rx.text("Parent task template", size="2", color="gray", weight="medium"),
-                    rx.link(
-                        TaskTemplateDetailState.parent_task_template.title,
-                        href=f"/task_template/{TaskTemplateDetailState.parent_task_template.id}",
-                        size="2",
-                    ),
+        # Heading with close button
+        rx.hstack(
+            _sidebar_section_label("Task template details"),
+            rx.spacer(),
+            right_sidebar_close_button(),
+            width="100%",
+            align="center",
+        ),
+        # Parent task template (conditional)
+        rx.cond(
+            TaskTemplateDetailState.parent_task_template,
+            rx.vstack(
+                _sidebar_section_label("Parent task template"),
+                rx.link(
+                    TaskTemplateDetailState.parent_task_template.title,
+                    href=f"/task_template/{TaskTemplateDetailState.parent_task_template.id}",
+                    size="2",
                 ),
+                spacing="2",
+                align_items="start",
+                width="100%",
             ),
-            # Assigned role
-            rx.text("Assigned role", size="2", color="gray", weight="medium"),
+        ),
+        # Assigned role
+        rx.vstack(
+            _sidebar_section_label("Assigned role"),
             rx.cond(
                 TaskTemplateDetailState.task_template.assign_to_role,
                 rx.badge(
@@ -181,8 +311,13 @@ def details_sidebar() -> rx.Component:
                 ),
                 rx.text("Unassigned", size="2", color="gray", font_style="italic"),
             ),
-            # Priority
-            rx.text("Priority", size="2", color="gray", weight="medium"),
+            spacing="2",
+            align_items="start",
+            width="100%",
+        ),
+        # Priority
+        rx.vstack(
+            _sidebar_section_label("Priority"),
             rx.box(
                 task_priority_chip(
                     TaskTemplateDetailState.task_template.priority,
@@ -191,44 +326,66 @@ def details_sidebar() -> rx.Component:
                     size="2",
                 )
             ),
-            # Start date offset
-            rx.text("Start date offset (days)", size="2", color="gray", weight="medium"),
-            rx.text(TaskTemplateDetailState.task_template.start_date_offset, size="2"),
-            # Duration
-            rx.text("Duration (days)", size="2", color="gray", weight="medium"),
-            rx.text(TaskTemplateDetailState.task_template.duration_days, size="2"),
-            # Divider before technical info (spans 2 columns)
-            rx.divider(margin_top="0.5rem", margin_bottom="0.5rem", grid_column="span 2"),
-            # Created by
-            rx.text("Created by", size="2", color="gray", weight="medium"),
-            user_inline_component(TaskTemplateDetailState.task_template.created_by),
-            # Created at
-            rx.text("Created at", size="2", color="gray", weight="medium"),
-            rx.text(
-                rx.moment(
-                    TaskTemplateDetailState.task_template.created_at, format="MMM D, YYYY HH:mm"
-                ),
-                size="2",
-            ),
-            # Last modified by
-            rx.text("Last modified by", size="2", color="gray", weight="medium"),
-            user_inline_component(TaskTemplateDetailState.task_template.last_modified_by),
-            # Last modified at
-            rx.text("Last modified at", size="2", color="gray", weight="medium"),
-            rx.text(
-                rx.moment(
-                    TaskTemplateDetailState.task_template.last_modified_at,
-                    format="MMM D, YYYY HH:mm",
-                ),
-                size="2",
-            ),
-            columns="2",
-            spacing="3",
+            spacing="2",
+            align_items="start",
             width="100%",
-            row_gap="1rem",
+        ),
+        # Start date offset
+        rx.vstack(
+            _sidebar_section_label("Start date offset (days)"),
+            rx.text(TaskTemplateDetailState.task_template.start_date_offset, size="2"),
+            spacing="2",
+            align_items="start",
+            width="100%",
+        ),
+        # Duration
+        rx.vstack(
+            _sidebar_section_label("Duration (days)"),
+            rx.text(TaskTemplateDetailState.task_template.duration_days, size="2"),
+            spacing="2",
+            align_items="start",
+            width="100%",
+        ),
+        # Divider + metadata section
+        rx.vstack(
+            rx.divider(margin_bottom="0.5rem"),
+            _sidebar_metadata_row(
+                "Created by",
+                user_inline_component(TaskTemplateDetailState.task_template.created_by, size="small"),
+            ),
+            _sidebar_metadata_row(
+                "Created at",
+                rx.text(
+                    rx.moment(
+                        TaskTemplateDetailState.task_template.created_at, format="MMM D, YYYY HH:mm"
+                    ),
+                    size="1",
+                    weight="medium",
+                ),
+            ),
+            _sidebar_metadata_row(
+                "Last modified by",
+                user_inline_component(
+                    TaskTemplateDetailState.task_template.last_modified_by, size="small"
+                ),
+            ),
+            _sidebar_metadata_row(
+                "Last modified at",
+                rx.text(
+                    rx.moment(
+                        TaskTemplateDetailState.task_template.last_modified_at,
+                        format="MMM D, YYYY HH:mm",
+                    ),
+                    size="1",
+                    weight="medium",
+                ),
+            ),
+            spacing="1",
+            width="100%",
+            padding_top="0.5rem",
         ),
         width="100%",
-        spacing="3",
+        spacing="5",
         align_items="start",
     )
 
@@ -236,8 +393,8 @@ def details_sidebar() -> rx.Component:
 def task_template_detail_page() -> rx.Component:
     """Create the task template detail page component.
 
-    This component displays all details of a single task template using a Jira-like layout
-    with main content in the middle and a details sidebar on the right.
+    This component displays all details of a single task template using a layout
+    with tabs for subtasks and description, and a details sidebar on the right.
 
     :return: The task template detail page component
     :rtype: rx.Component
