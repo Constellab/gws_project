@@ -20,12 +20,22 @@ def _get_status_color(status: TaskStatus):
     return rx.match(status, (TaskStatus.DOING, "secondary"), (TaskStatus.DONE, "accent"), "gray")
 
 
+def _get_status_icon(status: TaskStatus) -> rx.Component:
+    """Get the icon component for a given status.
+
+    :param status: The task status
+    :type status: TaskStatus
+    :return: The icon component
+    :rtype: rx.Component
+    """
+    return rx.icon("circle", size=8, fill="currentColor")
+
+
 def task_status_chip(
     status: TaskStatus,
     size: Literal["1", "2", "3"] | None = None,
     on_status_change: Callable[[str], None] | None = None,
     allow_subtask: bool = False,
-    show_icon: bool = False,
 ) -> rx.Component:
     """Create a status chip component with color-coded badge and status selector.
 
@@ -37,13 +47,9 @@ def task_status_chip(
     :type on_status_change: Callable[[TaskStatus], None]
     :param allow_subtask: If True, shows message that status is calculated from children (optional)
     :type allow_subtask: bool
-    :param show_icon: If True, display a filled circle dot icon before the status text
-    :type show_icon: bool
     :return: The status chip component
     :rtype: rx.Component
     """
-    icon = rx.icon("circle", size=8, fill="currentColor") if show_icon else None
-
     return updatable_chip(
         value=status,
         all_values=list(TaskStatus),
@@ -52,5 +58,5 @@ def task_status_chip(
         on_value_change=on_status_change,
         allow_subtask=allow_subtask,
         readonly_message="Status is calculated from children and cannot be updated manually.",
-        icon=icon,
+        get_icon=_get_status_icon,
     )

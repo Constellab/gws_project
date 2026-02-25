@@ -1,10 +1,9 @@
-
 import reflex as rx
 from gws_project.project.project_dto import ProjectUserDTO
 from gws_project.project.project_service import ProjectService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
-from ..common.project_page_state import ProjectPageState
+from ..common.projects.project_page_state import ProjectPageState
 
 
 class ManageUsersDialogState(ReflexMainState):
@@ -42,7 +41,7 @@ class ManageUsersDialogState(ReflexMainState):
         confirm_dialog_state.open_dialog(
             title="Remove User from Project",
             content=f"Are you sure you want to remove {user_name} from this project?",
-            action=lambda: self._remove_user_action(user_id)
+            action=lambda: self._remove_user_action(user_id),
         )
 
     async def _remove_user_action(self, user_id: str):
@@ -58,6 +57,7 @@ class ManageUsersDialogState(ReflexMainState):
 
         # Reload the project users
         from .project_detail_state import ProjectDetailState
+
         detail_state = await self.get_state(ProjectDetailState)
         await detail_state.reload_users()
 

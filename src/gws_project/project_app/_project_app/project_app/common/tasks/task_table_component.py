@@ -3,10 +3,10 @@ from gws_project.project_app._project_app.project_app.common.progress_ring impor
 from gws_project.task.task_dto import TaskDTO
 from gws_reflex_main import user_inline_component
 
-from ..priority_chip_component import priority_chip
 from ..project_app_router import ProjectAppRouter
 from .task_actions_menu import task_actions_menu
 from .task_components import task_icon_component
+from .task_priority_chip_component import task_priority_chip
 from .task_status_chip_component import task_status_chip
 
 
@@ -96,7 +96,7 @@ def _task_row(task: TaskDTO) -> rx.Component:
                 width="100%",
             )
         ),
-        rx.table.cell(priority_chip(task.priority)),
+        rx.table.cell(task_priority_chip(task.priority)),
         rx.table.cell(user_inline_component(task.assign_to)),
         rx.table.cell(
             rx.box(

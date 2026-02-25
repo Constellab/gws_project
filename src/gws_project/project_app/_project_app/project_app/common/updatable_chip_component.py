@@ -15,7 +15,7 @@ def updatable_chip(
     on_value_change: Callable[[str], None] | None = None,
     allow_subtask: bool = False,
     readonly_message: str = "Value is calculated from children and cannot be updated manually.",
-    icon: rx.Component | None = None,
+    get_icon: Callable[[Enum], rx.Component] | None = None,
 ) -> rx.Component:
     """Create a generic updatable chip component with color-coded badge and value selector.
 
@@ -37,12 +37,14 @@ def updatable_chip(
     :type allow_subtask: bool
     :param readonly_message: Message to show when value cannot be updated (optional)
     :type readonly_message: str
-    :param icon: Optional icon component to display before the value text
-    :type icon: rx.Component | None
+    :param get_icon: Optional callback returning an icon component for each enum value.
+        When provided, icons are shown on both the badge and the popover selection options.
+    :type get_icon: Callable[[Enum], rx.Component] | None
     :return: The updatable chip component
     :rtype: rx.Component
     """
 
+    icon = get_icon(value) if get_icon else None
     badge = _build_badge(value, get_color(value), size, icon, on_value_change)
 
     # If no change handler, return just the badge
@@ -52,9 +54,10 @@ def updatable_chip(
     # Create value option buttons
     value_options = []
     for value_option in all_values:
+        option_icon = get_icon(value_option) if get_icon else None
         value_options.append(
             rx.button(
-                _build_badge(value_option.value, get_color(value_option), size),
+                _build_badge(value_option.value, get_color(value_option), size, option_icon),
                 on_click=lambda: on_value_change(value_option.name),
                 variant="ghost",
                 width="100%",

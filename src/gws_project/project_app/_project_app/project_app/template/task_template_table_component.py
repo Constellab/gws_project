@@ -2,8 +2,8 @@ import reflex as rx
 from gws_project.template.task_template_dto import TaskTemplateDTO
 from gws_reflex_main import user_inline_component
 
-from ..common.priority_chip_component import priority_chip
 from ..common.project_app_router import ProjectAppRouter
+from ..common.tasks.task_priority_chip_component import task_priority_chip
 
 
 def task_template_table_component(
@@ -79,7 +79,7 @@ def _task_template_row(task_template: TaskTemplateDTO) -> rx.Component:
         ),
         rx.table.cell(rx.text(task_template.start_date_offset, size="2")),
         rx.table.cell(rx.text(task_template.duration_days, size="2")),
-        rx.table.cell(priority_chip(task_template.priority)),
+        rx.table.cell(task_priority_chip(task_template.priority)),
         rx.table.cell(
             rx.cond(
                 task_template.assign_to_role,

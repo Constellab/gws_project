@@ -13,6 +13,7 @@ from gws_core import (
 
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
+from gws_project.project.project_count_dto import ChildrenCountDTO
 from gws_project.project.project_security_service import ProjectSecurityService, ProjectUserRole
 from gws_project.project.project_user import ProjectUser
 from gws_project.task.task import Task
@@ -84,6 +85,42 @@ class TaskService:
         )
 
         return Task.get_subtasks_of_task(parent_task.id)
+
+    def get_task_children_count(self, task_id: str) -> ChildrenCountDTO:
+        """Get the number of direct subtasks and documents for a task.
+
+        :param task_id: The ID of the task
+        :type task_id: str
+        :return: ChildrenCountDTO with subtask_count and document_count
+        :rtype: ChildrenCountDTO
+        """
+        security_service = ProjectSecurityService()
+        task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
+
+        # Count direct subtasks (not recursive)
+        subtask_count = Task.select().where(Task.parent_task == task.id).count()
+
+        # Count documents tagged for this task
+        document_count = 0
+        space_folder_id = task.get_space_folder_id()
+        if space_folder_id:
+            from gws_core import SearchOperator, SpaceHierarchyObjectSearchParams
+
+            search_params = SpaceHierarchyObjectSearchParams()
+            search_params.add_object_type_filter(SearchOperator.NEQ, 'FOLDER')
+            search_params.add_tag_filter(SearchOperator.EQ, task.get_space_tag())
+            page_dto = self._space_service.search_project_children_objects_paginated(
+                folder_id=space_folder_id,
+                search_params=search_params,
+                page=0,
+                size=1,
+            )
+            document_count = page_dto.total_number_of_items
+
+        return ChildrenCountDTO(
+            subtask_count=subtask_count,
+            document_count=document_count,
+        )
 
     @ProjectDbManager.transaction()
     def create_root_task(self, project_id: str, task_dto: CreateTaskDTO) -> Task:

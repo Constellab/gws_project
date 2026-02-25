@@ -13,7 +13,7 @@ from ..common.documents_list.documents_list_component import documents_list_cont
 from ..common.documents_list.documents_list_state import DocumentsListState
 from ..common.page_layout import page_layout
 from ..common.progress_ring import progress_ring
-from ..common.tasks.project_status_chip_component import project_status_chip
+from ..common.projects.project_status_chip_component import project_status_chip
 from ..project_form_dialog.project_form_dialog_component import project_update_dialog
 from ..project_form_dialog.project_form_dialog_state import ProjectFormDialogState
 from ..task_form.task_form_dialog_component import task_form_dialog
@@ -73,7 +73,7 @@ def _tab_action_button() -> rx.Component:
                     rx.spinner(loading=DocumentsListState.is_uploading),
                     rx.icon("upload", size=16),
                     "Upload File",
-                    variant="soft",
+                    variant="solid",
                     size="2",
                 ),
                 id="document_upload",
@@ -326,7 +326,7 @@ def details_sidebar() -> rx.Component:
         ),
         # Divider + metadata section
         rx.vstack(
-            rx.divider(),
+            rx.divider(margin_bottom="0.5rem"),
             _sidebar_metadata_row(
                 "Created by",
                 user_inline_component(ProjectDetailState.project.created_by, size="small"),

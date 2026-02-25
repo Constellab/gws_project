@@ -6,7 +6,7 @@ from gws_project.task.task import Task
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.project_app_router import ProjectAppRouter
-from ..common.project_page_state import ProjectPageState
+from ..common.projects.project_page_state import ProjectPageState
 from ..common.view_mode_state import ViewModeState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 from ..task_list.task_list_state import TaskListState
@@ -123,7 +123,9 @@ class ProjectDetailState(ReflexMainState):
         form_state = await self.get_state(TaskFormDialogState)
         project = await self.project
 
-        await form_state.open_create_dialog(project=project, callback_after_close=self._on_create_task_dialog_close)
+        await form_state.open_create_dialog(
+            project=project, callback_after_close=self._on_create_task_dialog_close
+        )
 
     async def _on_create_task_dialog_close(self, task: Task):
         """Callback after the create task dialog is closed to refresh the task list.

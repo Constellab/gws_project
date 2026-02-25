@@ -4,7 +4,7 @@ from gws_project.task.task_service import TaskService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import Task
-from ..common.project_page_state import ProjectPageState, ProjectUrlParam
+from ..common.projects.project_page_state import ProjectPageState, ProjectUrlParam
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 
 

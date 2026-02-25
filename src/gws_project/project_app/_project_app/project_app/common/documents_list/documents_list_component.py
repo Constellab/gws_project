@@ -1,5 +1,6 @@
 import reflex as rx
 
+from .document_card_component import document_card
 from .documents_list_state import DocumentInfo, DocumentsListState
 
 
@@ -77,9 +78,9 @@ def documents_list_content() -> rx.Component:
 
 
 def _documents_content() -> rx.Component:
-    """Create the documents content with a table and load more functionality.
+    """Create the documents content with cards and load more functionality.
 
-    This component displays documents in a table format
+    This component displays documents as cards
     with pagination support through a "Load More" button.
 
     :return: The documents content component
@@ -104,8 +105,8 @@ def _documents_content() -> rx.Component:
         rx.cond(
             DocumentsListState.pagination_state.documents.length() > 0,
             rx.vstack(
-                # Table
-                _documents_table(),
+                # Document cards
+                _documents_cards(),
                 # Load more button
                 rx.cond(
                     DocumentsListState.pagination_state.has_more,
@@ -134,7 +135,7 @@ def _documents_content() -> rx.Component:
                     ),
                 ),
                 width="100%",
-                spacing="0",
+                spacing="3",
                 align_items="stretch",
                 class_name="project-documents-component",
                 # full height but not overflow parent
@@ -154,6 +155,19 @@ def _documents_content() -> rx.Component:
                 width="100%",
             ),
         ),
+    )
+
+
+def _documents_cards() -> rx.Component:
+    """Create the documents card list.
+
+    :return: The documents card list component
+    :rtype: rx.Component
+    """
+    return rx.vstack(
+        rx.foreach(DocumentsListState.pagination_state.documents, document_card),
+        width="100%",
+        spacing="2",
     )
 
 
@@ -204,7 +218,6 @@ def _document_row(document: DocumentInfo) -> rx.Component:
                     href=document.url,
                     is_external=True,
                 ),
-                _document_menu(document),
                 spacing="2",
                 align="center",
                 justify="end",
@@ -238,44 +251,6 @@ def _document_icon(object_type) -> rx.Component:
         size=16,
         color="gray",
         flex_shrink="0",
-    )
-
-
-def _document_menu(document: DocumentInfo) -> rx.Component:
-    """Create a dropdown menu for document actions.
-
-    :param document: The document info object
-    :type document: DocumentInfo
-    :return: The menu component
-    :rtype: rx.Component
-    """
-    return rx.menu.root(
-        rx.menu.trigger(
-            rx.icon_button(
-                rx.icon("ellipsis-vertical", size=16),
-                variant="ghost",
-                size="1",
-            )
-        ),
-        rx.menu.content(
-            rx.menu.item(
-                rx.icon("download", size=14),
-                "Download",
-                on_click=DocumentsListState.handle_download_document(document.id, document.name),
-            ),
-            rx.menu.item(
-                rx.icon("pencil", size=14),
-                "Rename",
-                on_click=DocumentsListState.open_rename_dialog(document.id, document.name),
-            ),
-            rx.menu.separator(),
-            rx.menu.item(
-                rx.icon("trash-2", size=14),
-                "Delete",
-                color="red",
-                on_click=DocumentsListState.open_delete_document_dialog(document.id, document.name),
-            ),
-        ),
     )
 
 

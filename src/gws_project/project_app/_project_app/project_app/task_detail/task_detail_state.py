@@ -7,7 +7,8 @@ from gws_project.task.task_service import TaskService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.project_app_router import ProjectAppRouter
-from ..common.project_page_state import ProjectPageState
+from ..common.projects.project_page_state import ProjectPageState
+from ..common.view_mode_state import ViewModeState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 from ..task_list.task_list_state import TaskListState
 
@@ -20,6 +21,25 @@ class TaskDetailState(ReflexMainState):
     """
 
     description_edit_mode: bool = False  # Track if description is in edit mode
+
+    @rx.var
+    async def view_mode(self) -> str:
+        """Get the current view mode from ViewModeState.
+
+        :return: The current view mode
+        :rtype: str
+        """
+        view_mode_state = await self.get_state(ViewModeState)
+        return view_mode_state.view_mode
+
+    async def set_view_mode(self, value: str | list[str]):
+        """Set the view mode by delegating to ViewModeState.
+
+        :param value: The view mode value
+        :type value: Union[str, List[str]]
+        """
+        view_mode_state = await self.get_state(ViewModeState)
+        view_mode_state.set_view_mode(value)
 
     @rx.var
     async def task(self) -> TaskDTO | None:

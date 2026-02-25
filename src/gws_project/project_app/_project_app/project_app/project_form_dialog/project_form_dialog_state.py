@@ -11,7 +11,7 @@ from gws_project.template.project_template_service import ProjectTemplateService
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 from ..common.project_app_router import ProjectAppRouter
-from ..common.project_page_state import ProjectPageState
+from ..common.projects.project_page_state import ProjectPageState
 
 
 class ProjectFormDialogState(FormDialogState, rx.State):

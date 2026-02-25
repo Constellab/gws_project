@@ -5,10 +5,10 @@ from gws_project.task.task_dto import TaskDTO, TaskStatus
 from gws_reflex_main import user_profile_picture
 
 from ...task_list.task_list_state import TaskListState
-from ..priority_chip_component import priority_chip
 from ..project_app_router import ProjectAppRouter
 from .task_actions_menu import task_actions_menu
 from .task_components import task_icon_component
+from .task_priority_chip_component import task_priority_chip
 from .task_status_chip_component import task_status_chip
 
 
@@ -96,8 +96,8 @@ def _task_card(task: TaskDTO) -> rx.Component:
                 ),
                 # Right side: priority, status, assignee, actions
                 rx.hstack(
-                    priority_chip(task.priority, size="1", show_icon=True),
-                    task_status_chip(task.status, size="1", show_icon=True),
+                    task_status_chip(task.status, size="1"),
+                    task_priority_chip(task.priority, size="1"),
                     user_profile_picture(task.assign_to, size="small"),
                     task_actions_menu(
                         on_update=lambda: TaskListState.open_update_task_dialog(task.id),

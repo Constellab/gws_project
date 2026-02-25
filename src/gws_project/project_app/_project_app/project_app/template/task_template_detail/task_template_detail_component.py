@@ -5,8 +5,8 @@ from gws_reflex_main.gws_components import rich_text_component
 from ...common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ...common.detail_page_layout import detail_page_layout
 from ...common.page_layout import page_layout
-from ...common.priority_chip_component import priority_chip
 from ...common.tasks.task_components import task_template_icon_component
+from ...common.tasks.task_priority_chip_component import task_priority_chip
 from ..task_template_form_dialog.task_template_form_dialog_component import (
     task_template_form_dialog,
 )
@@ -184,7 +184,7 @@ def details_sidebar() -> rx.Component:
             # Priority
             rx.text("Priority", size="2", color="gray", weight="medium"),
             rx.box(
-                priority_chip(
+                task_priority_chip(
                     TaskTemplateDetailState.task_template.priority,
                     on_priority_change=TaskTemplateDetailState.update_priority,
                     allow_subtask=TaskTemplateDetailState.task_template.allow_subtasks,

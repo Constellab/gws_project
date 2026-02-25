@@ -6,7 +6,7 @@ from typing import Literal
 import reflex as rx
 from gws_project.task.task_dto import TaskPriority
 
-from .updatable_chip_component import updatable_chip
+from ..updatable_chip_component import updatable_chip
 
 
 def _get_priority_color(priority: TaskPriority):
@@ -17,7 +17,9 @@ def _get_priority_color(priority: TaskPriority):
     :return: The color scheme name
     :rtype: str
     """
-    return rx.match(priority, (TaskPriority.HIGH, "tertiary"), (TaskPriority.MEDIUM, "secondary"), "gray")
+    return rx.match(
+        priority, (TaskPriority.HIGH, "tertiary"), (TaskPriority.MEDIUM, "secondary"), "gray"
+    )
 
 
 def _get_priority_icon(priority: TaskPriority) -> rx.Component:
@@ -37,12 +39,11 @@ def _get_priority_icon(priority: TaskPriority) -> rx.Component:
     return rx.icon(icon_name, size=12)
 
 
-def priority_chip(
+def task_priority_chip(
     priority: TaskPriority,
     size: Literal["1", "2", "3"] | None = None,
     on_priority_change: Callable[[str], None] | None = None,
     allow_subtask: bool = False,
-    show_icon: bool = False,
 ) -> rx.Component:
     """Create a priority chip component with color-coded badge and priority selector.
 
@@ -54,13 +55,9 @@ def priority_chip(
     :type on_priority_change: Callable[[str], None] | None
     :param allow_subtask: If True, shows message that priority is calculated from children (optional)
     :type allow_subtask: bool
-    :param show_icon: If True, display an icon before the priority text
-    :type show_icon: bool
     :return: The priority chip component
     :rtype: rx.Component
     """
-    icon = _get_priority_icon(priority) if show_icon else None
-
     return updatable_chip(
         value=priority,
         all_values=list(TaskPriority),
@@ -69,5 +66,5 @@ def priority_chip(
         on_value_change=on_priority_change,
         allow_subtask=allow_subtask,
         readonly_message="Priority is calculated from children and cannot be updated manually.",
-        icon=icon,
+        get_icon=_get_priority_icon,
     )

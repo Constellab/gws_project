@@ -6,7 +6,7 @@ from gws_project.task.task import Task
 from gws_reflex_main import ReflexMainState
 
 from ..project_app_router import ProjectAppRouter
-from ..project_page_state import ProjectPageState
+from ..projects.project_page_state import ProjectPageState
 
 
 @dataclass
