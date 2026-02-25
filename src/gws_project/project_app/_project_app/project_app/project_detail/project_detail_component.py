@@ -224,6 +224,10 @@ def main_content_area() -> rx.Component:
             project_description_content(),
             value="description",
             padding_top="1rem",
+            flex="1",
+            min_height="0",
+            display="flex",
+            flex_direction="column",
         ),
         rx.tabs.content(
             documents_list_content(),
@@ -236,6 +240,8 @@ def main_content_area() -> rx.Component:
         # full height but not overflow parent
         flex="1",
         min_height="0",
+        display="flex",
+        flex_direction="column",
         class_name="project-main-content-area",
     )
 

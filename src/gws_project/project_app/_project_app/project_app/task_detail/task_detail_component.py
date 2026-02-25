@@ -147,12 +147,11 @@ def _task_description_content() -> rx.Component:
             output_event=TaskDetailState.handle_description_change,
             custom_style=rx.cond(
                 TaskDetailState.description_edit_mode,
-                {"minHeight": "750px", "flex": "1", "display": "block", "backgroundColor": "white"},
+                {"flex": "1", "display": "flex", "backgroundColor": "white"},
                 {
                     "padding": "0",
                     "flex": "1",
-                    "display": "block",
-                    "minHeight": "0",
+                    "display": "flex",
                     "backgroundColor": "white",
                 },
             ),
@@ -243,6 +242,10 @@ def main_content_area() -> rx.Component:
             _task_description_content(),
             value="description",
             padding_top="1rem",
+            flex="1",
+            min_height="0",
+            display="flex",
+            flex_direction="column",
         ),
         rx.tabs.content(
             documents_list_content(),
@@ -254,6 +257,8 @@ def main_content_area() -> rx.Component:
         width="100%",
         flex="1",
         min_height="0",
+        display="flex",
+        flex_direction="column",
     )
 
 

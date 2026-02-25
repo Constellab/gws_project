@@ -492,6 +492,8 @@ class DocumentsListState(rx.State):
                         name=document_name,
                         objectType=doc.objectType,
                         parentId=doc.parentId,
+                        lastModifiedAt=doc.lastModifiedAt,
+                        documentSize=doc.documentSize,
                     )
                     updated_documents.append(updated_doc)
                 else:
