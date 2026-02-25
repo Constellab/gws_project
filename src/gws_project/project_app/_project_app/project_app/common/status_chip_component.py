@@ -17,19 +17,15 @@ def _get_status_color(status: TaskStatus):
     :return: The color scheme name
     :rtype: str
     """
-    return rx.match(
-        status,
-        (TaskStatus.DOING, "blue"),
-        (TaskStatus.DONE, "green"),
-        "gray"
-    )
+    return rx.match(status, (TaskStatus.DOING, "secondary"), (TaskStatus.DONE, "accent"), "gray")
 
 
 def status_chip(
     status: TaskStatus,
-    size: Literal['1', '2', '3'] = None,
-    on_status_change: Callable[[str], None] = None,
-    allow_subtask: bool = False
+    size: Literal["1", "2", "3"] | None = None,
+    on_status_change: Callable[[str], None] | None = None,
+    allow_subtask: bool = False,
+    show_icon: bool = False,
 ) -> rx.Component:
     """Create a status chip component with color-coded badge and status selector.
 
@@ -41,15 +37,20 @@ def status_chip(
     :type on_status_change: Callable[[TaskStatus], None]
     :param allow_subtask: If True, shows message that status is calculated from children (optional)
     :type allow_subtask: bool
+    :param show_icon: If True, display a filled circle dot icon before the status text
+    :type show_icon: bool
     :return: The status chip component
     :rtype: rx.Component
     """
+    icon = rx.icon("circle", size=8, fill="currentColor") if show_icon else None
+
     return updatable_chip(
         value=status,
         all_values=list(TaskStatus),
-        get_color_scheme=_get_status_color,
+        get_color=_get_status_color,
         size=size,
         on_value_change=on_status_change,
         allow_subtask=allow_subtask,
-        readonly_message="Status is calculated from children and cannot be updated manually."
+        readonly_message="Status is calculated from children and cannot be updated manually.",
+        icon=icon,
     )

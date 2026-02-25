@@ -17,39 +17,57 @@ def _get_priority_color(priority: TaskPriority):
     :return: The color scheme name
     :rtype: str
     """
-    return rx.match(
+    return rx.match(priority, (TaskPriority.HIGH, "tertiary"), (TaskPriority.MEDIUM, "secondary"), "gray")
+
+
+def _get_priority_icon(priority: TaskPriority) -> rx.Component:
+    """Get the icon component for a given priority.
+
+    :param priority: The task priority
+    :type priority: TaskPriority
+    :return: The icon component
+    :rtype: rx.Component
+    """
+    icon_name = rx.match(
         priority,
-        (TaskPriority.HIGH, "red"),
-        (TaskPriority.MEDIUM, "yellow"),
-        "gray"
+        (TaskPriority.HIGH, "chevron-up"),
+        (TaskPriority.MEDIUM, "minus"),
+        "chevron-down",
     )
+    return rx.icon(icon_name, size=12)
 
 
 def priority_chip(
     priority: TaskPriority,
-    size: Literal['1', '2', '3'] = None,
-    on_priority_change: Callable[[str], None] = None,
-    allow_subtask: bool = False
+    size: Literal["1", "2", "3"] | None = None,
+    on_priority_change: Callable[[str], None] | None = None,
+    allow_subtask: bool = False,
+    show_icon: bool = False,
 ) -> rx.Component:
     """Create a priority chip component with color-coded badge and priority selector.
 
     :param priority: The task priority (HIGH, MEDIUM, LOW)
     :type priority: TaskPriority
     :param size: The badge size (optional)
-    :type size: Literal['1', '2', '3']
+    :type size: Literal["1", "2", "3"] | None
     :param on_priority_change: Callback function when priority changes (optional)
-    :type on_priority_change: Callable[[str], None]
+    :type on_priority_change: Callable[[str], None] | None
     :param allow_subtask: If True, shows message that priority is calculated from children (optional)
     :type allow_subtask: bool
+    :param show_icon: If True, display an icon before the priority text
+    :type show_icon: bool
     :return: The priority chip component
     :rtype: rx.Component
     """
+    icon = _get_priority_icon(priority) if show_icon else None
+
     return updatable_chip(
         value=priority,
         all_values=list(TaskPriority),
-        get_color_scheme=_get_priority_color,
+        get_color=_get_priority_color,
         size=size,
         on_value_change=on_priority_change,
         allow_subtask=allow_subtask,
-        readonly_message="Priority is calculated from children and cannot be updated manually."
+        readonly_message="Priority is calculated from children and cannot be updated manually.",
+        icon=icon,
     )

@@ -383,7 +383,7 @@ class DocumentsListState(ReflexMainState):
             yield rx.toast.error("Document name cannot be empty")
             return
 
-        project_id: str = None
+        project_id: str | None = None
         async with self:
             project_id = await self._get_project_id()
         if not project_id:

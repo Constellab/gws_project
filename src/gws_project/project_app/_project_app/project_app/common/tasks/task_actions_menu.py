@@ -10,6 +10,7 @@ def task_actions_menu(
     on_delete: rx.EventHandler | Callable,
     on_change_type: rx.EventHandler | Callable | None = None,
     stop_propagation: bool = False,
+    **kwargs,
 ) -> rx.Component:
     """Create the actions menu for a task.
 
@@ -36,7 +37,9 @@ def task_actions_menu(
     ]
 
     if on_change_type:
-        change_type_click = [rx.stop_propagation, on_change_type] if stop_propagation else on_change_type
+        change_type_click = (
+            [rx.stop_propagation, on_change_type] if stop_propagation else on_change_type
+        )
         menu_items.append(
             rx.menu.item(
                 rx.icon("arrow-left-right", size=16),
@@ -59,9 +62,12 @@ def task_actions_menu(
         rx.menu.trigger(
             rx.button(
                 rx.icon("ellipsis-vertical", size=18),
-                variant="soft",
+                variant="ghost",
                 size="2",
-            )
+            ),
+            # this is to make the size of the parent correct
+            margin_left="0",
+            **kwargs,
         ),
         rx.menu.content(*menu_items),
     )

@@ -19,9 +19,9 @@ def _get_project_status_color(status: ProjectStatus):
     """
     return rx.match(
         status,
-        (ProjectStatus.ACTIVE, "var(--secondary-9)"),
-        (ProjectStatus.COMPLETED, "var(--accent-9)"),
-        "var(--gray-4)",
+        (ProjectStatus.ACTIVE, "secondary"),
+        (ProjectStatus.COMPLETED, "accent"),
+        "gray",
     )
 
 
@@ -44,7 +44,7 @@ def project_status_chip(
     return updatable_chip(
         value=status,
         all_values=list(ProjectStatus),
-        get_color_scheme=_get_project_status_color,
+        get_color=_get_project_status_color,
         size=size,
         on_value_change=on_status_change,
     )
