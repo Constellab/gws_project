@@ -1,8 +1,5 @@
-import os
-
 import reflex as rx
 from gws_reflex_main import register_gws_reflex_app
-from numpy import greater
 
 from .gantt.gantt_page_component import gantt_page_component
 from .gantt.gantt_page_state import GanttPageState

@@ -107,6 +107,8 @@ class BreadcrumbState(rx.State):
                 )
 
         # Add current task
-        items.append(BreadcrumbItem(label=task.title, url=f"/task/{task.id}"))
+        items.append(
+            BreadcrumbItem(label=task.title, url=ProjectAppRouter.get_task_detail_url(task.id))
+        )
 
         return items
