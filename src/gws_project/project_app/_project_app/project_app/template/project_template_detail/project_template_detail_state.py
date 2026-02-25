@@ -9,7 +9,7 @@ from ...common.project_app_router import ProjectAppRouter
 from ..template_page_state import TemplatePageState
 
 
-class TemplateDetailState(ReflexMainState):
+class TemplateDetailState(rx.State):
     """State for managing the template detail page.
 
     This state handles loading and displaying template details,
@@ -59,7 +59,8 @@ class TemplateDetailState(ReflexMainState):
             return []
 
         if self._template_id != template.id:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 template_service = ProjectTemplateService()
                 self._template_roles = template_service.get_all_roles_for_template(template.id)
             self._template_id = template.id
@@ -89,7 +90,8 @@ class TemplateDetailState(ReflexMainState):
             return
 
         try:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 template_service = ProjectTemplateService()
                 template_service.delete_project_template(project_template.id)
 
@@ -117,7 +119,8 @@ class TemplateDetailState(ReflexMainState):
         description_dto = RichTextDTO.from_json(event_data)
 
         try:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 template_service = ProjectTemplateService()
                 template_service.update_template_description(
                     project_template.id,

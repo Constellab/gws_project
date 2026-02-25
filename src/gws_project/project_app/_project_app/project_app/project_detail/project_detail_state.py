@@ -1,5 +1,6 @@
 import reflex as rx
 from gws_core import RichTextDTO
+from gws_project.project.project_count_dto import ChildrenCountDTO
 from gws_project.project.project_dto import ProjectDTO, ProjectUserDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
@@ -12,7 +13,7 @@ from ..task_form.task_form_dialog_state import TaskFormDialogState
 from ..task_list.task_list_state import TaskListState
 
 
-class ProjectDetailState(ReflexMainState):
+class ProjectDetailState(rx.State):
     """State for managing the project detail page.
 
     This state handles fetching and displaying the details of a single project
@@ -63,7 +64,8 @@ class ProjectDetailState(ReflexMainState):
             return []
 
         if self._project_id != current_project.id:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 project_service = ProjectService()
                 # Load project users
                 project_users = project_service.get_project_users(current_project.id)
@@ -71,6 +73,22 @@ class ProjectDetailState(ReflexMainState):
             self._project_id = current_project.id
 
         return self._project_users
+
+    @rx.var
+    async def children_count(self) -> ChildrenCountDTO | None:
+        """Get the number of tasks and documents for this project.
+
+        :return: ChildrenCountDTO with subtask_count and document_count
+        :rtype: Optional[ChildrenCountDTO]
+        """
+        project = await self.project
+        if not project:
+            return None
+
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            project_service = ProjectService()
+            return project_service.get_project_children_count(project.id)
 
     async def reload_users(self):
         """Event handler called when the page loads.
@@ -110,7 +128,8 @@ class ProjectDetailState(ReflexMainState):
             return
 
         # Update the project description
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             project_service = ProjectService()
             project_service.update_project_description(project.id, description_dto)
 
@@ -154,7 +173,8 @@ class ProjectDetailState(ReflexMainState):
             yield
             return
 
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             project_service = ProjectService()
             project_service.delete_project(project.id)
 

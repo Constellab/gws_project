@@ -8,7 +8,7 @@ from gws_reflex_main import ReflexMainState
 from ...common.project_app_router import ProjectAppRouter
 
 
-class ProjectTemplateListState(ReflexMainState):
+class ProjectTemplateListState(rx.State):
     """State for managing the template list page.
 
     This state handles fetching and displaying the list of project templates.
@@ -25,7 +25,8 @@ class ProjectTemplateListState(ReflexMainState):
         for display in the frontend.
         """
         # Check authentication before accessing data
-        if not await self.check_authentication():
+        main_state = await self.get_state(ReflexMainState)
+        if not await main_state.check_authentication():
             self.error_message = "You must be authenticated to view templates"
             return
 
@@ -34,7 +35,7 @@ class ProjectTemplateListState(ReflexMainState):
 
         try:
             templates: list[ProjectTemplate]
-            with await self.authenticate_user():
+            with await main_state.authenticate_user():
                 template_service = ProjectTemplateService()
                 templates = template_service.get_all_templates()
 
@@ -72,7 +73,8 @@ class ProjectTemplateListState(ReflexMainState):
         :type template_id: str
         """
         try:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 template_service = ProjectTemplateService()
                 template_service.delete_project_template(template_id)
 

@@ -110,7 +110,7 @@ class PaginationStateFront(BaseModelDTO):
     is_loading: bool
 
 
-class DocumentsListState(ReflexMainState):
+class DocumentsListState(rx.State):
     """State for managing the documents list.
 
     This state handles fetching and displaying documents for a specific project or task folder
@@ -190,6 +190,8 @@ class DocumentsListState(ReflexMainState):
             if not current_object:
                 return
 
+            main_state = await self.get_state(ReflexMainState)
+
             # Set loading state
             self._cached_object_id = current_object.id
             self._pagination = PaginationState(
@@ -198,7 +200,7 @@ class DocumentsListState(ReflexMainState):
 
         # Fetch documents outside of async with block
         try:
-            with await self.authenticate_user():
+            with await main_state.authenticate_user():
                 document_service = DocumentService()
 
                 # Use the appropriate service method based on object type
@@ -287,7 +289,8 @@ class DocumentsListState(ReflexMainState):
         )
 
         try:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 document_service = DocumentService()
 
                 # Use the appropriate service method based on object type
@@ -374,7 +377,8 @@ class DocumentsListState(ReflexMainState):
 
                     temp_file_path = str(path)
 
-                    with await self.authenticate_user():
+                    main_state = await self.get_state(ReflexMainState)
+                    with await main_state.authenticate_user():
                         document_service = DocumentService()
 
                         # Use the appropriate service method based on object type
@@ -469,9 +473,10 @@ class DocumentsListState(ReflexMainState):
 
         async with self:
             self.is_renaming = True
+            main_state = await self.get_state(ReflexMainState)
 
         try:
-            with await self.authenticate_user():
+            with await main_state.authenticate_user():
                 document_service = DocumentService()
                 document_service.rename_document(
                     project_id=project_id, document_id=document_id, name=document_name
@@ -526,7 +531,8 @@ class DocumentsListState(ReflexMainState):
                 yield rx.toast.error("Project not found")
                 return
 
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 document_service = DocumentService()
                 # Download document bytes directly
                 file_data = document_service.download_document_bytes(
@@ -569,7 +575,8 @@ class DocumentsListState(ReflexMainState):
                 yield rx.toast.error("Project not found")
                 return
 
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 document_service = DocumentService()
                 document_service.delete_document(project_id=project_id, document_id=document_id)
 

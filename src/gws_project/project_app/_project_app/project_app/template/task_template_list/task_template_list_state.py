@@ -9,7 +9,7 @@ from ..task_template_form_dialog import TaskTemplateFormDialogState
 from ..template_page_state import TemplatePageState, TemplateUrlParam
 
 
-class TaskTemplateListState(ReflexMainState):
+class TaskTemplateListState(rx.State):
     """State for managing the task template list within a project template.
 
     This state handles fetching and displaying task templates for a specific project template,
@@ -53,7 +53,8 @@ class TaskTemplateListState(ReflexMainState):
         if previous_id != current_id:
             self._url_params = url_param
             task_template_service = TaskTemplateService()
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 if url_param and url_param.type == "template":
                     self._task_templates = task_template_service.get_root_tasks_of_template(url_param.id)
                 elif url_param and url_param.type == "task_template":
@@ -110,7 +111,8 @@ class TaskTemplateListState(ReflexMainState):
 
     async def _delete_action(self, task_template_id: str):
         """Delete the task template from the list."""
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_template_service = TaskTemplateService()
             task_template_service.delete_task_template(task_template_id)
 
@@ -139,7 +141,8 @@ class TaskTemplateListState(ReflexMainState):
         elif url_param.type == "task_template":
             # If we're viewing a task template, we need to get its parent template
             task_template_service = TaskTemplateService()
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 task_template = task_template_service.get_task_template(url_param.id)
                 project_template_id = task_template.project_template.id
         else:
@@ -162,7 +165,8 @@ class TaskTemplateListState(ReflexMainState):
         """
         # Get the task template
         task_template_service = TaskTemplateService()
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_template = task_template_service.get_task_template(task_template_id)
 
         # Open the dialog

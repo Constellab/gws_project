@@ -6,7 +6,7 @@ from gws_reflex_main import ConfirmDialogState, ReflexMainState
 from ..common.projects.project_page_state import ProjectPageState
 
 
-class ManageUsersDialogState(ReflexMainState):
+class ManageUsersDialogState(rx.State):
     """State for managing the manage users dialog.
 
     This state handles the dialog open/close functionality for managing
@@ -47,7 +47,8 @@ class ManageUsersDialogState(ReflexMainState):
     async def _remove_user_action(self, user_id: str):
         """Remove the user from the project."""
         project_page_state = await self.get_state(ProjectPageState)
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             project_service = ProjectService()
             # Get the project ID from parent state
             url_param = await project_page_state.get_url_params()

@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import reflex as rx
 from gws_project.project.project import Project
 from gws_project.task.task import Task
-from gws_reflex_main import ReflexMainState
 
 from ..project_app_router import ProjectAppRouter
 from ..projects.project_page_state import ProjectPageState
@@ -23,7 +22,7 @@ class BreadcrumbItem:
     url: str
 
 
-class BreadcrumbState(ReflexMainState):
+class BreadcrumbState(rx.State):
     """State for managing the breadcrumb navigation component.
 
     This state builds breadcrumb trails by getting objects from ProjectPageState.

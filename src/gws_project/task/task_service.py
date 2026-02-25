@@ -8,6 +8,8 @@ from gws_core import (
     Logger,
     RichText,
     RichTextDTO,
+    SearchOperator,
+    SpaceHierarchyObjectSearchParams,
     SpaceService,
 )
 
@@ -104,8 +106,6 @@ class TaskService:
         document_count = 0
         space_folder_id = task.get_space_folder_id()
         if space_folder_id:
-            from gws_core import SearchOperator, SpaceHierarchyObjectSearchParams
-
             search_params = SpaceHierarchyObjectSearchParams()
             search_params.add_object_type_filter(SearchOperator.NEQ, 'FOLDER')
             search_params.add_tag_filter(SearchOperator.EQ, task.get_space_tag())

@@ -8,6 +8,8 @@ from gws_core import (
     Logger,
     RichText,
     RichTextDTO,
+    SearchOperator,
+    SpaceHierarchyObjectSearchParams,
     SpaceRootFolderUserRole,
     SpaceService,
 )
@@ -141,8 +143,6 @@ class ProjectService:
         # Count documents in the project's space folder
         document_count = 0
         if project.space_folder_id:
-            from gws_core import SearchOperator, SpaceHierarchyObjectSearchParams
-
             search_params = SpaceHierarchyObjectSearchParams()
             search_params.add_object_type_filter(SearchOperator.NEQ, 'FOLDER')
             page_dto = self._space_service.search_project_children_objects_paginated(

@@ -10,7 +10,7 @@ from ..common.gantt.gantt_utils import build_gantt_data_from_projects
 from ..common.project_app_router import ProjectAppRouter
 
 
-class GanttPageState(ReflexMainState):
+class GanttPageState(rx.State):
     """State for managing the gantt chart view of all projects and their root tasks.
 
     This state handles fetching and displaying all projects with their root tasks
@@ -34,7 +34,8 @@ class GanttPageState(ReflexMainState):
 
     async def load_projects_with_tasks(self):
         """Load all projects with their root tasks for the current user, with filters."""
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             project_service = ProjectService()
             self.projects_with_tasks = project_service.search_current_user_projects_with_root_tasks(
                 search_title=self.search_title,

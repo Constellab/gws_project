@@ -2,12 +2,12 @@
 
 from typing import Literal
 
-from gws_reflex_main import ReflexMainState
+import reflex as rx
 
 ViewMode = Literal["list", "description", "documents"]
 
 
-class ViewModeState(ReflexMainState):
+class ViewModeState(rx.State):
     """Shared state for managing the current view mode in detail pages.
 
     This state is used to coordinate between different components and states

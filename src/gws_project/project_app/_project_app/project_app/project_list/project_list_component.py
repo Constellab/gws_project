@@ -7,6 +7,7 @@ from ..common.progress_ring import progress_ring
 from ..common.projects.project_components import project_status_badge
 from ..project_form_dialog.project_form_dialog_component import create_project_dialog
 from .project_list_state import ProjectDTO, ProjectListState
+from .project_stats_header_component import project_stats_header
 
 
 def _filter_bar() -> rx.Component:
@@ -44,6 +45,7 @@ def _filter_bar() -> rx.Component:
         width="100%",
         spacing="3",
         wrap="wrap",
+        margin_top="16px",
     )
 
 
@@ -62,6 +64,8 @@ def project_list_page() -> rx.Component:
             rx.vstack(
                 # Filter bar
                 _filter_bar(),
+                # Stats cards
+                project_stats_header(ProjectListState.project_count),
                 # Error message display
                 rx.cond(
                     ProjectListState.error_message != "",

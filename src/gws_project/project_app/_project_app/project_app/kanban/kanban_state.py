@@ -16,7 +16,7 @@ from ..common.kanban.kanban import BoardDataDTO, CardDTO, CardMoveEvent, build_k
 from ..common.project_app_router import ProjectAppRouter
 
 
-class KanbanState(ReflexMainState):
+class KanbanState(rx.State):
     """State for managing the kanban board view of all tasks.
 
     This state handles fetching and displaying all tasks accessible to the user
@@ -38,7 +38,8 @@ class KanbanState(ReflexMainState):
 
     async def load_projects(self):
         """Load the list of projects for the current user."""
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             user_projects = ProjectService().get_current_user_projects()
             self.available_projects = [project.to_dto() for project in user_projects]
 
@@ -47,7 +48,8 @@ class KanbanState(ReflexMainState):
 
         The current user is placed first in the list.
         """
-        current_user = await self.get_and_check_current_user()
+        main_state = await self.get_state(ReflexMainState)
+        current_user = await main_state.get_and_check_current_user()
         users = User.get_real_users()
 
         # Convert to DTOs
@@ -125,7 +127,8 @@ class KanbanState(ReflexMainState):
         if self.selected_project_id:
             search_builder.add_project_filter(self.selected_project_id)
         else:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 user_projects = ProjectService().get_current_user_projects()
                 project_ids = [project.id for project in user_projects]
                 if project_ids:

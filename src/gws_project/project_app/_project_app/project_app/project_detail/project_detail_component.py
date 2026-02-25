@@ -151,6 +151,22 @@ def header() -> rx.Component:
     )
 
 
+def _tab_count_badge(count: rx.Var[int]) -> rx.Component:
+    """Create a small count badge for a tab title.
+
+    :param count: The count value to display
+    :type count: rx.Var[int]
+    :return: The styled count badge component
+    :rtype: rx.Component
+    """
+    return rx.badge(
+        count,
+        variant="soft",
+        size="1",
+        radius="full",
+    )
+
+
 def main_content_area() -> rx.Component:
     """Create the main content area with tabs for switching between views.
 
@@ -164,9 +180,34 @@ def main_content_area() -> rx.Component:
         # Tab bar row: triggers on the left, action button on the right
         rx.hstack(
             rx.tabs.list(
-                rx.tabs.trigger("Tasks", value="list"),
-                rx.tabs.trigger("Description", value="description"),
-                rx.tabs.trigger("Documents", value="documents"),
+                rx.tabs.trigger(
+                    rx.hstack(
+                        rx.text("Tasks"),
+                        rx.cond(
+                            ProjectDetailState.children_count,
+                            _tab_count_badge(ProjectDetailState.children_count.subtask_count),
+                        ),
+                        align="center",
+                        spacing="2",
+                    ),
+                    value="list",
+                ),
+                rx.tabs.trigger(
+                    rx.text("Description"),
+                    value="description",
+                ),
+                rx.tabs.trigger(
+                    rx.hstack(
+                        rx.text("Documents"),
+                        rx.cond(
+                            ProjectDetailState.children_count,
+                            _tab_count_badge(ProjectDetailState.children_count.document_count),
+                        ),
+                        align="center",
+                        spacing="2",
+                    ),
+                    value="documents",
+                ),
             ),
             rx.spacer(),
             _tab_action_button(),
