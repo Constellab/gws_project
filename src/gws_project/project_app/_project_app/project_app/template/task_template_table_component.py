@@ -1,9 +1,8 @@
 import reflex as rx
 from gws_project.template.task_template_dto import TaskTemplateDTO
-from gws_reflex_main import user_inline_component
 
-from ..common.priority_chip_component import priority_chip
 from ..common.project_app_router import ProjectAppRouter
+from ..common.tasks.task_priority_chip_component import task_priority_chip
 
 
 def task_template_table_component(
@@ -31,7 +30,6 @@ def task_template_table_component(
                     rx.table.column_header_cell("Duration (days)"),
                     rx.table.column_header_cell("Priority"),
                     rx.table.column_header_cell("Assigned Role"),
-                    rx.table.column_header_cell("Created By"),
                     rx.table.column_header_cell("Actions", width="100px"),
                 ),
             ),
@@ -79,7 +77,7 @@ def _task_template_row(task_template: TaskTemplateDTO) -> rx.Component:
         ),
         rx.table.cell(rx.text(task_template.start_date_offset, size="2")),
         rx.table.cell(rx.text(task_template.duration_days, size="2")),
-        rx.table.cell(priority_chip(task_template.priority)),
+        rx.table.cell(task_priority_chip(task_template.priority)),
         rx.table.cell(
             rx.cond(
                 task_template.assign_to_role,
@@ -87,7 +85,6 @@ def _task_template_row(task_template: TaskTemplateDTO) -> rx.Component:
                 rx.text("Unassigned", size="2", color="gray"),
             )
         ),
-        rx.table.cell(user_inline_component(task_template.created_by)),
         rx.table.cell(_actions_menu(task_template)),
         style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
         on_click=lambda: rx.redirect(
@@ -107,7 +104,7 @@ def _actions_menu(task_template: TaskTemplateDTO) -> rx.Component:
     from .task_template_list.task_template_list_state import TaskTemplateListState
 
     return rx.menu.root(
-        rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", size="2")),
+        rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="ghost", color_scheme="gray", size="2")),
         rx.menu.content(
             rx.menu.item(
                 rx.icon("pencil", size=16),

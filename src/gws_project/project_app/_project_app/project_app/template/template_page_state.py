@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
+import reflex as rx
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.project_template_service import ProjectTemplateService
 from gws_project.template.task_template import TaskTemplate
@@ -14,7 +15,7 @@ class TemplateUrlParam:
     type: Literal["template", "task_template"]
 
 
-class TemplatePageState(ReflexMainState):
+class TemplatePageState(rx.State):
     """State for managing template and task template objects with caching.
 
     This state provides a centralized way to load and cache ProjectTemplate and TaskTemplate objects
@@ -102,7 +103,8 @@ class TemplatePageState(ReflexMainState):
             return self._cached_object
 
         # Load the object based on URL parameter
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             if task_template_id:
                 task_template_service = TaskTemplateService()
                 obj = task_template_service.get_task_template(task_template_id)

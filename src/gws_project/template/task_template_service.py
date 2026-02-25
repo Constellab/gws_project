@@ -53,7 +53,7 @@ class TaskTemplateService:
 
     @ProjectDbManager.transaction()
     def create_task_template(self, template_id: str, task_template_dto: SaveTaskTemplateDTO,
-                             parent_task_id: str = None) -> TaskTemplate:
+                             parent_task_id: str | None = None) -> TaskTemplate:
         """Create a new task template for a project template.
 
         Supports unlimited nesting levels - task templates can be created under any task template

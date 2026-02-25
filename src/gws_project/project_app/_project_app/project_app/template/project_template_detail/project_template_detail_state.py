@@ -9,7 +9,7 @@ from ...common.project_app_router import ProjectAppRouter
 from ..template_page_state import TemplatePageState
 
 
-class TemplateDetailState(ReflexMainState):
+class TemplateDetailState(rx.State):
     """State for managing the template detail page.
 
     This state handles loading and displaying template details,
@@ -20,6 +20,8 @@ class TemplateDetailState(ReflexMainState):
     delete_dialog_opened: bool = False
     # Description edit mode
     description_edit_mode: bool = False
+    # View mode for tabs
+    view_mode: str = "task_templates"
     # Cache for template roles
     _template_id: str | None = None
     _template_roles: list[str] = []
@@ -59,7 +61,8 @@ class TemplateDetailState(ReflexMainState):
             return []
 
         if self._template_id != template.id:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 template_service = ProjectTemplateService()
                 self._template_roles = template_service.get_all_roles_for_template(template.id)
             self._template_id = template.id
@@ -89,7 +92,8 @@ class TemplateDetailState(ReflexMainState):
             return
 
         try:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 template_service = ProjectTemplateService()
                 template_service.delete_project_template(project_template.id)
 
@@ -117,7 +121,8 @@ class TemplateDetailState(ReflexMainState):
         description_dto = RichTextDTO.from_json(event_data)
 
         try:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 template_service = ProjectTemplateService()
                 template_service.update_template_description(
                     project_template.id,
@@ -133,8 +138,20 @@ class TemplateDetailState(ReflexMainState):
         except Exception as e:
             yield rx.toast.error(f"Error updating description: {str(e)}")
 
+    def set_view_mode(self, value: str | list[str]):
+        """Set the view mode for the tabs.
+
+        :param value: The view mode value
+        :type value: Union[str, List[str]]
+        """
+        if isinstance(value, list):
+            self.view_mode = value[0] if value else "task_templates"
+        else:
+            self.view_mode = value
+
     @rx.event
     def init(self):
         """Initialize the state."""
         self.description_edit_mode = False
         self.delete_dialog_opened = False
+        self.view_mode = "task_templates"

@@ -3,9 +3,9 @@ from dataclasses import dataclass
 import reflex as rx
 from gws_project.project.project import Project
 from gws_project.task.task import Task
-from gws_reflex_main import ReflexMainState
 
-from ..project_page_state import ProjectPageState
+from ..project_app_router import ProjectAppRouter
+from ..projects.project_page_state import ProjectPageState
 
 
 @dataclass
@@ -17,11 +17,12 @@ class BreadcrumbItem:
     :param url: The URL to navigate to when clicked
     :type url: str
     """
+
     label: str
     url: str
 
 
-class BreadcrumbState(ReflexMainState):
+class BreadcrumbState(rx.State):
     """State for managing the breadcrumb navigation component.
 
     This state builds breadcrumb trails by getting objects from ProjectPageState.
@@ -47,7 +48,7 @@ class BreadcrumbState(ReflexMainState):
             return []
 
         # Start with base breadcrumb
-        items = [BreadcrumbItem(label="Projects", url="/")]
+        items = [BreadcrumbItem(label="Projects", url=ProjectAppRouter.get_project_list_url())]
 
         # Build breadcrumb based on object type
         if isinstance(obj, Task):
@@ -66,7 +67,9 @@ class BreadcrumbState(ReflexMainState):
         :rtype: List[BreadcrumbItem]
         """
         return [
-            BreadcrumbItem(label=project.title, url=f"/project/{project.id}")
+            BreadcrumbItem(
+                label=project.title, url=ProjectAppRouter.get_project_detail_url(project.id)
+            )
         ]
 
     def _build_breadcrumb_for_task(self, task: Task) -> list[BreadcrumbItem]:
@@ -84,7 +87,9 @@ class BreadcrumbState(ReflexMainState):
         # Add project
         project = task.project
         items.append(
-            BreadcrumbItem(label=project.title, url=f"/project/{project.id}")
+            BreadcrumbItem(
+                label=project.title, url=ProjectAppRouter.get_project_detail_url(project.id)
+            )
         )
 
         # Add all ancestor tasks in order from root to immediate parent
@@ -97,13 +102,13 @@ class BreadcrumbState(ReflexMainState):
                 items.append(
                     BreadcrumbItem(
                         label=ancestor.title,
-                        url=f"/task/{ancestor.id}"
+                        url=ProjectAppRouter.get_task_detail_url(ancestor.id),
                     )
                 )
 
         # Add current task
         items.append(
-            BreadcrumbItem(label=task.title, url=f"/task/{task.id}")
+            BreadcrumbItem(label=task.title, url=ProjectAppRouter.get_task_detail_url(task.id))
         )
 
         return items

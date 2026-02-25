@@ -178,7 +178,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
 
         return result
 
-    async def open_create_dialog(self, project: ProjectDTO, callback_after_close: ReflexDialogCloseEvent[Task] = None):
+    async def open_create_dialog(self, project: ProjectDTO, callback_after_close: ReflexDialogCloseEvent[Task] | None = None):
         """Open the dialog in create mode for a new root task.
 
         This method is kept for backward compatibility and delegates to open_create_root_dialog.
@@ -204,7 +204,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         await self.open_dialog()
 
     async def open_create_sub_dialog(self, parent_task_id: str, project: ProjectDTO,
-                                     callback_after_close: ReflexDialogCloseEvent[Task] = None):
+                                     callback_after_close: ReflexDialogCloseEvent[Task] | None = None):
         """Open the dialog in create mode for a new subtask.
 
         Args:
@@ -228,7 +228,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         # Open the dialog
         await self.open_dialog()
 
-    async def open_update_dialog(self, task: Task, callback_after_close: ReflexDialogCloseEvent[Task] = None):
+    async def open_update_dialog(self, task: Task, callback_after_close: ReflexDialogCloseEvent[Task] | None = None):
         """Open the dialog in update mode with existing task data.
 
         Args:
@@ -322,7 +322,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         if task_dto is None:
             return  # Validation error already shown
 
-        task: Task = None
+        task: Task | None = None
         # Create the task based on the form mode
         if self._form_mode == TaskFormMode.CREATE_ROOT.value:
             # Create the root task

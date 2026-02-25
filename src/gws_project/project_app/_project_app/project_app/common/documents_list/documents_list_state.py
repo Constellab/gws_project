@@ -5,6 +5,7 @@ import reflex as rx
 from gws_core import (
     BaseModelDTO,
     DocumentUploadOverrideMode,
+    FileHelper,
     Logger,
     SpaceFrontService,
     SpaceHierarchyObjectDTO,
@@ -15,7 +16,7 @@ from gws_project.project.project import Project
 from gws_project.task.task import Task
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
-from ..project_page_state import ProjectPageState
+from ..projects.project_page_state import ProjectPageState
 
 
 @dataclass
@@ -36,6 +37,69 @@ class DocumentInfo(BaseModelDTO):
     name: str
     url: str
     type: SpaceHierarchyObjectType
+    size_pretty: str
+    last_modified: str
+    extension: str
+    extension_color: str
+
+
+# Map of file extensions to display colors
+_EXTENSION_COLORS: dict[str, str] = {
+    # PDF
+    "pdf": "#DC2626",
+    # Word
+    "doc": "#2B579A",
+    "docx": "#2B579A",
+    "odt": "#2B579A",
+    # Excel
+    "xls": "#217346",
+    "xlsx": "#217346",
+    "csv": "#217346",
+    "ods": "#217346",
+    # PowerPoint
+    "ppt": "#D24726",
+    "pptx": "#D24726",
+    "odp": "#D24726",
+    # Images
+    "png": "#9333EA",
+    "jpg": "#9333EA",
+    "jpeg": "#9333EA",
+    "gif": "#9333EA",
+    "svg": "#9333EA",
+    "webp": "#9333EA",
+    # Archives
+    "zip": "#CA8A04",
+    "tar": "#CA8A04",
+    "gz": "#CA8A04",
+    "rar": "#CA8A04",
+    "7z": "#CA8A04",
+    # Text / code
+    "txt": "#64748B",
+    "md": "#64748B",
+    "json": "#0EA5E9",
+    "xml": "#0EA5E9",
+    "html": "#E34F26",
+    "css": "#1572B6",
+    "py": "#3776AB",
+    "js": "#F7DF1E",
+    "ts": "#3178C6",
+}
+
+
+def _get_extension_info(filename: str) -> tuple[str, str]:
+    """Extract 3-letter extension label and color from a filename.
+
+    :param filename: The document filename
+    :type filename: str
+    :return: Tuple of (extension label, color hex)
+    :rtype: tuple[str, str]
+    """
+    ext = ""
+    if "." in filename:
+        ext = filename.rsplit(".", 1)[-1].lower()
+    label = ext[:3].upper() if ext else "FILE"
+    color = _EXTENSION_COLORS.get(ext, "#64748B")
+    return label, color
 
 
 class PaginationStateFront(BaseModelDTO):
@@ -46,7 +110,7 @@ class PaginationStateFront(BaseModelDTO):
     is_loading: bool
 
 
-class DocumentsListState(ReflexMainState):
+class DocumentsListState(rx.State):
     """State for managing the documents list.
 
     This state handles fetching and displaying documents for a specific project or task folder
@@ -79,17 +143,27 @@ class DocumentsListState(ReflexMainState):
         """
         # Convert to DocumentInfo
         space_front_service = SpaceFrontService()
-        documents = [
-            DocumentInfo(
-                id=doc.id,
-                name=doc.name,
-                url=space_front_service.get_hierarchy_object_url(
-                    object_id=doc.id, object_type=doc.objectType
-                ),
-                type=doc.objectType,
+        documents = []
+        for doc in self._pagination.documents:
+            ext_label, ext_color = _get_extension_info(doc.name)
+            documents.append(
+                DocumentInfo(
+                    id=doc.id,
+                    name=doc.name,
+                    url=space_front_service.get_hierarchy_object_url(
+                        object_id=doc.id, object_type=doc.objectType
+                    ),
+                    type=doc.objectType,
+                    size_pretty=FileHelper.get_file_size_pretty_text(doc.documentSize)
+                    if doc.documentSize is not None
+                    else "",
+                    last_modified=doc.lastModifiedAt.strftime("%b %d, %Y")
+                    if doc.lastModifiedAt
+                    else "",
+                    extension=ext_label,
+                    extension_color=ext_color,
+                )
             )
-            for doc in self._pagination.documents
-        ]
 
         return PaginationStateFront(
             documents=documents,
@@ -116,6 +190,8 @@ class DocumentsListState(ReflexMainState):
             if not current_object:
                 return
 
+            main_state = await self.get_state(ReflexMainState)
+
             # Set loading state
             self._cached_object_id = current_object.id
             self._pagination = PaginationState(
@@ -124,7 +200,7 @@ class DocumentsListState(ReflexMainState):
 
         # Fetch documents outside of async with block
         try:
-            with await self.authenticate_user():
+            with await main_state.authenticate_user():
                 document_service = DocumentService()
 
                 # Use the appropriate service method based on object type
@@ -213,7 +289,8 @@ class DocumentsListState(ReflexMainState):
         )
 
         try:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 document_service = DocumentService()
 
                 # Use the appropriate service method based on object type
@@ -300,7 +377,8 @@ class DocumentsListState(ReflexMainState):
 
                     temp_file_path = str(path)
 
-                    with await self.authenticate_user():
+                    main_state = await self.get_state(ReflexMainState)
+                    with await main_state.authenticate_user():
                         document_service = DocumentService()
 
                         # Use the appropriate service method based on object type
@@ -383,7 +461,7 @@ class DocumentsListState(ReflexMainState):
             yield rx.toast.error("Document name cannot be empty")
             return
 
-        project_id: str = None
+        project_id: str | None = None
         async with self:
             project_id = await self._get_project_id()
         if not project_id:
@@ -395,9 +473,10 @@ class DocumentsListState(ReflexMainState):
 
         async with self:
             self.is_renaming = True
+            main_state = await self.get_state(ReflexMainState)
 
         try:
-            with await self.authenticate_user():
+            with await main_state.authenticate_user():
                 document_service = DocumentService()
                 document_service.rename_document(
                     project_id=project_id, document_id=document_id, name=document_name
@@ -413,6 +492,8 @@ class DocumentsListState(ReflexMainState):
                         name=document_name,
                         objectType=doc.objectType,
                         parentId=doc.parentId,
+                        lastModifiedAt=doc.lastModifiedAt,
+                        documentSize=doc.documentSize,
                     )
                     updated_documents.append(updated_doc)
                 else:
@@ -452,7 +533,8 @@ class DocumentsListState(ReflexMainState):
                 yield rx.toast.error("Project not found")
                 return
 
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 document_service = DocumentService()
                 # Download document bytes directly
                 file_data = document_service.download_document_bytes(
@@ -495,7 +577,8 @@ class DocumentsListState(ReflexMainState):
                 yield rx.toast.error("Project not found")
                 return
 
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 document_service = DocumentService()
                 document_service.delete_document(project_id=project_id, document_id=document_id)
 

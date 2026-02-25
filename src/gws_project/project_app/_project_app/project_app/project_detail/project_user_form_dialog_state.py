@@ -4,7 +4,7 @@ from gws_project.project.project_dto import ProjectUserDTO, ProjectUserRole
 from gws_project.project.project_service import ProjectService
 from gws_reflex_main import FormDialogState, ReflexMainState
 
-from ..common.project_page_state import ProjectPageState
+from ..common.projects.project_page_state import ProjectPageState
 from .project_detail_state import ProjectDetailState
 
 

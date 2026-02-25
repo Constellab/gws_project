@@ -1,5 +1,6 @@
 import reflex as rx
 from gws_core import RichTextDTO, UserDTO
+from gws_project.project.project_count_dto import ChildrenCountDTO
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.task.task import Task
 from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
@@ -7,12 +8,13 @@ from gws_project.task.task_service import TaskService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.project_app_router import ProjectAppRouter
-from ..common.project_page_state import ProjectPageState
+from ..common.projects.project_page_state import ProjectPageState
+from ..common.view_mode_state import ViewModeState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 from ..task_list.task_list_state import TaskListState
 
 
-class TaskDetailState(ReflexMainState):
+class TaskDetailState(rx.State):
     """State for managing the task detail page.
 
     This state handles fetching and displaying the details of a single task
@@ -20,6 +22,35 @@ class TaskDetailState(ReflexMainState):
     """
 
     description_edit_mode: bool = False  # Track if description is in edit mode
+
+    @rx.var
+    async def view_mode(self) -> str:
+        """Get the current view mode from ViewModeState.
+
+        If the task does not allow subtasks and the current mode is "list",
+        falls back to "description" since the subtasks tab is not available.
+
+        :return: The current view mode
+        :rtype: str
+        """
+        view_mode_state = await self.get_state(ViewModeState)
+        mode = view_mode_state.view_mode
+
+        # If the task has no subtasks tab, prevent "list" mode
+        task = await self.task
+        if task and not task.allow_subtasks and mode == "list":
+            return "description"
+
+        return mode
+
+    async def set_view_mode(self, value: str | list[str]):
+        """Set the view mode by delegating to ViewModeState.
+
+        :param value: The view mode value
+        :type value: Union[str, List[str]]
+        """
+        view_mode_state = await self.get_state(ViewModeState)
+        view_mode_state.set_view_mode(value)
 
     @rx.var
     async def task(self) -> TaskDTO | None:
@@ -74,10 +105,27 @@ class TaskDetailState(ReflexMainState):
         if not task or not task.allow_subtasks:
             return []
 
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_service = TaskService()
             users = task_service.get_descendants_assigned_users(task.id)
             return [user.to_dto() for user in users]
+
+    @rx.var
+    async def children_count(self) -> ChildrenCountDTO | None:
+        """Get the number of subtasks and documents for this task.
+
+        :return: ChildrenCountDTO with subtask_count and document_count
+        :rtype: Optional[ChildrenCountDTO]
+        """
+        task = await self.task
+        if not task:
+            return None
+
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            task_service = TaskService()
+            return task_service.get_task_children_count(task.id)
 
     async def open_create_subtask_dialog(self):
         """Open the create subtask dialog."""
@@ -145,7 +193,8 @@ class TaskDetailState(ReflexMainState):
             return
 
         # Update the task description
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_service = TaskService()
             task_service.update_task_description(task.id, description_dto)
 
@@ -187,7 +236,8 @@ class TaskDetailState(ReflexMainState):
             return
 
         # Delete the task
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_service = TaskService()
             task_service.delete_task(task.id)
 
@@ -246,7 +296,8 @@ class TaskDetailState(ReflexMainState):
 
         new_allow_subtasks = not task.allow_subtasks
 
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_service = TaskService()
             task_service.update_allow_subtasks(task.id, new_allow_subtasks)
 
@@ -274,7 +325,8 @@ class TaskDetailState(ReflexMainState):
         # create TaskStatus enum from string
         task_status = TaskStatus[new_status]
 
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_service = TaskService()
             task_service.update_status(task.id, task_status)
 
@@ -296,7 +348,8 @@ class TaskDetailState(ReflexMainState):
         # create TaskPriority enum from string
         task_priority = TaskPriority[new_priority]
 
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_service = TaskService()
             task_service.update_priority(task.id, task_priority)
 

@@ -1,23 +1,96 @@
 import reflex as rx
-from gws_reflex_main import main_component, user_inline_component
+from gws_reflex_main import (
+    main_component,
+    right_sidebar_close_button,
+    user_inline_component,
+)
 from gws_reflex_main.gws_components import rich_text_component
 
+from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
 from ..common.detail_page_layout import detail_page_layout
-from ..common.documents_list.documents_list_component import documents_list_view
+from ..common.documents_list.documents_list_component import documents_list_content
+from ..common.documents_list.documents_list_state import DocumentsListState
 from ..common.page_layout import page_layout
-from ..common.priority_chip_component import priority_chip
-from ..common.progress_bar import progress_bar
-from ..common.status_chip_component import status_chip
+from ..common.progress_ring import progress_ring
 from ..common.tasks.task_actions_menu import task_actions_menu
 from ..common.tasks.task_components import task_icon_component
+from ..common.tasks.task_priority_chip_component import task_priority_chip
+from ..common.tasks.task_status_chip_component import task_status_chip
 from ..task_form.task_form_dialog_component import task_form_dialog
-from ..task_list.task_list_component import task_list_component
+from ..task_list.task_list_component import task_list_content
 from .task_detail_state import TaskDetailState
 
 
+def _tab_action_button() -> rx.Component:
+    """Create the action button that changes based on the active tab.
+
+    - Subtasks tab: "Create Subtask" button
+    - Description tab: "Edit"/"View" toggle button
+    - Documents tab: "Upload File" button
+
+    :return: The conditional action button component
+    :rtype: rx.Component
+    """
+    return rx.match(
+        TaskDetailState.view_mode,
+        (
+            "list",
+            rx.button(
+                rx.icon("plus", size=16),
+                "Create Subtask",
+                variant="solid",
+                size="2",
+                on_click=TaskDetailState.open_create_subtask_dialog,
+            ),
+        ),
+        (
+            "description",
+            rx.button(
+                rx.icon(
+                    rx.cond(
+                        TaskDetailState.description_edit_mode,
+                        "eye",
+                        "pencil",
+                    ),
+                    size=16,
+                ),
+                rx.cond(
+                    TaskDetailState.description_edit_mode,
+                    "View",
+                    "Edit",
+                ),
+                variant="solid",
+                size="2",
+                on_click=TaskDetailState.toggle_description_edit_mode,
+            ),
+        ),
+        (
+            "documents",
+            rx.upload.root(
+                rx.button(
+                    rx.spinner(loading=DocumentsListState.is_uploading),
+                    rx.icon("upload", size=16),
+                    "Upload File",
+                    variant="solid",
+                    size="2",
+                ),
+                id="document_upload",
+                multiple=True,
+                on_drop=DocumentsListState.handle_upload(
+                    rx.upload_files(
+                        "document_upload",
+                        on_upload_progress=DocumentsListState.handle_upload_progress,
+                    )
+                ),
+            ),
+        ),
+        rx.fragment(),
+    )
+
+
 def task_header() -> rx.Component:
-    """Create the task header with icon, title, and action menu.
+    """Create the task header with icon, title, status, and action menu.
 
     :return: The task header component
     :rtype: rx.Component
@@ -29,6 +102,22 @@ def task_header() -> rx.Component:
         rx.heading(
             TaskDetailState.task.title,
             size="6",
+        ),
+        # Status and priority badges beside title
+        rx.hstack(
+            task_status_chip(
+                TaskDetailState.task.status,
+                on_status_change=TaskDetailState.update_status,
+                allow_subtask=TaskDetailState.task.allow_subtasks,
+            ),
+            task_priority_chip(
+                TaskDetailState.task.priority,
+                on_priority_change=TaskDetailState.update_priority,
+                allow_subtask=TaskDetailState.task.allow_subtasks,
+            ),
+            spacing="2",
+            align="center",
+            margin_left="0.5rem",
         ),
         rx.spacer(),
         # Action menu (Update, Change Type, and Delete)
@@ -43,217 +132,346 @@ def task_header() -> rx.Component:
     )
 
 
-def task_description() -> rx.Component:
-    """Create the task description section with edit/view toggle.
+def _task_description_content() -> rx.Component:
+    """Create the description content without header.
 
-    :return: The task description component
+    The header (title and action button) is managed at the tab level.
+
+    :return: The description content component
     :rtype: rx.Component
     """
     return rx.vstack(
-        # Description header with edit toggle
-        rx.hstack(
-            rx.heading("Description", size="4", weight="bold"),
-            rx.spacer(),
-            rx.button(
-                rx.icon(rx.cond(TaskDetailState.description_edit_mode, "eye", "pencil"), size=16),
-                rx.cond(TaskDetailState.description_edit_mode, "View", "Edit"),
-                variant="soft",
-                size="2",
-                on_click=TaskDetailState.toggle_description_edit_mode,
-            ),
-            width="100%",
-            align="center",
-        ),
         rich_text_component(
             value=TaskDetailState.task.description,
             disabled=~TaskDetailState.description_edit_mode,
             output_event=TaskDetailState.handle_description_change,
             custom_style=rx.cond(
-                TaskDetailState.description_edit_mode, {"minHeight": "750px"}, {"padding": "0"}
+                TaskDetailState.description_edit_mode,
+                {"flex": "1", "display": "flex", "backgroundColor": "white"},
+                {
+                    "padding": "0",
+                    "flex": "1",
+                    "display": "flex",
+                    "backgroundColor": "white",
+                },
             ),
         ),
-        width="100%",
-        spacing="2",
-        align_items="start",
-    )
-
-
-def task_subtasks() -> rx.Component:
-    """Create the subtasks section with header and list.
-
-    Only displayed if the task allows subtasks.
-
-    :return: The task subtasks component
-    :rtype: rx.Component
-    """
-    return rx.cond(
-        TaskDetailState.task.allow_subtasks,
-        rx.vstack(
-            # Header with title and create button
-            rx.hstack(
-                rx.heading("Subtasks", size="5", margin_top="1.5rem"),
-                rx.spacer(),
-                rx.button(
-                    rx.icon("plus", size=16),
-                    "Create Subtask",
-                    variant="soft",
-                    size="2",
-                    on_click=TaskDetailState.open_create_subtask_dialog,
-                ),
-                width="100%",
-                align="center",
-            ),
-            # Subtask list component
-            task_list_component(),
-            width="100%",
-            spacing="3",
-            align_items="start",
-        ),
-    )
-
-
-def main_content_area() -> rx.Component:
-    """Create the main content area (left side) with title, description, and subtasks.
-
-    :return: The main content area component
-    :rtype: rx.Component
-    """
-    return rx.vstack(
-        task_description(),
-        task_subtasks(),
-        documents_list_view(),
         width="100%",
         spacing="3",
         align_items="start",
         flex="1",
+        min_height="0",
+    )
+
+
+def _tab_count_badge(count: rx.Var[int]) -> rx.Component:
+    """Create a small count badge for a tab title.
+
+    :param count: The count value to display
+    :type count: rx.Var[int]
+    :return: The styled count badge component
+    :rtype: rx.Component
+    """
+    return rx.badge(
+        count,
+        variant="soft",
+        size="1",
+        radius="full",
+    )
+
+
+def main_content_area() -> rx.Component:
+    """Create the main content area with tabs for switching between views.
+
+    The tab bar includes the view triggers on the left and a contextual
+    action button on the right. The Subtasks tab is only shown if the task
+    allows subtasks.
+
+    :return: The main content area component
+    :rtype: rx.Component
+    """
+    return rx.tabs.root(
+        # Tab bar row: triggers on the left, action button on the right
+        rx.hstack(
+            rx.tabs.list(
+                # Subtasks tab - only shown if task allows subtasks
+                rx.cond(
+                    TaskDetailState.task.allow_subtasks,
+                    rx.tabs.trigger(
+                        rx.hstack(
+                            rx.text("Subtasks"),
+                            rx.cond(
+                                TaskDetailState.children_count,
+                                _tab_count_badge(TaskDetailState.children_count.subtask_count),
+                            ),
+                            align="center",
+                            spacing="2",
+                        ),
+                        value="list",
+                    ),
+                ),
+                rx.tabs.trigger(
+                    rx.text("Description"),
+                    value="description",
+                ),
+                rx.tabs.trigger(
+                    rx.hstack(
+                        rx.text("Documents"),
+                        rx.cond(
+                            TaskDetailState.children_count,
+                            _tab_count_badge(TaskDetailState.children_count.document_count),
+                        ),
+                        align="center",
+                        spacing="2",
+                    ),
+                    value="documents",
+                ),
+            ),
+            rx.spacer(),
+            _tab_action_button(),
+            width="100%",
+            align="center",
+        ),
+        # Tab content panels
+        rx.tabs.content(
+            task_list_content(),
+            value="list",
+            padding_top="1rem",
+        ),
+        rx.tabs.content(
+            _task_description_content(),
+            value="description",
+            padding_top="1rem",
+            flex="1",
+            min_height="0",
+            display="flex",
+            flex_direction="column",
+        ),
+        rx.tabs.content(
+            documents_list_content(),
+            value="documents",
+            padding_top="1rem",
+        ),
+        value=TaskDetailState.view_mode,
+        on_change=TaskDetailState.set_view_mode,
+        width="100%",
+        flex="1",
+        min_height="0",
+        display="flex",
+        flex_direction="column",
+    )
+
+
+def _sidebar_section_label(label: str) -> rx.Component:
+    """Create a small uppercase gray label for a sidebar section.
+
+    :param label: The label text
+    :type label: str
+    :return: The styled label component
+    :rtype: rx.Component
+    """
+    return rx.text(
+        label,
+        size="1",
+        color="gray",
+        weight="bold",
+        style={
+            "text-transform": "uppercase",
+            "letter-spacing": "0.06em",
+        },
+    )
+
+
+def _sidebar_metadata_row(label: str, value: rx.Component) -> rx.Component:
+    """Create a metadata row with a label on the left and value on the right.
+
+    :param label: The label text
+    :type label: str
+    :param value: The value component
+    :type value: rx.Component
+    :return: The metadata row component
+    :rtype: rx.Component
+    """
+    return rx.hstack(
+        rx.text(label, size="2", color="gray"),
+        rx.spacer(),
+        value,
+        width="100%",
+        align="center",
     )
 
 
 def details_sidebar() -> rx.Component:
-    """Create the details sidebar (right side) with technical information.
+    """Create the details sidebar (right side) with task information.
+
+    Layout follows the project detail sidebar structure:
+    - Heading with close button
+    - Centered progress ring (conditional)
+    - Assigned to section
+    - Parent task (conditional)
+    - Subtask members (conditional)
+    - Priority section
+    - Dates section with styled date box
+    - Metadata section with divider
 
     :return: The details sidebar component
     :rtype: rx.Component
     """
     return rx.vstack(
-        rx.heading("Details", size="5", margin_bottom="1rem"),
-        # Details grid - single parent grid with all fields
-        rx.grid(
-            # Parent task (conditional row)
-            rx.cond(
-                TaskDetailState.parent_task,
-                rx.fragment(
-                    rx.text("Parent task", size="2", color="gray", weight="medium"),
-                    rx.link(
-                        TaskDetailState.parent_task.title,
-                        href=f"/task/{TaskDetailState.parent_task.id}",
-                        size="2",
-                    ),
-                ),
+        # Heading with close button
+        rx.hstack(
+            _sidebar_section_label("Task details"),
+            rx.spacer(),
+            right_sidebar_close_button(),
+            width="100%",
+            align="center",
+        ),
+        # Centered progress ring (only show if progress > 0)
+        rx.cond(
+            TaskDetailState.task.progress > 0,
+            rx.flex(
+                progress_ring(TaskDetailState.task.progress, size="big"),
+                justify="center",
+                width="100%",
+                margin_bottom="0.5rem",
             ),
-            # Assigned to
-            rx.text("Assigned to", size="2", color="gray", weight="medium"),
+        ),
+        # Assigned to section
+        rx.vstack(
+            _sidebar_section_label("Assigned to"),
             user_inline_component(TaskDetailState.task.assign_to),
-            # Subtask members (conditional row - only show if task has subtasks)
-            rx.cond(
-                TaskDetailState.task.allow_subtasks,
-                rx.fragment(
-                    rx.text("Subtask members", size="2", color="gray", weight="medium"),
-                    rx.cond(
-                        TaskDetailState.subtask_members.length() > 0,
-                        rx.flex(
-                            rx.foreach(
-                                TaskDetailState.subtask_members,
-                                user_inline_component,
-                            ),
-                            direction="column",
-                            spacing="1",
-                        ),
-                        rx.text("No members assigned", size="2", color="gray", font_style="italic"),
-                    ),
+            spacing="2",
+            align_items="start",
+            width="100%",
+        ),
+        # Parent task section (conditional)
+        rx.cond(
+            TaskDetailState.parent_task,
+            rx.vstack(
+                _sidebar_section_label("Parent task"),
+                rx.link(
+                    TaskDetailState.parent_task.title,
+                    href=f"/task/{TaskDetailState.parent_task.id}",
+                    size="2",
                 ),
+                spacing="2",
+                align_items="start",
+                width="100%",
             ),
-            # Status
-            rx.text("Status", size="2", color="gray", weight="medium"),
-            rx.box(
-                status_chip(
+        ),
+        # Subtask members section (conditional - only show if task has subtasks)
+        rx.cond(
+            TaskDetailState.task.allow_subtasks,
+            rx.vstack(
+                _sidebar_section_label("Subtask members"),
+                rx.cond(
+                    TaskDetailState.subtask_members.length() > 0,
+                    rx.vstack(
+                        rx.foreach(
+                            TaskDetailState.subtask_members,
+                            user_inline_component,
+                        ),
+                        spacing="2",
+                        align_items="start",
+                        width="100%",
+                    ),
+                    rx.text("No members assigned", size="2", color="gray", font_style="italic"),
+                ),
+                spacing="2",
+                align_items="start",
+                width="100%",
+            ),
+        ),
+        # Status and Priority section (side by side)
+        rx.hstack(
+            rx.vstack(
+                _sidebar_section_label("Status"),
+                task_status_chip(
                     TaskDetailState.task.status,
                     on_status_change=TaskDetailState.update_status,
                     allow_subtask=TaskDetailState.task.allow_subtasks,
                     size="2",
-                )
+                ),
+                spacing="2",
+                align_items="start",
             ),
-            # Priority
-            rx.text("Priority", size="2", color="gray", weight="medium"),
-            rx.box(
-                priority_chip(
+            rx.spacer(),
+            rx.vstack(
+                _sidebar_section_label("Priority"),
+                task_priority_chip(
                     TaskDetailState.task.priority,
                     on_priority_change=TaskDetailState.update_priority,
                     allow_subtask=TaskDetailState.task.allow_subtasks,
                     size="2",
-                )
+                ),
+                spacing="2",
+                align_items="end",
             ),
-            # Progress (conditional row - only show if progress > 0)
-            rx.cond(
-                TaskDetailState.task.progress > 0,
-                rx.fragment(
-                    rx.text("Progress", size="2", color="gray", weight="medium"),
-                    progress_bar(TaskDetailState.task.progress, width="150px"),
+            align="start",
+            width="100%",
+        ),
+        # Dates section
+        rx.vstack(
+            _sidebar_section_label("Dates"),
+            rx.hstack(
+                rx.text(
+                    rx.moment(TaskDetailState.task.start_date, format="MMM D, YYYY"),
+                    size="2",
+                    weight="bold",
+                    color="var(--accent-9)",
+                ),
+                rx.text("→", size="2", color="gray"),
+                rx.text(
+                    rx.moment(TaskDetailState.task.end_date, format="MMM D, YYYY"),
+                    size="2",
+                    weight="bold",
+                    color="var(--accent-9)",
+                ),
+                background="var(--accent-2)",
+                border_radius="12px",
+                padding="12px 14px",
+                align="center",
+                spacing="3",
+                width="100%",
+            ),
+            spacing="2",
+            align_items="start",
+            width="100%",
+        ),
+        # Divider + metadata section
+        rx.vstack(
+            rx.divider(margin_bottom="0.5rem"),
+            _sidebar_metadata_row(
+                "Created by",
+                user_inline_component(TaskDetailState.task.created_by, size="small"),
+            ),
+            _sidebar_metadata_row(
+                "Created at",
+                rx.text(
+                    rx.moment(TaskDetailState.task.created_at, format="MMM D, YYYY HH:mm"),
+                    size="1",
+                    weight="medium",
                 ),
             ),
-            # Start date
-            rx.text("Start date", size="2", color="gray", weight="medium"),
-            rx.text(rx.moment(TaskDetailState.task.start_date, format="MMM D, YYYY"), size="2"),
-            # End date
-            rx.text("End date", size="2", color="gray", weight="medium"),
-            rx.text(rx.moment(TaskDetailState.task.end_date, format="MMM D, YYYY"), size="2"),
-            # Divider before technical info (spans 2 columns)
-            rx.divider(margin_top="0.5rem", margin_bottom="0.5rem", grid_column="span 2"),
-            # Created by
-            rx.text("Created by", size="2", color="gray", weight="medium"),
-            user_inline_component(TaskDetailState.task.created_by),
-            # Created at
-            rx.text("Created at", size="2", color="gray", weight="medium"),
-            rx.text(
-                rx.moment(TaskDetailState.task.created_at, format="MMM D, YYYY HH:mm"),
-                size="2",
+            _sidebar_metadata_row(
+                "Last modified by",
+                user_inline_component(TaskDetailState.task.last_modified_by, size="small"),
             ),
-            # Last modified by
-            rx.text("Last modified by", size="2", color="gray", weight="medium"),
-            user_inline_component(TaskDetailState.task.last_modified_by),
-            # Last modified at
-            rx.text("Last modified at", size="2", color="gray", weight="medium"),
-            rx.text(
-                rx.moment(TaskDetailState.task.last_modified_at, format="MMM D, YYYY HH:mm"),
-                size="2",
+            _sidebar_metadata_row(
+                "Last modified at",
+                rx.text(
+                    rx.moment(TaskDetailState.task.last_modified_at, format="MMM D, YYYY HH:mm"),
+                    size="1",
+                    weight="medium",
+                ),
             ),
-            columns="2",
-            spacing="3",
+            spacing="1",
             width="100%",
-            row_gap="1rem",
+            padding_top="0.5rem",
         ),
         width="100%",
-        spacing="3",
+        spacing="5",
         align_items="start",
-    )
-
-
-def task_detail() -> rx.Component:
-    """Create the task detail page component.
-
-    This component displays all details of a single task using a Jira-like layout
-    with main content on the left and a details sidebar on the right.
-
-    :return: The task detail page component
-    :rtype: rx.Component
-    """
-    return rx.cond(
-        TaskDetailState.task,
-        detail_page_layout(
-            main_content=main_content_area(),
-            sidebar_content=details_sidebar(),
-            breadcrumbs=BreadcrumbState.breadcrumbs,
-        ),
     )
 
 
@@ -268,12 +486,18 @@ def task_detail_page() -> rx.Component:
     """
     return main_component(
         page_layout(
-            rx.vstack(
-                # Task details in two-column layout with breadcrumb
-                task_detail(),
-                width="100%",
+            rx.cond(
+                TaskDetailState.task,
+                detail_page_layout(
+                    main_content=main_content_area(),
+                    header_content=task_header(),
+                ),
             ),
-            header_content=task_header(),
+            right_sidebar_content=details_sidebar(),
+            header_content=breadcrumb_component(BreadcrumbState.breadcrumbs),
+            max_content_width="1200px",
+            height="100vh",
+            padding="0",
         ),
         # Add the task form dialog
         task_form_dialog(),

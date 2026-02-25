@@ -8,14 +8,18 @@ from gws_core import (
     Logger,
     RichText,
     RichTextDTO,
+    SearchOperator,
+    SpaceHierarchyObjectSearchParams,
     SpaceRootFolderUserRole,
     SpaceService,
 )
 
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project import Project
+from gws_project.project.project_count_dto import ChildrenCountDTO, ProjectCountDTO
 from gws_project.project.project_dto import (
     CreateProjectFromTemplateDTO,
+    ProjectStatus,
     ProjectUserRole,
     ProjectWithRootTasksDTO,
     SaveProjectDTO,
@@ -91,6 +95,67 @@ class ProjectService:
             .join(ProjectUser)
             .where(ProjectUser.user == current_user.id)
             .order_by(Project.title)
+        )
+
+    def count_current_user_projects(self) -> ProjectCountDTO:
+        """Count all projects for the current user, grouped by status.
+
+        :return: ProjectCountDTO with total, ongoing, done, and todo counts
+        :rtype: ProjectCountDTO
+        """
+        projects = self.get_current_user_projects()
+
+        ongoing = 0
+        done = 0
+        todo = 0
+        for project in projects:
+            status = project.get_status()
+            if status == ProjectStatus.COMPLETED:
+                done += 1
+            elif status == ProjectStatus.ACTIVE:
+                ongoing += 1
+            else:
+                todo += 1
+
+        return ProjectCountDTO(
+            total=len(projects),
+            ongoing=ongoing,
+            done=done,
+            todo=todo,
+        )
+
+    def get_project_children_count(self, project_id: str) -> ChildrenCountDTO:
+        """Get the number of direct root tasks and documents for a project.
+
+        :param project_id: The ID of the project
+        :type project_id: str
+        :return: ChildrenCountDTO with subtask_count and document_count
+        :rtype: ChildrenCountDTO
+        """
+        security_service = ProjectSecurityService()
+        project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
+
+        # Count direct root tasks (not recursive)
+        subtask_count = Task.select().where(
+            (Task.project == project.id) & (Task.parent_task.is_null())
+        ).count()
+
+        # Count documents in the project's space folder
+        document_count = 0
+        if project.space_folder_id:
+            search_params = SpaceHierarchyObjectSearchParams()
+            search_params.add_object_type_filter(SearchOperator.NEQ, 'FOLDER')
+            page_dto = self._space_service.search_project_children_objects_paginated(
+                folder_id=project.space_folder_id,
+                search_params=search_params,
+                page=0,
+                size=1,
+            )
+            document_count = page_dto.total_number_of_items
+
+        return ChildrenCountDTO(
+            subtask_count=subtask_count,
+            document_count=document_count,
         )
 
     def search_current_user_projects_with_root_tasks(

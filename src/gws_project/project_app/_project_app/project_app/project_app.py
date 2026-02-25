@@ -31,6 +31,16 @@ def index():
     return project_list_page()
 
 
+# Declare the task detail page with URL parameter
+@rx.page(route="/project/task/[task_id_param]")
+def task_detail():
+    """Task detail page displaying all information about a specific task.
+
+    The task_id is extracted from the URL path.
+    """
+    return task_detail_page()
+
+
 # Declare the project detail page with URL parameter
 @rx.page(route="/project/[project_id_param]")
 def project_detail():
@@ -39,16 +49,6 @@ def project_detail():
     The project_id is extracted from the URL path.
     """
     return project_detail_page()
-
-
-# Declare the task detail page with URL parameter
-@rx.page(route="/task/[task_id_param]")
-def task_detail():
-    """Task detail page displaying all information about a specific task.
-
-    The task_id is extracted from the URL path.
-    """
-    return task_detail_page()
 
 
 # Declare the kanban board page

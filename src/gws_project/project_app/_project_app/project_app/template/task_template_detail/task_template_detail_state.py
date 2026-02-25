@@ -12,7 +12,7 @@ from ..task_template_form_dialog.task_template_form_dialog_state import TaskTemp
 from ..template_page_state import TemplatePageState
 
 
-class TaskTemplateDetailState(ReflexMainState):
+class TaskTemplateDetailState(rx.State):
     """State for managing the task template detail page.
 
     This state handles fetching and displaying the details of a single task template
@@ -20,6 +20,7 @@ class TaskTemplateDetailState(ReflexMainState):
     """
 
     description_edit_mode: bool = False  # Track if description is in edit mode
+    view_mode: str = "subtasks"  # View mode for tabs
 
     @rx.var
     async def task_template(self) -> TaskTemplateDTO | None:
@@ -116,6 +117,17 @@ class TaskTemplateDetailState(ReflexMainState):
         """Toggle the description edit mode."""
         self.description_edit_mode = not self.description_edit_mode
 
+    def set_view_mode(self, value: str | list[str]):
+        """Set the view mode for the tabs.
+
+        :param value: The view mode value
+        :type value: Union[str, List[str]]
+        """
+        if isinstance(value, list):
+            self.view_mode = value[0] if value else "subtasks"
+        else:
+            self.view_mode = value
+
     @rx.event
     async def handle_description_change(self, event_data: dict):
         """Handle changes from the rich text component and update the task template description.
@@ -132,7 +144,8 @@ class TaskTemplateDetailState(ReflexMainState):
             return
 
         # Update the task template description
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_template_service = TaskTemplateService()
             task_template_service.update_task_template_description(
                 task_template.id,
@@ -172,7 +185,8 @@ class TaskTemplateDetailState(ReflexMainState):
             return
 
         # Delete the task template
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_template_service = TaskTemplateService()
             task_template_service.delete_task_template(task_template.id)
 
@@ -205,7 +219,8 @@ class TaskTemplateDetailState(ReflexMainState):
         # create TaskPriority enum from string
         task_priority = TaskPriority[new_priority]
 
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_template_service = TaskTemplateService()
             task_template_service.update_priority(task_template.id, task_priority)
 

@@ -4,11 +4,11 @@ from gws_project.task.task_service import TaskService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import Task
-from ..common.project_page_state import ProjectPageState, ProjectUrlParam
+from ..common.projects.project_page_state import ProjectPageState, ProjectUrlParam
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 
 
-class TaskListState(ReflexMainState):
+class TaskListState(rx.State):
     """State for managing the task list within a project.
 
     This state handles fetching and displaying tasks for a specific project,
@@ -61,6 +61,7 @@ class TaskListState(ReflexMainState):
             self._tasks = []  # Clear current tasks before loading new ones
             project_state = await self.get_state(ProjectPageState)
             url_param = await project_state.get_url_params()
+            main_state = await self.get_state(ReflexMainState)
 
             if not url_param:
                 return
@@ -71,7 +72,7 @@ class TaskListState(ReflexMainState):
 
         # Fetch tasks outside of async with block
         try:
-            with await self.authenticate_user():
+            with await main_state.authenticate_user():
                 task_service = TaskService()
 
                 if url_param.type == "project":
@@ -160,7 +161,8 @@ class TaskListState(ReflexMainState):
 
     async def _change_task_type_action(self, task_id: str, allow_subtasks: bool):
         """Action to change the task type after confirmation."""
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_service = TaskService()
             updated_task = task_service.update_allow_subtasks(task_id, allow_subtasks)
 
@@ -190,7 +192,8 @@ class TaskListState(ReflexMainState):
 
     async def _delete_action(self, task_id: str):
         """Delete the task from the list."""
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             task_service = TaskService()
             task_service.delete_task(task_id)
 

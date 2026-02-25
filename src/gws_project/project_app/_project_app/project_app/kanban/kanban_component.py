@@ -2,7 +2,7 @@ import reflex as rx
 from gws_reflex_main import main_component
 from gws_reflex_main.components.reflex_user_components import user_select
 
-from ..common.kanban.kanban import kanban_board
+from ..common.kanban.kanban import PRIORITY_COLOR_MAP, STATUS_COLOR_MAP, USER_COLOR_MAP, kanban_board
 from ..common.page_layout import page_layout
 from .kanban_state import KanbanState
 
@@ -65,12 +65,15 @@ def _filter_bar() -> rx.Component:
         rx.button(
             "Clear",
             on_click=KanbanState.clear_filters,
-            variant="outline",
+            variant="surface",
             size="2",
+            color_scheme="gray",
+            radius="large",
         ),
         width="100%",
         spacing="3",
         wrap="wrap",
+        margin_top="16px",
     )
 
 
@@ -91,6 +94,9 @@ def kanban_page() -> rx.Component:
                 # Kanban board
                 kanban_board(
                     board_data=KanbanState.kanban_board_data,
+                    status_color_map=STATUS_COLOR_MAP,
+                    priority_color_map=PRIORITY_COLOR_MAP,
+                    user_color_map=USER_COLOR_MAP,
                     disable_column_drag=True,
                     on_card_move=KanbanState.handle_card_move,
                     on_card_click=KanbanState.handle_card_click,

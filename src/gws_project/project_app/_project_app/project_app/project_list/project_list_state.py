@@ -1,6 +1,7 @@
 import reflex as rx
 from gws_core import UserDTO
-from gws_project.project.project_dto import ProjectDTO
+from gws_project.project.project_count_dto import ProjectCountDTO
+from gws_project.project.project_dto import ProjectDTO, ProjectStatus
 from gws_project.project.project_search_builder import ProjectSearchBuilder
 from gws_project.user.user import User
 from gws_reflex_main import ReflexMainState
@@ -8,7 +9,7 @@ from gws_reflex_main import ReflexMainState
 from ..common.project_app_router import ProjectAppRouter
 
 
-class ProjectListState(ReflexMainState):
+class ProjectListState(rx.State):
     """State for managing the project list page.
 
     This state handles fetching and displaying the list of projects
@@ -16,6 +17,7 @@ class ProjectListState(ReflexMainState):
     """
 
     projects: list[ProjectDTO] = []
+    project_count: ProjectCountDTO = ProjectCountDTO(total=0, ongoing=0, done=0, todo=0)
     is_loading: bool = False
     error_message: str = ""
 
@@ -25,6 +27,26 @@ class ProjectListState(ReflexMainState):
 
     # Data for filters
     available_managers: list[UserDTO] = []
+
+    def _compute_project_count(self):
+        """Compute project count statistics from the loaded projects list."""
+        ongoing = 0
+        done = 0
+        todo = 0
+        for project in self.projects:
+            if project.status == ProjectStatus.COMPLETED:
+                done += 1
+            elif project.status == ProjectStatus.ACTIVE:
+                ongoing += 1
+            else:
+                todo += 1
+
+        self.project_count = ProjectCountDTO(
+            total=len(self.projects),
+            ongoing=ongoing,
+            done=done,
+            todo=todo,
+        )
 
     async def load_managers(self):
         """Load the list of all users who can be project managers.
@@ -40,7 +62,8 @@ class ProjectListState(ReflexMainState):
         Uses ProjectSearchBuilder to apply text search and project manager filters.
         """
         # Check authentication before accessing data
-        if not await self.check_authentication():
+        main_state = await self.get_state(ReflexMainState)
+        if not await main_state.check_authentication():
             self.error_message = "You must be authenticated to view projects"
             return
 
@@ -48,7 +71,7 @@ class ProjectListState(ReflexMainState):
         self.error_message = ""
 
         try:
-            current_user = await self.get_and_check_current_user()
+            current_user = await main_state.get_and_check_current_user()
 
             # Build the search with filters
             search_builder = ProjectSearchBuilder()
@@ -68,6 +91,9 @@ class ProjectListState(ReflexMainState):
 
             # Convert projects to DTOs
             self.projects = [project.to_dto() for project in projects]
+
+            # Compute project count from loaded projects
+            self._compute_project_count()
 
         finally:
             self.is_loading = False

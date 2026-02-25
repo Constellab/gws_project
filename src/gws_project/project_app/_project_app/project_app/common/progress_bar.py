@@ -1,11 +1,17 @@
 import reflex as rx
 
+from .status_colors import StatusColors
 
-def progress_bar(progress: int, width: str = "100%") -> rx.Component:
+
+def progress_bar(progress: int, width: str = "100%", height: str = "12px") -> rx.Component:
     """Create a progress bar component with percentage display.
 
     :param progress: The progress value (0-100)
     :type progress: int
+    :param width: The width of the progress bar
+    :type width: str
+    :param height: The height of the progress bar
+    :type height: str
     :return: The progress bar component
     :rtype: rx.Component
     """
@@ -14,24 +20,26 @@ def progress_bar(progress: int, width: str = "100%") -> rx.Component:
             rx.box(
                 width=f"{progress}%",
                 height="100%",
-                background="var(--accent-9)",
+                background=rx.cond(
+                    progress == 100,
+                    StatusColors.css_var_done(),
+                    rx.cond(
+                        progress > 0,
+                        StatusColors.css_var_ongoing(),
+                        StatusColors.css_var_todo(),
+                    ),
+                ),
                 border_radius="4px",
                 transition="width 0.3s ease",
             ),
             width=width,
-            height="12px",
+            height=height,
             background="var(--gray-3)",
             border_radius="4px",
             position="relative",
             overflow="hidden",
         ),
-        rx.text(
-            f"{progress}%",
-            size="2",
-            color="gray",
-            width="40px",
-            text_align="right",
-        ),
         spacing="2",
         align="center",
+        width="100%",
     )

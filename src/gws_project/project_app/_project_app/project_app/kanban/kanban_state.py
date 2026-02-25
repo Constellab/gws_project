@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 import reflex as rx
 from gws_core import UserDTO
+from gws_core.space.space_service import SpaceService
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.project.project_service import ProjectService
@@ -16,7 +17,7 @@ from ..common.kanban.kanban import BoardDataDTO, CardDTO, CardMoveEvent, build_k
 from ..common.project_app_router import ProjectAppRouter
 
 
-class KanbanState(ReflexMainState):
+class KanbanState(rx.State):
     """State for managing the kanban board view of all tasks.
 
     This state handles fetching and displaying all tasks accessible to the user
@@ -38,7 +39,8 @@ class KanbanState(ReflexMainState):
 
     async def load_projects(self):
         """Load the list of projects for the current user."""
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             user_projects = ProjectService().get_current_user_projects()
             self.available_projects = [project.to_dto() for project in user_projects]
 
@@ -47,7 +49,8 @@ class KanbanState(ReflexMainState):
 
         The current user is placed first in the list.
         """
-        current_user = await self.get_and_check_current_user()
+        main_state = await self.get_state(ReflexMainState)
+        current_user = await main_state.get_and_check_current_user()
         users = User.get_real_users()
 
         # Convert to DTOs
@@ -125,7 +128,8 @@ class KanbanState(ReflexMainState):
         if self.selected_project_id:
             search_builder.add_project_filter(self.selected_project_id)
         else:
-            with await self.authenticate_user():
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
                 user_projects = ProjectService().get_current_user_projects()
                 project_ids = [project.id for project in user_projects]
                 if project_ids:
@@ -234,6 +238,11 @@ class KanbanState(ReflexMainState):
         """Convert a TaskDTO to a Kanban card format."""
         assignee = task.assign_to.first_name + " " + task.assign_to.last_name if task.assign_to else "Unassigned"
 
+        # Get assignee profile picture URL
+        assignee_profile_picture_url = None
+        if task.assign_to and task.assign_to.photo:
+            assignee_profile_picture_url = SpaceService.get_user_profile_picture_url(task.assign_to.photo)
+
         # Get project name from project_id
         project_name = None
         if task.project_id:
@@ -248,9 +257,12 @@ class KanbanState(ReflexMainState):
             title=task.title,
             priority=task.priority.value,
             assignee=assignee,
+            assignee_profile_picture_url=assignee_profile_picture_url,
             parent_task_title=task.parent_task_title,
             is_leaf=not task.allow_subtasks,
             project_name=project_name,
+            start_date=task.start_date.isoformat() if task.start_date else None,
+            end_date=task.end_date.isoformat() if task.end_date else None,
         )
 
     @rx.event(background=True)  # type: ignore

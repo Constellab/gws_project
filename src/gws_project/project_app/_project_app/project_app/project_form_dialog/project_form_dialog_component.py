@@ -23,7 +23,9 @@ def _role_assignment_row(role: str) -> rx.Component:
         user_select(
             users=ProjectFormDialogState.available_users,
             placeholder="Select user (required)",
-            on_change=lambda user_id, r=role: ProjectFormDialogState.handle_role_user_change(r, user_id),
+            on_change=lambda user_id, r=role: ProjectFormDialogState.handle_role_user_change(
+                r, user_id
+            ),
         ),
         width="100%",
         spacing="3",
@@ -124,7 +126,8 @@ def _form_content() -> rx.Component:
         ),
         # Role assignments (only when template is selected and has roles)
         rx.cond(
-            (ProjectFormDialogState.selected_template_id != "") & (ProjectFormDialogState.template_roles.length() > 0),
+            (ProjectFormDialogState.selected_template_id != "")
+            & (ProjectFormDialogState.template_roles.length() > 0),
             rx.vstack(
                 rx.text("Role Assignments", size="2", weight="bold"),
                 rx.text(
@@ -162,7 +165,7 @@ def _dialog() -> rx.Component:
     """
     return form_dialog_component(
         state=ProjectFormDialogState,
-        title=rx.cond(ProjectFormDialogState.is_update_mode, "Update Project", "Create New Project"),
+        title=rx.cond(ProjectFormDialogState.is_update_mode, "Update Project", "New Project"),
         description=rx.cond(
             ProjectFormDialogState.is_update_mode,
             "Update the project details below.",
@@ -184,7 +187,10 @@ def create_project_dialog() -> rx.Component:
     """
     return rx.fragment(
         rx.button(
-            rx.icon("plus", size=18), "Create New Project", size="3", on_click=ProjectFormDialogState.open_create_dialog
+            rx.icon("plus", size=18),
+            "New Project",
+            size="3",
+            on_click=ProjectFormDialogState.open_create_dialog,
         ),
         _dialog(),
     )

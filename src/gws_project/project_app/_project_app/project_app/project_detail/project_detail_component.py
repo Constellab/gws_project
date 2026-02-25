@@ -1,42 +1,92 @@
 import reflex as rx
-from gws_reflex_main import main_component, user_inline_component
+from gws_reflex_main import (
+    main_component,
+    right_sidebar_close_button,
+    right_sidebar_open_button,
+    user_inline_component,
+)
 
+from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
 from ..common.detail_page_layout import detail_page_layout
-from ..common.documents_list.documents_list_component import documents_list_view
+from ..common.documents_list.documents_list_component import documents_list_content
+from ..common.documents_list.documents_list_state import DocumentsListState
 from ..common.page_layout import page_layout
-from ..common.progress_bar import progress_bar
+from ..common.progress_ring import progress_ring
+from ..common.projects.project_status_chip_component import project_status_chip
 from ..project_form_dialog.project_form_dialog_component import project_update_dialog
 from ..project_form_dialog.project_form_dialog_state import ProjectFormDialogState
 from ..task_form.task_form_dialog_component import task_form_dialog
-from ..task_list.task_list_component import task_list_view
+from ..task_list.task_list_component import task_list_content
 from .manage_users_dialog_component import ManageUsersDialogState, manage_users_dialog
-from .project_description_component import project_description_component
+from .project_description_component import project_description_content
 from .project_detail_state import ProjectDetailState
 
 
-def view_mode_segmented_control() -> rx.Component:
-    """Create the view mode segmented control for switching between views.
+def _tab_action_button() -> rx.Component:
+    """Create the action button that changes based on the active tab.
 
-    :return: The segmented control component
+    - Tasks tab: "Create Task" button
+    - Description tab: "Edit"/"View" toggle button
+    - Documents tab: "Upload File" button
+
+    :return: The conditional action button component
     :rtype: rx.Component
     """
-    return rx.segmented_control.root(
-        rx.segmented_control.item(
-            rx.tooltip(rx.icon("list", size=16), content="View tasks as list"),
-            value="list",
+    return rx.match(
+        ProjectDetailState.view_mode,
+        (
+            "list",
+            rx.button(
+                rx.icon("plus", size=16),
+                "Create Task",
+                variant="solid",
+                size="2",
+                on_click=ProjectDetailState.open_create_task_dialog,
+            ),
         ),
-        rx.segmented_control.item(
-            rx.tooltip(rx.icon("file-text", size=16), content="View description"),
-            value="description",
+        (
+            "description",
+            rx.button(
+                rx.icon(
+                    rx.cond(
+                        ProjectDetailState.description_edit_mode,
+                        "eye",
+                        "pencil",
+                    ),
+                    size=16,
+                ),
+                rx.cond(
+                    ProjectDetailState.description_edit_mode,
+                    "View",
+                    "Edit",
+                ),
+                variant="solid",
+                size="2",
+                on_click=ProjectDetailState.toggle_description_edit_mode,
+            ),
         ),
-        rx.segmented_control.item(
-            rx.tooltip(rx.icon("folder-open", size=16), content="View documents"),
-            value="documents",
+        (
+            "documents",
+            rx.upload.root(
+                rx.button(
+                    rx.spinner(loading=DocumentsListState.is_uploading),
+                    rx.icon("upload", size=16),
+                    "Upload File",
+                    variant="solid",
+                    size="2",
+                ),
+                id="document_upload",
+                multiple=True,
+                on_drop=DocumentsListState.handle_upload(
+                    rx.upload_files(
+                        "document_upload",
+                        on_upload_progress=DocumentsListState.handle_upload_progress,
+                    )
+                ),
+            ),
         ),
-        value=ProjectDetailState.view_mode,
-        on_change=ProjectDetailState.set_view_mode,
-        size="2",
+        rx.fragment(),
     )
 
 
@@ -48,7 +98,7 @@ def project_action_menu() -> rx.Component:
     """
     return rx.menu.root(
         rx.menu.trigger(
-            rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray")
+            rx.button(rx.icon("ellipsis-vertical", size=18), variant="ghost", color_scheme="gray")
         ),
         rx.menu.content(
             rx.menu.item(
@@ -86,9 +136,13 @@ def header() -> rx.Component:
             ProjectDetailState.project.title,
             size="6",
         ),
+        rx.box(
+            project_status_chip(
+                ProjectDetailState.project.status,
+            ),
+            margin_left="0.5rem",
+        ),
         rx.spacer(),
-        # View mode toggle buttons
-        view_mode_segmented_control(),
         # Action menu
         project_action_menu(),
         width="100%",
@@ -97,67 +151,209 @@ def header() -> rx.Component:
     )
 
 
+def _tab_count_badge(count: rx.Var[int]) -> rx.Component:
+    """Create a small count badge for a tab title.
+
+    :param count: The count value to display
+    :type count: rx.Var[int]
+    :return: The styled count badge component
+    :rtype: rx.Component
+    """
+    return rx.badge(
+        count,
+        variant="soft",
+        size="1",
+        radius="full",
+    )
+
+
 def main_content_area() -> rx.Component:
-    """Create the main content area (left side) with title, description, team members, and tasks.
+    """Create the main content area with tabs for switching between views.
+
+    The tab bar includes the view triggers on the left and a contextual
+    action button on the right (e.g. "Create Task", "Edit"/"View", "Upload File").
 
     :return: The main content area component
     :rtype: rx.Component
     """
-    return rx.vstack(
-        # Conditional rendering based on view mode
-        rx.cond(
-            ProjectDetailState.view_mode == "list",
-            task_list_view(),
+    return rx.tabs.root(
+        # Tab bar row: triggers on the left, action button on the right
+        rx.hstack(
+            rx.tabs.list(
+                rx.tabs.trigger(
+                    rx.hstack(
+                        rx.text("Tasks"),
+                        rx.cond(
+                            ProjectDetailState.children_count,
+                            _tab_count_badge(ProjectDetailState.children_count.subtask_count),
+                        ),
+                        align="center",
+                        spacing="2",
+                    ),
+                    value="list",
+                ),
+                rx.tabs.trigger(
+                    rx.text("Description"),
+                    value="description",
+                ),
+                rx.tabs.trigger(
+                    rx.hstack(
+                        rx.text("Documents"),
+                        rx.cond(
+                            ProjectDetailState.children_count,
+                            _tab_count_badge(ProjectDetailState.children_count.document_count),
+                        ),
+                        align="center",
+                        spacing="2",
+                    ),
+                    value="documents",
+                ),
+            ),
+            rx.spacer(),
+            _tab_action_button(),
+            width="100%",
+            align="center",
         ),
-        rx.cond(
-            ProjectDetailState.view_mode == "description",
-            project_description_component(),
+        # Tab content panels
+        rx.tabs.content(
+            task_list_content(),
+            value="list",
+            padding_top="1rem",
         ),
-        rx.cond(
-            ProjectDetailState.view_mode == "documents",
-            documents_list_view(),
+        rx.tabs.content(
+            project_description_content(),
+            value="description",
+            padding_top="1rem",
+            flex="1",
+            min_height="0",
+            display="flex",
+            flex_direction="column",
         ),
+        rx.tabs.content(
+            documents_list_content(),
+            value="documents",
+            padding_top="1rem",
+        ),
+        value=ProjectDetailState.view_mode,
+        on_change=ProjectDetailState.set_view_mode,
         width="100%",
-        spacing="3",
-        align_items="start",
         # full height but not overflow parent
         flex="1",
         min_height="0",
+        display="flex",
+        flex_direction="column",
         class_name="project-main-content-area",
     )
 
 
+def _sidebar_section_label(label: str) -> rx.Component:
+    """Create a small uppercase gray label for a sidebar section.
+
+    :param label: The label text
+    :type label: str
+    :return: The styled label component
+    :rtype: rx.Component
+    """
+    return rx.text(
+        label,
+        size="1",
+        color="gray",
+        weight="bold",
+        style={
+            "text-transform": "uppercase",
+            "letter-spacing": "0.06em",
+        },
+    )
+
+
+def _sidebar_metadata_row(label: str, value: rx.Component) -> rx.Component:
+    """Create a metadata row with a label on the left and value on the right.
+
+    :param label: The label text
+    :type label: str
+    :param value: The value component
+    :type value: rx.Component
+    :return: The metadata row component
+    :rtype: rx.Component
+    """
+    return rx.hstack(
+        rx.text(label, size="2", color="gray"),
+        rx.spacer(),
+        value,
+        width="100%",
+        align="center",
+    )
+
+
 def details_sidebar() -> rx.Component:
-    """Create the details sidebar (right side) with technical information.
+    """Create the details sidebar (right side) with project information.
+
+    Layout follows the visual structure from example.jsx:
+    - Heading
+    - Centered progress ring
+    - Manager section
+    - Dates section with styled date box
+    - Members list
+    - Metadata section with divider
 
     :return: The details sidebar component
     :rtype: rx.Component
     """
     return rx.vstack(
-        rx.heading("Details", size="5", margin_bottom="1rem"),
-        # Details grid - single parent grid with all fields
-        rx.grid(
-            # Manager
-            rx.text("Manager", size="2", color="gray", weight="medium"),
+        # Heading with close button
+        rx.hstack(
+            _sidebar_section_label("Project details"),
+            rx.spacer(),
+            right_sidebar_close_button(),
+            width="100%",
+            align="center",
+        ),
+        # Centered progress ring
+        rx.flex(
+            progress_ring(ProjectDetailState.project.progress, size="big"),
+            justify="center",
+            width="100%",
+            margin_bottom="0.5rem",
+        ),
+        # Manager section
+        rx.vstack(
+            _sidebar_section_label("Manager"),
             user_inline_component(ProjectDetailState.project.project_manager),
-            # Progress (conditional row - only show if progress > 0)
-            rx.cond(
-                ProjectDetailState.project.progress > 0,
-                rx.fragment(
-                    rx.text("Progress", size="2", color="gray", weight="medium"),
-                    progress_bar(ProjectDetailState.project.progress, width="150px"),
+            spacing="2",
+            align_items="start",
+            width="100%",
+        ),
+        # Dates section
+        rx.vstack(
+            _sidebar_section_label("Dates"),
+            rx.hstack(
+                rx.text(
+                    rx.moment(ProjectDetailState.project.start_date, format="MMM D, YYYY"),
+                    size="2",
+                    weight="bold",
+                    color="var(--accent-9)",
                 ),
+                rx.text("→", size="2", color="gray"),
+                rx.text(
+                    rx.moment(ProjectDetailState.project.end_date, format="MMM D, YYYY"),
+                    size="2",
+                    weight="bold",
+                    color="var(--accent-9)",
+                ),
+                background="var(--accent-2)",
+                border_radius="12px",
+                padding="12px 14px",
+                align="center",
+                spacing="3",
+                width="100%",
             ),
-            # Start date
-            rx.text("Start date", size="2", color="gray", weight="medium"),
-            rx.text(
-                rx.moment(ProjectDetailState.project.start_date, format="MMM D, YYYY"), size="2"
-            ),
-            # End date
-            rx.text("End date", size="2", color="gray", weight="medium"),
-            rx.text(rx.moment(ProjectDetailState.project.end_date, format="MMM D, YYYY"), size="2"),
-            # Project members
-            rx.text("Project Members", size="2", color="gray", weight="medium"),
+            spacing="2",
+            align_items="start",
+            width="100%",
+        ),
+        # Members section
+        rx.vstack(
+            _sidebar_section_label("Members"),
             rx.cond(
                 ProjectDetailState.project_users.length() > 0,
                 rx.vstack(
@@ -171,33 +367,45 @@ def details_sidebar() -> rx.Component:
                 ),
                 rx.text("No team members", size="2", color="gray"),
             ),
-            # Divider before technical info (spans 2 columns)
-            rx.divider(margin_top="0.5rem", margin_bottom="0.5rem", grid_column="span 2"),
-            # Created by
-            rx.text("Created by", size="2", color="gray", weight="medium"),
-            user_inline_component(ProjectDetailState.project.created_by),
-            # Created at
-            rx.text("Created at", size="2", color="gray", weight="medium"),
-            rx.text(
-                rx.moment(ProjectDetailState.project.created_at, format="MMM D, YYYY HH:mm"),
-                size="2",
-            ),
-            # Last modified by
-            rx.text("Last modified by", size="2", color="gray", weight="medium"),
-            user_inline_component(ProjectDetailState.project.last_modified_by),
-            # Last modified at
-            rx.text("Last modified at", size="2", color="gray", weight="medium"),
-            rx.text(
-                rx.moment(ProjectDetailState.project.last_modified_at, format="MMM D, YYYY HH:mm"),
-                size="2",
-            ),
-            columns="2",
-            spacing="3",
+            spacing="2",
+            align_items="start",
             width="100%",
-            row_gap="1rem",
+        ),
+        # Divider + metadata section
+        rx.vstack(
+            rx.divider(margin_bottom="0.5rem"),
+            _sidebar_metadata_row(
+                "Created by",
+                user_inline_component(ProjectDetailState.project.created_by, size="small"),
+            ),
+            _sidebar_metadata_row(
+                "Created at",
+                rx.text(
+                    rx.moment(ProjectDetailState.project.created_at, format="MMM D, YYYY HH:mm"),
+                    size="1",
+                    weight="medium",
+                ),
+            ),
+            _sidebar_metadata_row(
+                "Last modified by",
+                user_inline_component(ProjectDetailState.project.last_modified_by, size="small"),
+            ),
+            _sidebar_metadata_row(
+                "Last modified at",
+                rx.text(
+                    rx.moment(
+                        ProjectDetailState.project.last_modified_at, format="MMM D, YYYY HH:mm"
+                    ),
+                    size="1",
+                    weight="medium",
+                ),
+            ),
+            spacing="1",
+            width="100%",
+            padding_top="0.5rem",
         ),
         width="100%",
-        spacing="3",
+        spacing="5",
         align_items="start",
     )
 
@@ -213,17 +421,20 @@ def project_detail_page() -> rx.Component:
     """
     return main_component(
         page_layout(
-            # Project details in two-column layout with breadcrumb
+            # Project details with breadcrumb and header
             rx.cond(
                 ProjectDetailState.project,
                 detail_page_layout(
                     main_content=main_content_area(),
-                    sidebar_content=details_sidebar(),
-                    breadcrumbs=BreadcrumbState.breadcrumbs,
+                    header_content=header(),
                 ),
             ),
-            header_content=header(),
+            # Right sidebar with project details
+            right_sidebar_content=details_sidebar(),
+            header_content=breadcrumb_component(BreadcrumbState.breadcrumbs),
+            max_content_width="1200px",
             height="100vh",
+            padding="0",
         ),
         # Add the update dialog
         project_update_dialog(),

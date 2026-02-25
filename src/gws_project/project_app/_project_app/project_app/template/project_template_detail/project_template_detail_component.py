@@ -1,7 +1,13 @@
 import reflex as rx
-from gws_reflex_main import main_component, user_inline_component
+from gws_reflex_main import (
+    main_component,
+    right_sidebar_close_button,
+    right_sidebar_open_button,
+    user_inline_component,
+)
 from gws_reflex_main.gws_components import rich_text_component
 
+from ...common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ...common.detail_page_layout import detail_page_layout
 from ...common.page_layout import page_layout
 from ..project_template_form_dialog.project_template_form_dialog_component import (
@@ -10,7 +16,11 @@ from ..project_template_form_dialog.project_template_form_dialog_component impor
 from ..project_template_form_dialog.project_template_form_dialog_state import (
     ProjectTemplateFormDialogState,
 )
-from ..task_template_list.task_template_list_component import task_template_list_view
+from ..task_template_form_dialog.task_template_form_dialog_component import (
+    task_template_form_dialog,
+)
+from ..task_template_list.task_template_list_component import task_template_list_component
+from ..task_template_list.task_template_list_state import TaskTemplateListState
 from ..template_breadcrumb_state import TemplateBreadcrumbState
 from .project_template_detail_state import TemplateDetailState
 
@@ -23,7 +33,7 @@ def template_action_menu() -> rx.Component:
     """
     return rx.menu.root(
         rx.menu.trigger(
-            rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", color_scheme="gray")
+            rx.button(rx.icon("ellipsis-vertical", size=18), variant="ghost", color_scheme="gray")
         ),
         rx.menu.content(
             rx.menu.item(
@@ -80,164 +90,312 @@ def delete_confirmation_dialog() -> rx.Component:
     )
 
 
+def _tab_count_badge(count: rx.Var[int]) -> rx.Component:
+    """Create a small count badge for a tab title.
+
+    :param count: The count value to display
+    :type count: rx.Var[int]
+    :return: The styled count badge component
+    :rtype: rx.Component
+    """
+    return rx.badge(
+        count,
+        variant="soft",
+        size="1",
+        radius="full",
+    )
+
+
+def _tab_action_button() -> rx.Component:
+    """Create the action button that changes based on the active tab.
+
+    - Task Templates tab: "Create Task Template" button
+    - Description tab: "Edit"/"View" toggle button
+
+    :return: The conditional action button component
+    :rtype: rx.Component
+    """
+    return rx.match(
+        TemplateDetailState.view_mode,
+        (
+            "task_templates",
+            rx.button(
+                rx.icon("plus", size=16),
+                "Create Task Template",
+                variant="solid",
+                size="2",
+                on_click=TaskTemplateListState.open_create_task_template_dialog,
+            ),
+        ),
+        (
+            "description",
+            rx.button(
+                rx.icon(
+                    rx.cond(
+                        TemplateDetailState.description_edit_mode,
+                        "eye",
+                        "pencil",
+                    ),
+                    size=16,
+                ),
+                rx.cond(
+                    TemplateDetailState.description_edit_mode,
+                    "View",
+                    "Edit",
+                ),
+                variant="solid",
+                size="2",
+                on_click=TemplateDetailState.toggle_description_edit_mode,
+            ),
+        ),
+        rx.fragment(),
+    )
+
+
 def template_description_component() -> rx.Component:
     """Component for displaying and editing the template description.
 
     :return: The description component
     :rtype: rx.Component
     """
-    return rx.vstack(
-        # Description header with edit toggle
-        rx.hstack(
-            rx.heading("Description", size="4", weight="bold"),
-            rx.spacer(),
-            rx.button(
-                rx.icon(
-                    rx.cond(TemplateDetailState.description_edit_mode, "eye", "pencil"),
-                    size=16,
-                ),
-                rx.cond(TemplateDetailState.description_edit_mode, "View", "Edit"),
-                variant="soft",
-                size="2",
-                on_click=TemplateDetailState.toggle_description_edit_mode,
+    return rx.box(
+        rich_text_component(
+            value=TemplateDetailState.project_template.description,
+            disabled=~TemplateDetailState.description_edit_mode,
+            output_event=TemplateDetailState.handle_description_change,
+            custom_style=rx.cond(
+                TemplateDetailState.description_edit_mode,
+                {"flex": "1", "display": "flex"},
+                {"padding": "0", "flex": "1", "display": "flex"},
             ),
-            width="100%",
-            align="center",
         ),
-        # Description content
-        rx.box(
-            rich_text_component(
-                value=TemplateDetailState.project_template.description,
-                disabled=~TemplateDetailState.description_edit_mode,
-                output_event=TemplateDetailState.handle_description_change,
-                custom_style=rx.cond(
-                    TemplateDetailState.description_edit_mode,
-                    {"minHeight": "750px", "flex": "1", "display": "block"},
-                    {"padding": "0", "flex": "1", "display": "block", "minHeight": "0"},
-                ),
-            ),
-            key=TemplateDetailState.project_template.id,
-            width="100%",
-            flex="1",
-            min_height="0",
-        ),
+        key=TemplateDetailState.project_template.id,
         width="100%",
-        spacing="3",
-        align_items="start",
-        # full height but not overflow parent
         flex="1",
         min_height="0",
-    )
-
-
-def info_section() -> rx.Component:
-    """Create the info section (right side) with template metadata.
-
-    :return: The info section component
-    :rtype: rx.Component
-    """
-    return rx.vstack(
-        rx.heading("Template Info", size="5", margin_bottom="1rem"),
-        # Details grid - single parent grid with all fields
-        rx.grid(
-            # Template roles
-            rx.cond(
-                TemplateDetailState.template_roles.length() > 0,
-                rx.fragment(
-                    rx.text("Roles", size="2", color="gray", weight="medium"),
-                    rx.vstack(
-                        rx.foreach(
-                            TemplateDetailState.template_roles,
-                            lambda role: rx.badge(role, size="2", variant="soft"),
-                        ),
-                        spacing="2",
-                        align_items="start",
-                        width="100%",
-                    ),
-                ),
-                rx.fragment(),
-            ),
-            # Created by
-            rx.text("Created by", size="2", color="gray", weight="medium"),
-            user_inline_component(TemplateDetailState.project_template.created_by),
-            # Created at
-            rx.text("Created at", size="2", color="gray", weight="medium"),
-            rx.text(
-                rx.moment(
-                    TemplateDetailState.project_template.created_at, format="MMM D, YYYY HH:mm"
-                ),
-                size="2",
-            ),
-            # Last modified by
-            rx.text("Last modified by", size="2", color="gray", weight="medium"),
-            user_inline_component(TemplateDetailState.project_template.last_modified_by),
-            # Last modified at
-            rx.text("Last modified at", size="2", color="gray", weight="medium"),
-            rx.text(
-                rx.moment(
-                    TemplateDetailState.project_template.last_modified_at,
-                    format="MMM D, YYYY HH:mm",
-                ),
-                size="2",
-            ),
-            columns="2",
-            spacing="3",
-            width="100%",
-            row_gap="1rem",
-        ),
-        width="100%",
-        spacing="3",
-        align_items="start",
+        display="flex",
+        flex_direction="column",
+        background="white",
+        border_radius="8px",
+        padding="1rem",
     )
 
 
 def header() -> rx.Component:
+    """Create the header component for the template detail page.
+
+    :return: The header component
+    :rtype: rx.Component
+    """
     return rx.hstack(
         rx.heading(TemplateDetailState.project_template.name, size="6"),
+        rx.spacer(),
         template_action_menu(),
-        justify="between",
-        align="center",
         width="100%",
+        align="center",
+        spacing="2",
     )
 
 
 def main_content_area() -> rx.Component:
-    """Create the main content area with title, description, and task templates.
+    """Create the main content area with tabs for switching between views.
+
+    The tab bar includes the view triggers on the left and a contextual
+    action button on the right.
 
     :return: The main content area component
     :rtype: rx.Component
     """
-    return rx.vstack(
-        # Description editor
-        template_description_component(),
-        # Task templates section
-        rx.box(height="2rem"),  # Spacer
-        task_template_list_view(),
+    return rx.tabs.root(
+        # Tab bar row: triggers on the left, action button on the right
+        rx.hstack(
+            rx.tabs.list(
+                rx.tabs.trigger(
+                    rx.hstack(
+                        rx.text("Task Templates"),
+                        _tab_count_badge(TaskTemplateListState.task_template_count),
+                        align="center",
+                        spacing="2",
+                    ),
+                    value="task_templates",
+                ),
+                rx.tabs.trigger(
+                    rx.text("Description"),
+                    value="description",
+                ),
+            ),
+            rx.spacer(),
+            _tab_action_button(),
+            width="100%",
+            align="center",
+        ),
+        # Tab content panels
+        rx.tabs.content(
+            task_template_list_component(),
+            value="task_templates",
+            padding_top="1rem",
+        ),
+        rx.tabs.content(
+            template_description_component(),
+            value="description",
+            padding_top="1rem",
+            flex="1",
+            min_height="0",
+            display="flex",
+            flex_direction="column",
+        ),
+        value=TemplateDetailState.view_mode,
+        on_change=TemplateDetailState.set_view_mode,
         width="100%",
-        spacing="4",
+        flex="1",
+        min_height="0",
+        display="flex",
+        flex_direction="column",
+    )
+
+
+def _sidebar_section_label(label: str) -> rx.Component:
+    """Create a small uppercase gray label for a sidebar section.
+
+    :param label: The label text
+    :type label: str
+    :return: The styled label component
+    :rtype: rx.Component
+    """
+    return rx.text(
+        label,
+        size="1",
+        color="gray",
+        weight="bold",
+        style={
+            "text-transform": "uppercase",
+            "letter-spacing": "0.06em",
+        },
+    )
+
+
+def _sidebar_metadata_row(label: str, value: rx.Component) -> rx.Component:
+    """Create a metadata row with a label on the left and value on the right.
+
+    :param label: The label text
+    :type label: str
+    :param value: The value component
+    :type value: rx.Component
+    :return: The metadata row component
+    :rtype: rx.Component
+    """
+    return rx.hstack(
+        rx.text(label, size="2", color="gray"),
+        rx.spacer(),
+        value,
+        width="100%",
+        align="center",
+    )
+
+
+def details_sidebar() -> rx.Component:
+    """Create the details sidebar (right side) with template metadata.
+
+    :return: The details sidebar component
+    :rtype: rx.Component
+    """
+    return rx.vstack(
+        # Heading with close button
+        rx.hstack(
+            _sidebar_section_label("Template details"),
+            rx.spacer(),
+            right_sidebar_close_button(),
+            width="100%",
+            align="center",
+        ),
+        # Roles section
+        rx.cond(
+            TemplateDetailState.template_roles.length() > 0,
+            rx.vstack(
+                _sidebar_section_label("Roles"),
+                rx.vstack(
+                    rx.foreach(
+                        TemplateDetailState.template_roles,
+                        lambda role: rx.badge(role, size="2", variant="soft"),
+                    ),
+                    spacing="2",
+                    align_items="start",
+                    width="100%",
+                ),
+                spacing="2",
+                align_items="start",
+                width="100%",
+            ),
+        ),
+        # Divider + metadata section
+        rx.vstack(
+            rx.divider(margin_bottom="0.5rem"),
+            _sidebar_metadata_row(
+                "Created by",
+                user_inline_component(TemplateDetailState.project_template.created_by, size="small"),
+            ),
+            _sidebar_metadata_row(
+                "Created at",
+                rx.text(
+                    rx.moment(
+                        TemplateDetailState.project_template.created_at, format="MMM D, YYYY HH:mm"
+                    ),
+                    size="1",
+                    weight="medium",
+                ),
+            ),
+            _sidebar_metadata_row(
+                "Last modified by",
+                user_inline_component(
+                    TemplateDetailState.project_template.last_modified_by, size="small"
+                ),
+            ),
+            _sidebar_metadata_row(
+                "Last modified at",
+                rx.text(
+                    rx.moment(
+                        TemplateDetailState.project_template.last_modified_at,
+                        format="MMM D, YYYY HH:mm",
+                    ),
+                    size="1",
+                    weight="medium",
+                ),
+            ),
+            spacing="1",
+            width="100%",
+            padding_top="0.5rem",
+        ),
+        width="100%",
+        spacing="5",
+        align_items="start",
     )
 
 
 def project_template_detail_page() -> rx.Component:
     """Create the template detail page component.
 
-    This page displays template details with description editor,
-    info section, and action menu.
+    This page displays template details with tabs for task templates and description,
+    info sidebar, and action menu.
 
     :return: The template detail page component
     :rtype: rx.Component
     """
     return main_component(
         page_layout(
-            detail_page_layout(
-                main_content=main_content_area(),
-                sidebar_content=info_section(),
-                breadcrumbs=TemplateBreadcrumbState.breadcrumbs,
+            rx.cond(
+                TemplateDetailState.project_template,
+                detail_page_layout(
+                    main_content=main_content_area(),
+                    header_content=header(),
+                    header_right_content=right_sidebar_open_button(),
+                ),
             ),
-            header_content=header(),
+            header_content=breadcrumb_component(TemplateBreadcrumbState.breadcrumbs),
+            right_sidebar_content=details_sidebar(),
             on_mount=TemplateDetailState.init,
         ),
         # Dialogs
         project_template_update_dialog(),
         delete_confirmation_dialog(),
+        task_template_form_dialog(),
     )

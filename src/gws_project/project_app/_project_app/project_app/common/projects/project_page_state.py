@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
+import reflex as rx
 from gws_project.project.project import Project
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
@@ -14,7 +15,7 @@ class ProjectUrlParam:
     type: Literal["project", "task"]
 
 
-class ProjectPageState(ReflexMainState):
+class ProjectPageState(rx.State):
     """State for managing project and task objects with caching.
 
     This state provides a centralized way to load and cache Project and Task objects
@@ -104,7 +105,8 @@ class ProjectPageState(ReflexMainState):
             return self._cached_object
 
         # Load the object based on URL parameter
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             if task_id:
                 task_service = TaskService()
                 obj = task_service.get_task(task_id)

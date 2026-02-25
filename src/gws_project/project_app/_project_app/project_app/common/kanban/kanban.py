@@ -4,11 +4,22 @@ from collections.abc import Callable
 
 import reflex as rx
 from gws_core import BaseModelDTO
-from gws_project.task.task_dto import TaskDTO, TaskStatus
+from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from reflex.vars import Var
 
-# Path to the custom TSX component
+from gws_core.apps.reflex._gws_reflex.gws_reflex_main.components.reflex_user_components import get_user_color_mapping
+
+from ..status_colors import StatusColors
+from ..tasks.task_priority_chip_component import PriorityColors
+
+# Path to the custom TSX components
 kanban_path = rx.asset("kanban_board.tsx", shared=True)
+rx.asset("user_avatar.tsx", shared=True)
+rx.asset("kanban_types.ts", shared=True)
+rx.asset("kanban_utils.ts", shared=True)
+rx.asset("priority_icon.tsx", shared=True)
+rx.asset("sortable_card.tsx", shared=True)
+rx.asset("kanban_column.tsx", shared=True)
 public_kanban_path = "$/public/" + kanban_path
 
 
@@ -21,18 +32,24 @@ class CardDTO(BaseModelDTO):
         description: Optional card description
         priority: Optional card priority
         assignee: Optional card assignee
+        assignee_profile_picture_url: Optional URL for the assignee's profile picture
         parent_task_title: Optional parent task title
         is_leaf: Whether the task is a leaf task (no children)
         project_name: Optional project name
+        start_date: Optional start date (ISO format string)
+        end_date: Optional end date (ISO format string)
     """
     id: str
     title: str
     description: str | None = None
     priority: str | None = None
     assignee: str | None = None
+    assignee_profile_picture_url: str | None = None
     parent_task_title: str | None = None
     is_leaf: bool = True
     project_name: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
 
 
 class ColumnDTO(BaseModelDTO):
@@ -123,6 +140,15 @@ class KanbanBoard(rx.Component):
     # Component props
     board_data: Var[BoardDataDTO]
 
+    # Mapping of column id (status) to CSS color prefix (e.g. {"TODO": "gray", "DOING": "secondary", "DONE": "tertiary"})
+    status_color_map: Var[dict[str, str]]
+
+    # Mapping of priority value to CSS color prefix (e.g. {"HIGH": "tertiary", "MEDIUM": "secondary", "LOW": "gray"})
+    priority_color_map: Var[dict[str, str]]
+
+    # Mapping of first name initial (A-Z) to hex color for user avatars
+    user_color_map: Var[dict[str, str]]
+
     # Control whether columns can be dragged
     disable_column_drag: Var[bool]
 
@@ -132,6 +158,20 @@ class KanbanBoard(rx.Component):
     # Event handler for card click
     on_card_click: rx.EventHandler[rx.event.passthrough_event_spec(str)]
 
+
+STATUS_COLOR_MAP: dict[str, str] = {
+    TaskStatus.TODO.value: StatusColors.TODO,
+    TaskStatus.DOING.value: StatusColors.ONGOING,
+    TaskStatus.DONE.value: StatusColors.DONE,
+}
+
+PRIORITY_COLOR_MAP: dict[str, str] = {
+    TaskPriority.HIGH.value: PriorityColors.HIGH,
+    TaskPriority.MEDIUM.value: PriorityColors.MEDIUM,
+    TaskPriority.LOW.value: PriorityColors.LOW,
+}
+
+USER_COLOR_MAP: dict[str, str] = get_user_color_mapping()
 
 # Convenience function to create the component
 kanban_board = KanbanBoard.create

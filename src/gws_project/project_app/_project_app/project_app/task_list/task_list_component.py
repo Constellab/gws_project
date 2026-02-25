@@ -1,15 +1,14 @@
 import reflex as rx
 
-from ..common.tasks.task_table_component import task_table_component
-from ..project_detail.project_detail_state import ProjectDetailState
+from ..common.tasks.task_card_component import task_card_list_component
 from .task_list_state import TaskListState
 
 
 def task_list_component() -> rx.Component:
     """Create the task list component displaying all tasks for a project.
 
-    This component displays a table of tasks with columns for title, description,
-    dates, status, priority, assigned user, and actions menu.
+    This component displays tasks as small cards. The table view is kept
+    available via task_table_list_component() for alternative usage.
 
     The component uses a key based on current_url_id to force remount when URL changes,
     ensuring tasks are reloaded when navigating between tasks.
@@ -34,7 +33,9 @@ def task_list_component() -> rx.Component:
                     flex="1",
                     min_height="0",
                 ),
-                task_table_component(tasks=TaskListState.get_tasks, empty_message="No tasks found"),
+                task_card_list_component(
+                    tasks=TaskListState.get_tasks, empty_message="No tasks found"
+                ),
             ),
             # Trigger background fetch when component mounts
             on_mount=TaskListState.fetch_tasks_on_mount,
@@ -52,28 +53,16 @@ def task_list_component() -> rx.Component:
     )
 
 
-def task_list_view() -> rx.Component:
-    """Create the tasks list view with header and content.
+def task_list_content() -> rx.Component:
+    """Create the tasks list content without header.
 
-    :return: The tasks list view component
+    The header (title and action button) is managed at the tab level
+    in the project detail page.
+
+    :return: The tasks list content component
     :rtype: rx.Component
     """
     return rx.vstack(
-        # Tasks header with create button
-        rx.hstack(
-            rx.heading("Tasks", size="4", weight="bold"),
-            rx.spacer(),
-            rx.button(
-                rx.icon("plus", size=16),
-                "Create Task",
-                variant="soft",
-                size="2",
-                on_click=ProjectDetailState.open_create_task_dialog,
-            ),
-            width="100%",
-            align="center",
-        ),
-        # Tasks list content
         task_list_component(),
         width="100%",
         spacing="3",
