@@ -18,7 +18,13 @@ def _get_status_color(status: ProjectStatus):
     :return: The color scheme name
     :rtype: str
     """
-    return rx.match(status, (ProjectStatus.DRAFT, StatusColors.TODO), (ProjectStatus.ACTIVE, StatusColors.ONGOING), (ProjectStatus.COMPLETED, StatusColors.DONE), StatusColors.TODO)
+    return rx.match(
+        status,
+        (ProjectStatus.DRAFT, StatusColors.TODO),
+        (ProjectStatus.ACTIVE, StatusColors.ONGOING),
+        (ProjectStatus.COMPLETED, StatusColors.DONE),
+        StatusColors.TODO,
+    )
 
 
 def _get_status_icon(status: ProjectStatus) -> rx.Component:
@@ -55,4 +61,30 @@ def project_status_chip(
         size=size,
         on_value_change=on_status_change,
         get_icon=_get_status_icon,
+    )
+
+
+def project_status_badge(status: ProjectStatus, size: int = 8) -> rx.Component:
+    """Create a colored dot indicating the project status.
+
+    :param status: The project status (DRAFT, ACTIVE, COMPLETED)
+    :type status: ProjectStatus
+    :param size: The dot diameter in pixels
+    :type size: int
+    :return: A colored dot component
+    :rtype: rx.Component
+    """
+    color = rx.match(
+        status,
+        (ProjectStatus.COMPLETED, StatusColors.css_var_done()),
+        (ProjectStatus.ACTIVE, StatusColors.css_var_ongoing()),
+        StatusColors.css_var_todo(shade=4),
+    )
+
+    return rx.box(
+        width=f"{size}px",
+        height=f"{size}px",
+        border_radius="50%",
+        background=color,
+        flex_shrink="0",
     )
