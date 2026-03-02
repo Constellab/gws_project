@@ -6,7 +6,7 @@ import { PriorityIcon } from './priority_icon';
 import { formatDate } from './kanban_utils';
 import type { Card, SortableCardProps } from './kanban_types';
 
-export function SortableCard({ id, card, onCardClick, customRenderer, priorityColorMap, userColorMap, columnColorPrefix = 'gray' }: SortableCardProps) {
+export const SortableCard = React.memo(function SortableCard({ id, card, onCardClick, customRenderer, priorityColorMap, userColorMap, columnColorPrefix = 'gray' }: SortableCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const {
     attributes,
@@ -15,7 +15,7 @@ export function SortableCard({ id, card, onCardClick, customRenderer, priorityCo
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: id });
+  } = useSortable({ id: id, animateLayoutChanges: () => false });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -175,4 +175,10 @@ export function SortableCard({ id, card, onCardClick, customRenderer, priorityCo
       )}
     </div>
   );
-}
+}, (prev, next) => {
+  return prev.id === next.id
+    && prev.card === next.card
+    && prev.columnColorPrefix === next.columnColorPrefix
+    && prev.priorityColorMap === next.priorityColorMap
+    && prev.userColorMap === next.userColorMap;
+});

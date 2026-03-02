@@ -7,7 +7,7 @@ import {
 import { SortableCard } from './sortable_card';
 import type { ColumnProps } from './kanban_types';
 
-export function Column({ column, cards, cardRenderer, onCardClick, statusColorMap, priorityColorMap, userColorMap }: ColumnProps) {
+export const Column = React.memo(function Column({ column, cards, cardRenderer, onCardClick, statusColorMap, priorityColorMap, userColorMap }: ColumnProps) {
   const cardIds = cards.map((card) => card.id);
   const { setNodeRef } = useDroppable({
     id: column.id,
@@ -91,4 +91,11 @@ export function Column({ column, cards, cardRenderer, onCardClick, statusColorMa
       </div>
     </div>
   );
-}
+}, (prev, next) => {
+  // Only re-render if column data or cards actually changed
+  return prev.column.id === next.column.id
+    && prev.cards === next.cards
+    && prev.statusColorMap === next.statusColorMap
+    && prev.priorityColorMap === next.priorityColorMap
+    && prev.userColorMap === next.userColorMap;
+});
