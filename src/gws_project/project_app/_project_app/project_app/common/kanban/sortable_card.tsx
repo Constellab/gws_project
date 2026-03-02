@@ -180,5 +180,7 @@ export const SortableCard = React.memo(function SortableCard({ id, card, onCardC
     && prev.card === next.card
     && prev.columnColorPrefix === next.columnColorPrefix
     && prev.priorityColorMap === next.priorityColorMap
-    && prev.userColorMap === next.userColorMap;
+    && prev.userColorMap === next.userColorMap
+    && prev.onCardClick === next.onCardClick
+    && prev.customRenderer === next.customRenderer;
 });
