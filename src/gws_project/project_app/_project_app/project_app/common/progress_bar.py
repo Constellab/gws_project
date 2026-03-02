@@ -22,7 +22,7 @@ def progress_bar(progress: int, width: str = "100%", height: str = "12px") -> rx
                 height="100%",
                 background=rx.cond(
                     progress == 100,
-                    # Make it ligher as this is like a "Disabled" state
+                    # Make it lighter as this is like a "Disabled" state
                     StatusColors.css_var_done(shade=2),
                     rx.cond(
                         progress > 0,
