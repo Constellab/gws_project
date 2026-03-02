@@ -92,10 +92,12 @@ export const Column = React.memo(function Column({ column, cards, cardRenderer, 
     </div>
   );
 }, (prev, next) => {
-  // Only re-render if column data or cards actually changed
+  // Only re-render if column data, cards, or relevant props actually changed
   return prev.column.id === next.column.id
     && prev.cards === next.cards
     && prev.statusColorMap === next.statusColorMap
     && prev.priorityColorMap === next.priorityColorMap
-    && prev.userColorMap === next.userColorMap;
+    && prev.userColorMap === next.userColorMap
+    && prev.cardRenderer === next.cardRenderer
+    && prev.onCardClick === next.onCardClick;
 });
