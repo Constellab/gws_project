@@ -1,4 +1,5 @@
 import reflex as rx
+from gws_reflex_main import extension_badge_component
 
 from .documents_list_state import DocumentInfo, DocumentsListState
 
@@ -16,7 +17,7 @@ def document_card(document: DocumentInfo) -> rx.Component:
             # Left side: icon + document info
             rx.hstack(
                 # File extension badge
-                _document_extension_badge(document),
+                extension_badge_component(document.extension),
                 # Document name and metadata
                 rx.vstack(
                     rx.text(
@@ -80,33 +81,6 @@ def document_card(document: DocumentInfo) -> rx.Component:
             ":hover": {"background_color": "var(--gray-a2)"},
             "transition": "background 0.15s ease",
         },
-    )
-
-
-def _document_extension_badge(document: DocumentInfo) -> rx.Component:
-    """Create a colored badge showing the file extension (e.g. PDF, DOC, XLS).
-
-    :param document: The document info object
-    :type document: DocumentInfo
-    :return: The extension badge component
-    :rtype: rx.Component
-    """
-    return rx.box(
-        rx.text(
-            document.extension,
-            weight="bold",
-            color="white",
-            trim="both",
-            style={"font_size": "10px"},
-        ),
-        width="36px",
-        height="36px",
-        border_radius="var(--radius-2)",
-        background=document.extension_color,
-        display="flex",
-        align_items="center",
-        justify_content="center",
-        flex_shrink="0",
     )
 
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import type {
   DragStartEvent,
   DragOverEvent,
@@ -12,18 +12,29 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  MeasuringStrategy,
 } from '@dnd-kit/core';
 import {
   arrayMove,
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { Column } from './kanban_column';
-import type { Column as ColumnType, KanbanBoardProps } from './kanban_types';
+import type { Card, Column as ColumnType, KanbanBoardProps } from './kanban_types';
 
 export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, onCardClick, disableColumnDrag = true, statusColorMap, priorityColorMap, userColorMap }: KanbanBoardProps) {
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [columns, setColumns] = useState<ColumnType[]>(boardData?.columns || []);
-  const [originalContainer, setOriginalContainer] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  // Lightweight state: just the target column id during a cross-column drag
+  const [overColumnId, setOverColumnId] = useState<string | null>(null);
+  const originalContainerRef = useRef<string | null>(null);
+  const activeCardRef = useRef<Card | null>(null);
+
+  // Only measure droppables before dragging starts — not on every re-render during drag
+  const measuringConfig = useMemo(() => ({
+    droppable: {
+      strategy: MeasuringStrategy.BeforeDragging,
+    },
+  }), []);
 
   // Update columns when boardData changes
   React.useEffect(() => {
@@ -44,8 +55,8 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, on
   );
 
   // Find which column a card belongs to
-  const findContainer = (id: string): string | null => {
-    for (const column of columns) {
+  const findContainer = (id: string, cols: ColumnType[]): string | null => {
+    for (const column of cols) {
       if (column.cards.some((card) => card.id === id)) {
         return column.id;
       }
@@ -53,93 +64,83 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, on
     return null;
   };
 
+  // Derive displayed columns: if dragging across columns, move the card virtually
+  const displayedColumns = useMemo(() => {
+    if (!activeId || !overColumnId || !originalContainerRef.current) return columns;
+
+    const sourceColId = findContainer(activeId, columns);
+    if (!sourceColId || sourceColId === overColumnId) return columns;
+
+    const sourceCol = columns.find(c => c.id === sourceColId);
+    const targetCol = columns.find(c => c.id === overColumnId);
+    if (!sourceCol || !targetCol) return columns;
+
+    const card = sourceCol.cards.find(c => c.id === activeId);
+    if (!card) return columns;
+
+    return columns.map(col => {
+      if (col.id === sourceColId) {
+        return { ...col, cards: col.cards.filter(c => c.id !== activeId) };
+      }
+      if (col.id === overColumnId) {
+        return { ...col, cards: [...col.cards, card] };
+      }
+      return col;
+    });
+  }, [columns, activeId, overColumnId]);
+
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-    const container = findContainer(event.active.id as string);
-    setOriginalContainer(container);
-    console.log('Drag started - original container:', container);
+    const id = event.active.id as string;
+    setActiveId(id);
+    originalContainerRef.current = findContainer(id, columns);
+    activeCardRef.current = columns.flatMap(col => col.cards).find(c => c.id === id) || null;
   };
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
-
     if (!over) return;
 
-    const activeContainer = findContainer(active.id as string);
-    const overContainer = findContainer(over.id as string) || (over.id as string);
+    // Determine which column the pointer is over
+    const overContainer = findContainer(over.id as string, displayedColumns) || (over.id as string);
+    const activeContainer = originalContainerRef.current;
 
     if (!activeContainer || !overContainer) return;
 
+    // Only update if the target column actually changed
     if (activeContainer !== overContainer) {
-      setColumns((prevColumns) => {
-        const newColumns = prevColumns.map(col => ({
-          ...col,
-          cards: [...col.cards]
-        }));
-
-        const activeColumn = newColumns.find((col) => col.id === activeContainer);
-        const overColumn = newColumns.find((col) => col.id === overContainer);
-
-        if (!activeColumn || !overColumn) return prevColumns;
-
-        const activeCardIndex = activeColumn.cards.findIndex((card) => card.id === active.id);
-        const overCardIndex = overColumn.cards.findIndex((card) => card.id === over.id);
-
-        if (activeCardIndex === -1) return prevColumns;
-
-        const [activeCard] = activeColumn.cards.splice(activeCardIndex, 1);
-
-        if (overCardIndex >= 0) {
-          overColumn.cards.splice(overCardIndex, 0, activeCard);
-        } else {
-          overColumn.cards.push(activeCard);
-        }
-
-        return newColumns;
-      });
+      setOverColumnId(prev => prev === overContainer ? prev : overContainer);
+    } else {
+      setOverColumnId(prev => prev === null ? prev : null);
     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (!over) {
-      setActiveId(null);
-      setOriginalContainer(null);
-      return;
-    }
+    const activeContainer = originalContainerRef.current;
+    const targetColumn = overColumnId;
 
-    // Use the original container stored at drag start instead of finding it
-    // (because handleDragOver may have already moved the card)
-    const activeContainer = originalContainer;
-    const overContainer = findContainer(over.id as string) || (over.id as string);
+    // Reset drag state
+    setActiveId(null);
+    setOverColumnId(null);
+    originalContainerRef.current = null;
+    activeCardRef.current = null;
 
-    if (!activeContainer || !overContainer) {
-      setActiveId(null);
-      setOriginalContainer(null);
-      return;
-    }
+    if (!over || !activeContainer) return;
 
-    const activeColumn = columns.find((col) => col.id === activeContainer);
-    const overColumn = columns.find((col) => col.id === overContainer);
+    const overContainer = targetColumn || findContainer(over.id as string, columns) || (over.id as string);
 
-    if (!activeColumn || !overColumn) {
-      setActiveId(null);
-      setOriginalContainer(null);
-      return;
-    }
+    if (!overContainer) return;
 
     if (activeContainer === overContainer) {
+      // Same column reorder
+      const activeColumn = columns.find((col) => col.id === activeContainer);
+      if (!activeColumn) return;
+
       const activeCardIndex = activeColumn.cards.findIndex((card) => card.id === active.id);
-      const overCardIndex = overColumn.cards.findIndex((card) => card.id === over.id);
+      const overCardIndex = activeColumn.cards.findIndex((card) => card.id === over.id);
 
-      if (activeCardIndex === -1) {
-        setActiveId(null);
-        setOriginalContainer(null);
-        return;
-      }
-
-      if (activeCardIndex !== overCardIndex) {
+      if (activeCardIndex !== -1 && overCardIndex !== -1 && activeCardIndex !== overCardIndex) {
         setColumns((prevColumns) => {
           const newColumns = prevColumns.map(col => ({
             ...col,
@@ -153,33 +154,38 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, on
         });
       }
     } else {
-      const card = columns.flatMap(col => col.cards).find(c => c.id === active.id);
+      // Cross-column move: optimistically commit the move to columns state
+      // so the card stays in the target column until boardData arrives
+      const cardId = active.id as string;
+      setColumns((prevColumns) => {
+        const sourceCol = prevColumns.find(col => col.id === activeContainer);
+        if (!sourceCol) return prevColumns;
 
-      if (!card) {
-        setActiveId(null);
-        setOriginalContainer(null);
-        return;
-      }
+        const card = sourceCol.cards.find(c => c.id === cardId);
+        if (!card) return prevColumns;
+
+        return prevColumns.map(col => {
+          if (col.id === activeContainer) {
+            return { ...col, cards: col.cards.filter(c => c.id !== cardId) };
+          }
+          if (col.id === overContainer) {
+            return { ...col, cards: [...col.cards, card] };
+          }
+          return col;
+        });
+      });
 
       if (onCardMove) {
-        const eventPayload = {
-          card_id: card.id,
+        onCardMove({
+          card_id: cardId,
           from_column_id: activeContainer,
           to_column_id: overContainer,
-        };
-        onCardMove(eventPayload);
+        });
       }
     }
-
-    setActiveId(null);
-    setOriginalContainer(null);
   };
 
-  const activeCard = activeId
-    ? columns
-        .flatMap((col) => col.cards)
-        .find((card) => card.id === activeId)
-    : null;
+  const activeCard = activeCardRef.current;
 
   if (!boardData || !boardData.columns) {
     return <div style={{ padding: '20px' }}>No data available</div>;
@@ -209,12 +215,13 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, on
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
+        measuring={measuringConfig}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div style={{ display: 'flex', overflowX: 'auto', width: '100%', flex: 1, minHeight: 0 }}>
-          {columns.map((column) => (
+          {displayedColumns.map((column) => (
             <Column
               key={column.id}
               column={column}

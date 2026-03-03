@@ -29,7 +29,10 @@ def _get_priority_color(priority: TaskPriority):
     :rtype: str
     """
     return rx.match(
-        priority, (TaskPriority.HIGH, PriorityColors.HIGH), (TaskPriority.MEDIUM, PriorityColors.MEDIUM), PriorityColors.LOW
+        priority,
+        (TaskPriority.HIGH, PriorityColors.HIGH),
+        (TaskPriority.MEDIUM, PriorityColors.MEDIUM),
+        PriorityColors.LOW,
     )
 
 

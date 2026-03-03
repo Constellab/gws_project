@@ -1,7 +1,7 @@
 import reflex as rx
 
 from .document_card_component import document_card
-from .documents_list_state import DocumentInfo, DocumentsListState
+from .documents_list_state import DocumentsListState
 
 
 def documents_list_view() -> rx.Component:
@@ -168,89 +168,6 @@ def _documents_cards() -> rx.Component:
         rx.foreach(DocumentsListState.pagination_state.documents, document_card),
         width="100%",
         spacing="2",
-    )
-
-
-def _documents_table() -> rx.Component:
-    """Create the documents table.
-
-    :return: The documents table component
-    :rtype: rx.Component
-    """
-    return rx.table.root(
-        rx.table.header(
-            rx.table.row(
-                rx.table.column_header_cell("Name"),
-                rx.table.column_header_cell("Type"),
-                rx.table.column_header_cell("Actions", justify="end"),
-            ),
-        ),
-        rx.table.body(rx.foreach(DocumentsListState.pagination_state.documents, _document_row)),
-        width="100%",
-        variant="surface",
-    )
-
-
-def _document_row(document: DocumentInfo) -> rx.Component:
-    """Create a table row for a single document.
-
-    :param document: The document info object
-    :type document: DocumentInfo
-    :return: The document row component
-    :rtype: rx.Component
-    """
-    return rx.table.row(
-        rx.table.cell(
-            rx.hstack(
-                _document_icon(document.type), rx.text(document.name), spacing="2", align="center"
-            )
-        ),
-        rx.table.cell(rx.text(document.type, size="2", color="gray")),
-        rx.table.cell(
-            rx.hstack(
-                rx.link(
-                    rx.button(
-                        rx.icon("external-link", size=16),
-                        "Open object",
-                        variant="soft",
-                        size="1",
-                    ),
-                    href=document.url,
-                    is_external=True,
-                ),
-                spacing="2",
-                align="center",
-                justify="end",
-                width="100%",
-            )
-        ),
-        style={
-            ":hover": {"background_color": "var(--gray-3)"},
-        },
-    )
-
-
-def _document_icon(object_type) -> rx.Component:
-    """Get the appropriate icon for a document based on its type.
-
-    :param object_type: The object type enum value
-    :return: The icon component
-    :rtype: rx.Component
-    """
-    # Use rx.match to render different icon names based on the object type
-    return rx.icon(
-        rx.match(
-            object_type,
-            ("FOLDER", "folder"),
-            ("NOTE", "file-text"),
-            ("SCENARIO", "circle-play"),
-            ("RESOURCE", "database"),
-            ("CONSTELLAB_DOCUMENT", "file-text"),
-            "file",  # Default for DOCUMENT and others
-        ),
-        size=16,
-        color="gray",
-        flex_shrink="0",
     )
 
 

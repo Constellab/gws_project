@@ -4,7 +4,7 @@ from gws_reflex_main.components.reflex_user_components import user_select
 
 from ..common.page_layout import page_layout
 from ..common.progress_ring import progress_ring
-from ..common.projects.project_components import project_status_badge
+from ..common.projects.project_status_chip_component import project_status_badge
 from ..project_form_dialog.project_form_dialog_component import create_project_dialog
 from .project_list_state import ProjectDTO, ProjectListState
 from .project_stats_header_component import project_stats_header
