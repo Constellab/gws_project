@@ -49,7 +49,7 @@ class GenerateProjectApp(Task):
         reflex_app = ReflexResource()
 
         reflex_app.set_app_config(ProjectAppAppConfig())
-        reflex_app.name = "Constellab Project"
+        reflex_app.name = "Project"
         reflex_app.style = project_app_style
 
         return {"reflex_app": reflex_app}
