@@ -191,6 +191,69 @@ class DocumentService:
 
         return uploaded_doc
 
+    def create_constellab_document_for_project(
+        self,
+        project_id: str,
+        name: str,
+    ) -> SpaceHierarchyObjectDTO:
+        """Create a Constellab document in a project's space folder.
+
+        :param project_id: The ID of the project
+        :type project_id: str
+        :param name: The name of the Constellab document
+        :type name: str
+        :return: The created document object
+        :rtype: SpaceHierarchyObjectDTO
+        :raises BadRequestException: If the project doesn't have a space folder
+        """
+        security_service = ProjectSecurityService()
+        project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
+
+        if not project.space_folder_id:
+            raise BadRequestException(
+                f"Project with ID '{project_id}' does not have an associated space folder. "
+                "Cannot create Constellab document."
+            )
+
+        return self._space_service.create_constellab_document(
+            folder_id=project.space_folder_id,
+            name=name,
+        )
+
+    def create_constellab_document_for_task(
+        self,
+        task_id: str,
+        name: str,
+    ) -> SpaceHierarchyObjectDTO:
+        """Create a Constellab document in a task's space folder and tag it.
+
+        If the task doesn't have a space folder yet, one will be created automatically.
+
+        :param task_id: The ID of the task
+        :type task_id: str
+        :param name: The name of the Constellab document
+        :type name: str
+        :return: The created document object
+        :rtype: SpaceHierarchyObjectDTO
+        """
+        security_service = ProjectSecurityService()
+        task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
+
+        space_folder_id = self._task_service.get_or_create_space_folder_id(task_id)
+
+        created_doc = self._space_service.create_constellab_document(
+            folder_id=space_folder_id,
+            name=name,
+        )
+
+        space_tag = task.get_space_tag()
+        self._space_service.add_or_replace_tags_on_object(
+            entity_id=created_doc.id,
+            tags=[space_tag],
+        )
+
+        return created_doc
+
     def rename_document(self, project_id: str, document_id: str, name: str) -> None:
         """Rename a document.
 

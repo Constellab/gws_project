@@ -11,16 +11,23 @@ def documents_list_view() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        # Documents header with upload button
+        # Documents header with action buttons
         rx.hstack(
             rx.heading("Documents", size="4", weight="bold"),
             rx.spacer(),
+            rx.button(
+                rx.icon("file-plus", size=16),
+                "Create Note",
+                variant="soft",
+                size="2",
+                on_click=DocumentsListState.open_create_constellab_doc_dialog,
+            ),
             rx.upload.root(
                 rx.button(
                     rx.spinner(loading=DocumentsListState.is_uploading),
                     rx.icon("upload", size=16),
                     "Upload File",
-                    variant="soft",
+                    variant="solid",
                     size="2",
                 ),
                 id="document_upload",
@@ -34,6 +41,7 @@ def documents_list_view() -> rx.Component:
             ),
             width="100%",
             align="center",
+            spacing="2",
             # Trigger background fetch when component mounts
             on_mount=DocumentsListState.fetch_documents_on_mount,
         ),
@@ -41,6 +49,8 @@ def documents_list_view() -> rx.Component:
         _documents_content(),
         # Rename dialog
         _rename_document_dialog(),
+        # Create Constellab document dialog
+        _create_constellab_doc_dialog(),
         width="100%",
         spacing="3",
         align_items="start",
@@ -65,6 +75,8 @@ def documents_list_content() -> rx.Component:
         _documents_content(),
         # Rename dialog
         _rename_document_dialog(),
+        # Create Constellab document dialog
+        _create_constellab_doc_dialog(),
         width="100%",
         spacing="3",
         align_items="start",
@@ -234,4 +246,72 @@ def _rename_document_dialog() -> rx.Component:
             on_escape_key_down=DocumentsListState.close_rename_dialog,
         ),
         open=DocumentsListState.rename_dialog_open,
+    )
+
+
+def _create_constellab_doc_dialog() -> rx.Component:
+    """Create the dialog for creating a new Constellab document (note).
+
+    :return: The create Constellab document dialog component
+    :rtype: rx.Component
+    """
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.dialog.title("Create Note"),
+            rx.form(
+                rx.flex(
+                    rx.text(
+                        "Note Name",
+                        as_="div",
+                        size="2",
+                        margin_bottom="4px",
+                        weight="bold",
+                    ),
+                    rx.input(
+                        value=DocumentsListState.create_constellab_doc_name,
+                        on_change=DocumentsListState.set_create_constellab_doc_name,
+                        placeholder="Enter note name",
+                        name="name",
+                        required=True,
+                    ),
+                    direction="column",
+                    spacing="3",
+                ),
+                rx.flex(
+                    rx.dialog.close(
+                        rx.button(
+                            "Cancel",
+                            variant="soft",
+                            color_scheme="gray",
+                            type="button",
+                            on_click=DocumentsListState.close_create_constellab_doc_dialog,
+                            disabled=DocumentsListState.is_creating_constellab_doc,
+                        ),
+                    ),
+                    rx.button(
+                        rx.cond(
+                            DocumentsListState.is_creating_constellab_doc,
+                            rx.hstack(
+                                rx.spinner(size="2"),
+                                "Creating...",
+                                spacing="2",
+                            ),
+                            "Create",
+                        ),
+                        type="submit",
+                        disabled=DocumentsListState.is_creating_constellab_doc,
+                    ),
+                    padding_top="16px",
+                    spacing="3",
+                    margin_top="16px",
+                    justify="end",
+                ),
+                on_submit=lambda _: DocumentsListState.handle_create_constellab_document(),
+                reset_on_submit=False,
+            ),
+            style={"max_width": 450},
+            on_interact_outside=DocumentsListState.close_create_constellab_doc_dialog,
+            on_escape_key_down=DocumentsListState.close_create_constellab_doc_dialog,
+        ),
+        open=DocumentsListState.create_constellab_doc_dialog_open,
     )

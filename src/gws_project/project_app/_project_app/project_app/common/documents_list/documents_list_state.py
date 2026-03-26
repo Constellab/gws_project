@@ -126,6 +126,11 @@ class DocumentsListState(rx.State):
     is_uploading: bool = False
     progress: int = 0
 
+    # ===== Create Constellab Document Dialog =====
+    create_constellab_doc_dialog_open: bool = False
+    create_constellab_doc_name: str = ""
+    is_creating_constellab_doc: bool = False
+
     # ===== Rename Document Dialog =====
     rename_dialog_open: bool = False
     rename_document_id: str | None = None
@@ -598,6 +603,77 @@ class DocumentsListState(rx.State):
 
         except Exception as e:
             yield rx.toast.error(f"Failed to delete document: {str(e)}")
+
+    # ===== Create Constellab Document =====
+    def open_create_constellab_doc_dialog(self):
+        """Open the create Constellab document dialog."""
+        self.create_constellab_doc_name = ""
+        self.create_constellab_doc_dialog_open = True
+
+    def close_create_constellab_doc_dialog(self):
+        """Close the create Constellab document dialog."""
+        self.create_constellab_doc_dialog_open = False
+        self.create_constellab_doc_name = ""
+
+    @rx.event
+    def set_create_constellab_doc_name(self, name: str):
+        """Set the name for the Constellab document being created.
+
+        :param name: The document name
+        :type name: str
+        """
+        self.create_constellab_doc_name = name
+
+    @rx.event
+    async def handle_create_constellab_document(self):
+        """Handle creation of a new Constellab document in the current project or task folder."""
+        if not self.create_constellab_doc_name.strip():
+            yield rx.toast.error("Note name cannot be empty")
+            return
+
+        try:
+            current_object = await self._get_current_object()
+            if not current_object:
+                yield rx.toast.error("No project or task selected")
+                return
+
+            self.is_creating_constellab_doc = True
+            yield
+
+            doc_name = self.create_constellab_doc_name.strip()
+
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
+                document_service = DocumentService()
+
+                if isinstance(current_object, Task):
+                    created_doc = document_service.create_constellab_document_for_task(
+                        task_id=current_object.id,
+                        name=doc_name,
+                    )
+                else:  # Project
+                    created_doc = document_service.create_constellab_document_for_project(
+                        project_id=current_object.id,
+                        name=doc_name,
+                    )
+
+                # Add the created document to the beginning of the list
+                self._pagination = PaginationState(
+                    documents=[created_doc] + self._pagination.documents,
+                    page=self._pagination.page,
+                    page_size=self._pagination.page_size,
+                    has_more=self._pagination.has_more,
+                    is_loading=self._pagination.is_loading,
+                )
+
+            self.close_create_constellab_doc_dialog()
+            yield rx.toast.success("Note created successfully")
+
+        except Exception as e:
+            Logger.log_exception_stack_trace(e)
+            yield rx.toast.error(f"Failed to create note: {str(e)}")
+        finally:
+            self.is_creating_constellab_doc = False
 
     @rx.event
     def set_rename_document_name(self, name: str):

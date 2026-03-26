@@ -68,22 +68,32 @@ def _tab_action_button() -> rx.Component:
         ),
         (
             "documents",
-            rx.upload.root(
+            rx.hstack(
                 rx.button(
-                    rx.spinner(loading=DocumentsListState.is_uploading),
-                    rx.icon("upload", size=16),
-                    "Upload File",
-                    variant="solid",
+                    rx.icon("file-plus", size=16),
+                    "Create Note",
+                    variant="soft",
                     size="2",
+                    on_click=DocumentsListState.open_create_constellab_doc_dialog,
                 ),
-                id="document_upload",
-                multiple=True,
-                on_drop=DocumentsListState.handle_upload(
-                    rx.upload_files(
-                        "document_upload",
-                        on_upload_progress=DocumentsListState.handle_upload_progress,
-                    )
+                rx.upload.root(
+                    rx.button(
+                        rx.spinner(loading=DocumentsListState.is_uploading),
+                        rx.icon("upload", size=16),
+                        "Upload File",
+                        variant="solid",
+                        size="2",
+                    ),
+                    id="document_upload",
+                    multiple=True,
+                    on_drop=DocumentsListState.handle_upload(
+                        rx.upload_files(
+                            "document_upload",
+                            on_upload_progress=DocumentsListState.handle_upload_progress,
+                        )
+                    ),
                 ),
+                spacing="2",
             ),
         ),
         rx.fragment(),
