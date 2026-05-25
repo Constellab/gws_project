@@ -1,5 +1,6 @@
 from gws_core import (
     AppConfig,
+    AppStopPolicy,
     AppType,
     ConfigParams,
     ConfigSpecs,
@@ -7,6 +8,8 @@ from gws_core import (
     OutputSpec,
     OutputSpecs,
     ReflexResource,
+    SelectParam,
+    Tag,
     Task,
     TaskInputs,
     TaskOutputs,
@@ -15,6 +18,8 @@ from gws_core import (
     app_decorator,
     task_decorator,
 )
+
+from .project_app_constants import PROJECT_APP_TAG_KEY, PROJECT_APP_TAG_VALUE
 
 
 @app_decorator(
@@ -41,7 +46,17 @@ class GenerateProjectApp(Task):
     input_specs = InputSpecs()
     output_specs = OutputSpecs({"reflex_app": OutputSpec(ReflexResource)})
 
-    config_specs = ConfigSpecs({})
+    config_specs = ConfigSpecs(
+        {
+            "stop_policy": SelectParam(
+                AppStopPolicy,
+                default_value=AppStopPolicy.MANUAL,
+                human_name="Stop policy",
+                short_description="How the app is stopped: AUTO stops it when no "
+                "connection is detected, MANUAL keeps it running.",
+            ),
+        }
+    )
 
     def run(self, params: ConfigParams, inputs: TaskInputs) -> TaskOutputs:
         """Run the task"""
@@ -51,5 +66,11 @@ class GenerateProjectApp(Task):
         reflex_app.set_app_config(ProjectAppAppConfig())
         reflex_app.name = "Project"
         reflex_app.style = project_app_style
+
+        # apply the stop policy chosen in the config
+        reflex_app.set_stop_policy(AppStopPolicy(params["stop_policy"]))
+
+        # tag the resource to identify it as the Constellab Project app
+        reflex_app.tags.add_tag(Tag(PROJECT_APP_TAG_KEY, PROJECT_APP_TAG_VALUE))
 
         return {"reflex_app": reflex_app}
