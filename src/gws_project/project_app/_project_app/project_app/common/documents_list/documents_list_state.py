@@ -2,119 +2,82 @@ import os
 from dataclasses import dataclass, field
 
 import reflex as rx
-from gws_core import (
-    BaseModelDTO,
-    DocumentUploadOverrideMode,
-    FileHelper,
-    Logger,
-    SpaceFrontService,
-    SpaceHierarchyObjectDTO,
-    SpaceHierarchyObjectType,
-)
+from gws_core import BaseModelDTO, FileHelper, Logger
+from gws_project.document.document_dto import ProjectDocumentDTO, ProjectDocumentType
 from gws_project.document.document_service import DocumentService
 from gws_project.project.project import Project
 from gws_project.task.task import Task
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..projects.project_page_state import ProjectPageState
+from .note_editor_state import NoteEditorState
+
+
+class DocumentInfo(BaseModelDTO):
+    """DTO for document information displayed in the documents list."""
+
+    id: str
+    name: str
+    type: str  # "FILE" or "NOTE"
+    size_pretty: str
+    last_modified: str
+    extension: str
 
 
 @dataclass
 class PaginationState:
     """Dataclass for managing pagination state."""
 
-    documents: list[SpaceHierarchyObjectDTO] = field(default_factory=list)
+    documents: list[DocumentInfo] = field(default_factory=list)
     page: int = 0
     page_size: int = 20
     has_more: bool = True
     is_loading: bool = False
 
 
-class DocumentInfo(BaseModelDTO):
-    """DTO for document information."""
-
-    id: str
-    name: str
-    url: str
-    type: SpaceHierarchyObjectType
-    size_pretty: str
-    last_modified: str
-    extension: str
-    extension_color: str
-
-
-# Map of file extensions to display colors
-_EXTENSION_COLORS: dict[str, str] = {
-    # PDF
-    "pdf": "#DC2626",
-    # Word
-    "doc": "#2B579A",
-    "docx": "#2B579A",
-    "odt": "#2B579A",
-    # Excel
-    "xls": "#217346",
-    "xlsx": "#217346",
-    "csv": "#217346",
-    "ods": "#217346",
-    # PowerPoint
-    "ppt": "#D24726",
-    "pptx": "#D24726",
-    "odp": "#D24726",
-    # Images
-    "png": "#9333EA",
-    "jpg": "#9333EA",
-    "jpeg": "#9333EA",
-    "gif": "#9333EA",
-    "svg": "#9333EA",
-    "webp": "#9333EA",
-    # Archives
-    "zip": "#CA8A04",
-    "tar": "#CA8A04",
-    "gz": "#CA8A04",
-    "rar": "#CA8A04",
-    "7z": "#CA8A04",
-    # Text / code
-    "txt": "#64748B",
-    "md": "#64748B",
-    "json": "#0EA5E9",
-    "xml": "#0EA5E9",
-    "html": "#E34F26",
-    "css": "#1572B6",
-    "py": "#3776AB",
-    "js": "#F7DF1E",
-    "ts": "#3178C6",
-}
-
-
-def _get_extension_info(filename: str) -> tuple[str, str]:
-    """Extract 3-letter extension label and color from a filename.
+def _get_extension_label(filename: str) -> str:
+    """Extract a short extension label from a filename.
 
     :param filename: The document filename
     :type filename: str
-    :return: Tuple of (extension label, color hex)
-    :rtype: tuple[str, str]
+    :return: The extension label (e.g. "PDF")
+    :rtype: str
     """
     ext = ""
     if "." in filename:
         ext = filename.rsplit(".", 1)[-1].lower()
-    label = ext[:3].upper() if ext else "FILE"
-    color = _EXTENSION_COLORS.get(ext, "#64748B")
-    return label, color
+    return ext[:3].upper() if ext else "FILE"
 
 
-class PaginationStateFront(BaseModelDTO):
-    """Frontend DTO for pagination state."""
+def _to_document_info(document: ProjectDocumentDTO) -> DocumentInfo:
+    """Convert a ProjectDocumentDTO to the frontend DocumentInfo.
 
-    documents: list[DocumentInfo]
-    has_more: bool
-    is_loading: bool
+    :param document: The document DTO
+    :type document: ProjectDocumentDTO
+    :return: The frontend document info
+    :rtype: DocumentInfo
+    """
+    is_note = document.type == ProjectDocumentType.NOTE
+    return DocumentInfo(
+        id=document.id,
+        name=document.name,
+        type=document.type.value,
+        size_pretty=FileHelper.get_file_size_pretty_text(document.size)
+        if document.size is not None
+        else "",
+        last_modified=document.last_modified_at.strftime("%b %d, %Y")
+        if document.last_modified_at
+        else "",
+        extension="NOTE" if is_note else _get_extension_label(document.name),
+    )
 
 
 class DocumentsListState(rx.State):
     """State for managing the documents list.
 
-    This state handles fetching and displaying documents for a specific project or task folder
-    with pagination support. Documents are fetched reactively based on ProjectPageState.
+    This state handles fetching and displaying documents (files and notes) for
+    a specific project or task with pagination support. Documents are stored
+    locally (brick DB + dedicated lab file store).
     """
 
     _cached_object_id: str | None = None
@@ -126,10 +89,10 @@ class DocumentsListState(rx.State):
     is_uploading: bool = False
     progress: int = 0
 
-    # ===== Create Constellab Document Dialog =====
-    create_constellab_doc_dialog_open: bool = False
-    create_constellab_doc_name: str = ""
-    is_creating_constellab_doc: bool = False
+    # ===== Create Note Dialog =====
+    create_note_dialog_open: bool = False
+    create_note_name: str = ""
+    is_creating_note: bool = False
 
     # ===== Rename Document Dialog =====
     rename_dialog_open: bool = False
@@ -138,59 +101,25 @@ class DocumentsListState(rx.State):
     is_renaming: bool = False
 
     @rx.var
-    async def pagination_state(self) -> PaginationStateFront:
+    async def pagination_state(self) -> PaginationState:
         """Return the pagination state with documents.
 
         Documents are loaded on component mount via fetch_documents_on_mount event.
 
-        :return: PaginationStateFront with documents and pagination info
-        :rtype: PaginationStateFront
+        :return: PaginationState with documents and pagination info
+        :rtype: PaginationState
         """
-        # Convert to DocumentInfo
-        space_front_service = SpaceFrontService()
-        documents = []
-        for doc in self._pagination.documents:
-            ext_label, ext_color = _get_extension_info(doc.name)
-            documents.append(
-                DocumentInfo(
-                    id=doc.id,
-                    name=doc.name,
-                    url=space_front_service.get_hierarchy_object_url(
-                        object_id=doc.id, object_type=doc.objectType
-                    ),
-                    type=doc.objectType,
-                    size_pretty=FileHelper.get_file_size_pretty_text(doc.documentSize)
-                    if doc.documentSize is not None
-                    else "",
-                    last_modified=doc.lastModifiedAt.strftime("%b %d, %Y")
-                    if doc.lastModifiedAt
-                    else "",
-                    extension=ext_label,
-                    extension_color=ext_color,
-                )
-            )
-
-        return PaginationStateFront(
-            documents=documents,
-            has_more=self._pagination.has_more,
-            is_loading=self._pagination.is_loading,
-        )
+        return self._pagination
 
     @rx.event(background=True)  # type: ignore
     async def fetch_documents_on_mount(self):
         """Event handler to fetch documents when the documents view is mounted.
 
-        Checks if the current view mode is "documents" and if the current object is the same
-        as cached. If different, loads the first page.
+        Loads the first page of documents of the current project or task.
         """
 
         # Get current object and check if we need to fetch
         async with self:
-            # # Check if we're in documents view mode
-            # view_mode_state = await self.get_state(ViewModeState)
-            # if view_mode_state.view_mode != "documents":
-            #     return  # Don't load if not in documents view
-
             current_object = await self._get_current_object()
             if not current_object:
                 return
@@ -220,10 +149,10 @@ class DocumentsListState(rx.State):
 
                 async with self:
                     self._pagination = PaginationState(
-                        documents=page_result.objects,
+                        documents=[_to_document_info(doc) for doc in page_result.objects],
                         page=0,
                         page_size=20,
-                        has_more=len(page_result.objects) >= 20,
+                        has_more=not page_result.is_last_page,
                         is_loading=False,
                     )
         except Exception as e:
@@ -256,25 +185,10 @@ class DocumentsListState(rx.State):
             return None
         return current_object.id
 
-    async def _get_project_id(self) -> str | None:
-        """Get the project ID from the current object.
-
-        :return: The project ID or None if no current object
-        :rtype: Optional[str]
-        """
-        current_object = await self._get_current_object()
-        if not current_object:
-            return None
-
-        if isinstance(current_object, Task):
-            return current_object.project.id
-        else:  # Project
-            return current_object.id
-
     async def _fetch_documents_page(
         self, current_object: Task | Project, page: int, append: bool = False
     ):
-        """Fetch a page of documents from the appropriate service.
+        """Fetch a page of documents from the document service.
 
         :param current_object: The current task or project object
         :type current_object: Task | Project
@@ -282,12 +196,10 @@ class DocumentsListState(rx.State):
         :type page: int
         :param append: Whether to append to existing documents or replace them
         :type append: bool
-        :return: Number of documents loaded
-        :rtype: int
         """
         self._pagination = PaginationState(
             documents=self._pagination.documents,
-            page=self._pagination.page,
+            page=page,
             page_size=self._pagination.page_size,
             has_more=self._pagination.has_more,
             is_loading=True,
@@ -308,20 +220,19 @@ class DocumentsListState(rx.State):
                         project_id=current_object.id, page=page, size=self._pagination.page_size
                     )
 
+                new_page_documents = [_to_document_info(doc) for doc in page_result.objects]
                 if append:
-                    new_documents = self._pagination.documents + page_result.objects
+                    new_documents = self._pagination.documents + new_page_documents
                 else:
-                    new_documents = page_result.objects
+                    new_documents = new_page_documents
 
                 self._pagination = PaginationState(
                     documents=new_documents,
-                    page=self._pagination.page,
+                    page=page,
                     page_size=self._pagination.page_size,
-                    has_more=len(page_result.objects) >= self._pagination.page_size,
+                    has_more=not page_result.is_last_page,
                     is_loading=False,
                 )
-
-                return len(page_result.objects)
 
         except Exception:
             self._pagination = PaginationState(
@@ -348,7 +259,7 @@ class DocumentsListState(rx.State):
 
     @rx.event
     async def handle_upload(self, files: list[rx.UploadFile]):
-        """Handle file upload to the project or task folder.
+        """Handle file upload to the project or task.
 
         :param files: List of uploaded files from Reflex
         :type files: List[rx.UploadFile]
@@ -387,24 +298,24 @@ class DocumentsListState(rx.State):
                         document_service = DocumentService()
 
                         # Use the appropriate service method based on object type
+                        # (the file is MOVED into the store)
                         if isinstance(current_object, Task):
                             uploaded_doc = document_service.upload_document_to_task(
                                 task_id=current_object.id,
                                 file_path=temp_file_path,
                                 filename=file.name,
-                                override_mode=DocumentUploadOverrideMode.RENAME,
                             )
                         else:  # Project
                             uploaded_doc = document_service.upload_document_to_project(
                                 project_id=current_object.id,
                                 file_path=temp_file_path,
                                 filename=file.name,
-                                override_mode=DocumentUploadOverrideMode.RENAME,
                             )
 
                         # Add the uploaded document to the beginning of the list
                         self._pagination = PaginationState(
-                            documents=[uploaded_doc] + self._pagination.documents,
+                            documents=[_to_document_info(uploaded_doc)]
+                            + self._pagination.documents,
                             page=self._pagination.page,
                             page_size=self._pagination.page_size,
                             has_more=self._pagination.has_more,
@@ -417,7 +328,8 @@ class DocumentsListState(rx.State):
                     Logger.log_exception_stack_trace(e)
                     yield rx.toast.error(f"Failed to upload {file.name}: {str(e)}")
                 finally:
-                    # Clean up temporary file
+                    # Clean up temporary file (the store moves it, so it only
+                    # remains on failure)
                     if temp_file_path and os.path.exists(temp_file_path):
                         try:
                             os.remove(temp_file_path)
@@ -466,13 +378,6 @@ class DocumentsListState(rx.State):
             yield rx.toast.error("Document name cannot be empty")
             return
 
-        project_id: str | None = None
-        async with self:
-            project_id = await self._get_project_id()
-        if not project_id:
-            yield rx.toast.error("Project not found")
-            return
-
         document_id = self.rename_document_id
         document_name = self.rename_document_name.strip()
 
@@ -483,24 +388,14 @@ class DocumentsListState(rx.State):
         try:
             with await main_state.authenticate_user():
                 document_service = DocumentService()
-                document_service.rename_document(
-                    project_id=project_id, document_id=document_id, name=document_name
-                )
+                document_service.rename_document(document_id=document_id, name=document_name)
 
             # Update the document name in the local list
             updated_documents = []
             for doc in self._pagination.documents:
                 if doc.id == document_id:
                     # Create a new document object with updated name
-                    updated_doc = SpaceHierarchyObjectDTO(
-                        id=doc.id,
-                        name=document_name,
-                        objectType=doc.objectType,
-                        parentId=doc.parentId,
-                        lastModifiedAt=doc.lastModifiedAt,
-                        documentSize=doc.documentSize,
-                    )
-                    updated_documents.append(updated_doc)
+                    updated_documents.append(doc.model_copy(update={"name": document_name}))
                 else:
                     updated_documents.append(doc)
 
@@ -533,18 +428,11 @@ class DocumentsListState(rx.State):
         :type document_name: str
         """
         try:
-            project_id = await self._get_project_id()
-            if not project_id:
-                yield rx.toast.error("Project not found")
-                return
-
             main_state = await self.get_state(ReflexMainState)
             with await main_state.authenticate_user():
                 document_service = DocumentService()
                 # Download document bytes directly
-                file_data = document_service.download_document_bytes(
-                    project_id=project_id, document_id=document_id, filename=document_name
-                )
+                file_data = document_service.download_document_bytes(document_id=document_id)
 
             # Trigger download with raw bytes
             yield rx.download(data=file_data, filename=document_name)
@@ -566,7 +454,8 @@ class DocumentsListState(rx.State):
 
         delete_dialog_state.open_dialog(
             title="Delete Document",
-            content=f"Are you sure you want to delete '{document_name}'? This will move it to trash.",
+            content=f"Are you sure you want to permanently delete '{document_name}'? "
+            "This action cannot be undone.",
             action=lambda: self._delete_document_action(document_id),
         )
 
@@ -577,15 +466,10 @@ class DocumentsListState(rx.State):
         :type document_id: str
         """
         try:
-            project_id = await self._get_project_id()
-            if not project_id:
-                yield rx.toast.error("Project not found")
-                return
-
             main_state = await self.get_state(ReflexMainState)
             with await main_state.authenticate_user():
                 document_service = DocumentService()
-                document_service.delete_document(project_id=project_id, document_id=document_id)
+                document_service.delete_document(document_id=document_id)
 
             # Remove the document from the local list
             filtered_documents = [
@@ -604,30 +488,30 @@ class DocumentsListState(rx.State):
         except Exception as e:
             yield rx.toast.error(f"Failed to delete document: {str(e)}")
 
-    # ===== Create Constellab Document =====
-    def open_create_constellab_doc_dialog(self):
-        """Open the create Constellab document dialog."""
-        self.create_constellab_doc_name = ""
-        self.create_constellab_doc_dialog_open = True
+    # ===== Create Note =====
+    def open_create_note_dialog(self):
+        """Open the create note dialog."""
+        self.create_note_name = ""
+        self.create_note_dialog_open = True
 
-    def close_create_constellab_doc_dialog(self):
-        """Close the create Constellab document dialog."""
-        self.create_constellab_doc_dialog_open = False
-        self.create_constellab_doc_name = ""
+    def close_create_note_dialog(self):
+        """Close the create note dialog."""
+        self.create_note_dialog_open = False
+        self.create_note_name = ""
 
     @rx.event
-    def set_create_constellab_doc_name(self, name: str):
-        """Set the name for the Constellab document being created.
+    def set_create_note_name(self, name: str):
+        """Set the name for the note being created.
 
-        :param name: The document name
+        :param name: The note name
         :type name: str
         """
-        self.create_constellab_doc_name = name
+        self.create_note_name = name
 
     @rx.event
-    async def handle_create_constellab_document(self):
-        """Handle creation of a new Constellab document in the current project or task folder."""
-        if not self.create_constellab_doc_name.strip():
+    async def handle_create_note(self):
+        """Handle creation of a new note attached to the current project or task."""
+        if not self.create_note_name.strip():
             yield rx.toast.error("Note name cannot be empty")
             return
 
@@ -637,43 +521,58 @@ class DocumentsListState(rx.State):
                 yield rx.toast.error("No project or task selected")
                 return
 
-            self.is_creating_constellab_doc = True
+            self.is_creating_note = True
             yield
 
-            doc_name = self.create_constellab_doc_name.strip()
+            note_name = self.create_note_name.strip()
 
             main_state = await self.get_state(ReflexMainState)
             with await main_state.authenticate_user():
                 document_service = DocumentService()
 
                 if isinstance(current_object, Task):
-                    created_doc = document_service.create_constellab_document_for_task(
+                    created_note = document_service.create_note_for_task(
                         task_id=current_object.id,
-                        name=doc_name,
+                        name=note_name,
                     )
                 else:  # Project
-                    created_doc = document_service.create_constellab_document_for_project(
+                    created_note = document_service.create_note_for_project(
                         project_id=current_object.id,
-                        name=doc_name,
+                        name=note_name,
                     )
 
-                # Add the created document to the beginning of the list
+                # Add the created note to the beginning of the list
                 self._pagination = PaginationState(
-                    documents=[created_doc] + self._pagination.documents,
+                    documents=[_to_document_info(created_note)] + self._pagination.documents,
                     page=self._pagination.page,
                     page_size=self._pagination.page_size,
                     has_more=self._pagination.has_more,
                     is_loading=self._pagination.is_loading,
                 )
 
-            self.close_create_constellab_doc_dialog()
+            self.close_create_note_dialog()
             yield rx.toast.success("Note created successfully")
+
+            # Open the created note in the editor right away
+            note_editor_state = await self.get_state(NoteEditorState)
+            await note_editor_state.open_note(created_note.id)
 
         except Exception as e:
             Logger.log_exception_stack_trace(e)
             yield rx.toast.error(f"Failed to create note: {str(e)}")
         finally:
-            self.is_creating_constellab_doc = False
+            self.is_creating_note = False
+
+    # ===== Open Note Editor =====
+    @rx.event
+    async def open_note_editor(self, document_id: str):
+        """Open the note editor dialog for a note document.
+
+        :param document_id: The ID of the note document
+        :type document_id: str
+        """
+        note_editor_state = await self.get_state(NoteEditorState)
+        await note_editor_state.open_note(document_id)
 
     @rx.event
     def set_rename_document_name(self, name: str):

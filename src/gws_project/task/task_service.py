@@ -2,18 +2,14 @@ from datetime import date, timedelta
 
 from gws_core import (
     BadRequestException,
-    BaseHTTPException,
     CurrentUserService,
-    ExternalSpaceCreateFolder,
-    Logger,
     RichText,
     RichTextDTO,
-    SearchOperator,
-    SpaceHierarchyObjectSearchParams,
-    SpaceService,
 )
 
 from gws_project.core.project_db_manager import ProjectDbManager
+from gws_project.document.document_service import DocumentService
+from gws_project.document.project_document import ProjectDocument
 from gws_project.project.project import Project
 from gws_project.project.project_count_dto import ChildrenCountDTO
 from gws_project.project.project_security_service import ProjectSecurityService, ProjectUserRole
@@ -25,23 +21,11 @@ from gws_project.user.user import User
 
 
 class TaskService:
-    """Service class for managing tasks and their synchronization with Space.
+    """Service class for managing tasks.
 
-    :param space_service: Optional SpaceService instance to use for Space operations.
-                         If not provided, a default SpaceService instance will be created.
-    :type space_service: Optional[SpaceService]
+    Tasks and their documents are stored locally (brick DB + dedicated lab
+    file store). Space is not involved.
     """
-
-    def __init__(self, space_service: SpaceService | None = None):
-        """Initialize the TaskService with an optional SpaceService instance.
-
-        :param space_service: Optional SpaceService instance to use for Space operations
-        :type space_service: Optional[SpaceService]
-        """
-        # we use the SpaceService with token mode because this app is used within the space so the user might not be in the lab
-        self._space_service = (
-            space_service if space_service is not None else SpaceService("gws-project")
-        )
 
     def get_task(self, task_id: str) -> Task:
         """Get a task by ID and check if the current user has access to it.
@@ -102,20 +86,8 @@ class TaskService:
         # Count direct subtasks (not recursive)
         subtask_count = Task.select().where(Task.parent_task == task.id).count()
 
-        # Count documents tagged for this task
-        document_count = 0
-        space_folder_id = task.get_space_folder_id()
-        if space_folder_id:
-            search_params = SpaceHierarchyObjectSearchParams()
-            search_params.add_object_type_filter(SearchOperator.NEQ, 'FOLDER')
-            search_params.add_tag_filter(SearchOperator.EQ, task.get_space_tag())
-            page_dto = self._space_service.search_project_children_objects_paginated(
-                folder_id=space_folder_id,
-                search_params=search_params,
-                page=0,
-                size=1,
-            )
-            document_count = page_dto.total_number_of_items
+        # Count documents (files and notes) attached to this task
+        document_count = ProjectDocument.count_task_documents(task.id)
 
         return ChildrenCountDTO(
             subtask_count=subtask_count,
@@ -124,13 +96,13 @@ class TaskService:
 
     @ProjectDbManager.transaction()
     def create_root_task(self, project_id: str, task_dto: CreateTaskDTO) -> Task:
-        """Create a root task (task without parent). Space folder is created on demand.
+        """Create a root task (task without parent).
 
         :param project_id: The ID of the project
         :type project_id: str
         :param task_dto: The task data to create
         :type task_dto: CreateTaskDTO
-        :return: The created task without space_folder_id (created on demand)
+        :return: The created task
         :rtype: Task
         :raises BadRequestException: If dates are outside project bounds or user is not in project
         """
@@ -149,14 +121,11 @@ class TaskService:
         # Save the task to the database
         task.save()
 
-        # Space folder is NOT created here - it will be created on demand
-        # when documents are uploaded to the task
-
         return task
 
     @ProjectDbManager.transaction()
     def create_sub_task(self, parent_task_id: str, task_dto: CreateTaskDTO) -> Task:
-        """Create a subtask under a parent task. Does not create a folder in Space.
+        """Create a subtask under a parent task.
         Supports unlimited nesting levels - subtasks can be created under any task that allows subtasks.
         Parent task dates, status, and priority are automatically updated based on all subtasks,
         and these updates propagate up the entire ancestor chain.
@@ -202,7 +171,7 @@ class TaskService:
         For subtasks: Updates title, description, dates, and priority, then recalculates all ancestor task info.
         For parent tasks: Only updates title and description. Dates, status, and priority are
                          automatically calculated from subtasks and propagated up the hierarchy.
-        For root tasks without subtasks: Updates all fields and syncs with Space folder.
+        For root tasks without subtasks: Updates all fields.
 
         Changes propagate up the entire hierarchy chain to the root task.
 
@@ -218,11 +187,6 @@ class TaskService:
         # Get the task and ensure it exists
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
-
-        title_has_changed = task.title != task_dto.title
-        dates_have_changed = (task.start_date != task_dto.start_date) or (
-            task.end_date != task_dto.end_date
-        )
 
         # Check if this task has subtasks (is a parent task)
         if task.is_leaf_task():
@@ -252,19 +216,6 @@ class TaskService:
 
         # If this is not a root task, update all ancestor tasks in the hierarchy
         self._recalculate_parent_info(task)
-
-        # If this is a task with a space folder, update the folder in Space
-        if task.space_folder_id and (title_has_changed or dates_have_changed):
-            space_folder = ExternalSpaceCreateFolder(
-                name=task.title,
-                code=None,
-                tags=None,
-                starting_date=task.start_date,
-                ending_date=task.end_date,
-            )
-
-            # Call space service to update the folder
-            self._space_service.update_folder(task.space_folder_id, space_folder)
 
         return task
 
@@ -439,10 +390,10 @@ class TaskService:
 
     @ProjectDbManager.transaction()
     def delete_task(self, task_id: str) -> None:
-        """Delete a task and all its descendants recursively.
+        """Delete a task and all its descendants recursively, along with their
+        documents (hard delete, the documents and their files cannot be recovered).
 
         For tasks with subtasks: Deletes all descendants at all levels (children, grandchildren, etc.)
-        For root tasks: Also deletes the Space folder
         For subtasks: Updates all ancestor tasks after deletion
 
         :param task_id: The ID of the task to delete
@@ -452,17 +403,18 @@ class TaskService:
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
-        # Store root task info for Space folder deletion before deletion
-        is_root = task.is_root_task()
-        space_folder_id = task.space_folder_id
+        descendants = task.get_all_descendants()
+
+        # Delete the documents (and their files in the store) of the task and
+        # its descendants. The DB CASCADE would remove the rows but not the
+        # file nodes on disk.
+        DocumentService().delete_documents_of_tasks([task] + descendants)
 
         # If this task has subtasks, delete all descendants recursively
         # The database CASCADE on the foreign key will handle this automatically,
         # but we can also use get_all_descendants() if we need to perform
         # additional operations on each descendant before deletion
         if task.allow_subtasks:
-            # Get all descendants at all levels
-            descendants = task.get_all_descendants()
             # Delete in reverse order (deepest first) to maintain referential integrity
             for descendant in reversed(descendants):
                 descendant.delete_instance()
@@ -472,71 +424,6 @@ class TaskService:
 
         # Recursively update ancestors
         self._recalculate_parent_info(task)
-
-        # If this was a root task with a space folder, delete the folder in Space
-        if is_root and space_folder_id:
-            try:
-                self._space_service.delete_folder(space_folder_id)
-            except BaseHTTPException as e:
-                if e.status_code == 404:
-                    # Folder not found in Space, proceed with task deletion
-                    Logger.warning(
-                        f"Space folder {space_folder_id} not found. Proceeding with task deletion."
-                    )
-                else:
-                    # Reraise other exceptions
-                    raise e
-
-    @ProjectDbManager.transaction()
-    def get_or_create_space_folder_id(self, task_id: str) -> str:
-        """Get or create the space folder ID for a task.
-
-        For tasks that already have a space folder (either directly or from parent),
-        returns the existing folder ID.
-        For root tasks without a space folder, creates one in Space and updates the task.
-
-        :param task_id: The ID of the task
-        :type task_id: str
-        :return: The space folder ID
-        :rtype: str
-        :raises BadRequestException: If the task's project doesn't have a space folder
-        """
-        # Get the task and check permissions
-        security_service = ProjectSecurityService()
-        task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
-
-        root_task = task.get_root_task()
-
-        # Try to get existing space folder ID
-        space_folder_id = root_task.get_space_folder_id()
-        if space_folder_id:
-            return space_folder_id
-
-        # Check that the project has a space folder
-        if not root_task.project.space_folder_id:
-            raise BadRequestException(
-                f"Cannot create space folder for task '{task_id}'. The project doesn't have a space folder."
-            )
-
-        # Create a child folder in Space for the root task
-        space_folder = ExternalSpaceCreateFolder(
-            name=root_task.title,
-            code=None,
-            tags=None,
-            starting_date=root_task.start_date,
-            ending_date=root_task.end_date,
-        )
-
-        # Call space service to create the child folder
-        created_folder = self._space_service.create_child_folder(
-            root_task.project.space_folder_id, space_folder
-        )
-
-        # Update task with the space folder ID
-        root_task.space_folder_id = created_folder.id
-        root_task.save()
-
-        return root_task.space_folder_id
 
     def _validate_task_dates_within_project(
         self, project: Project, task_start_date: date, task_end_date: date
@@ -641,8 +528,7 @@ class TaskService:
         - Priority: highest priority among all subtasks (or MEDIUM if no subtasks)
         - Progress: average progress of all subtasks
 
-        Only saves to database and updates Space if there were actual changes.
-        Space folder is only updated for the root task.
+        Only saves to database if there were actual changes.
         After updating the root task, recalculates project progress.
 
         :param parent_task: The parent task to update (and all its ancestors)
@@ -659,16 +545,6 @@ class TaskService:
                 # Save the updated parent task
                 parent_task.save()
 
-                # Update Space folder if this is a root task
-                if parent_task.is_root_task() and parent_task.space_folder_id:
-                    space_folder = ExternalSpaceCreateFolder(
-                        name=parent_task.title,
-                        code=None,
-                        tags=None,
-                        starting_date=parent_task.start_date,
-                        ending_date=parent_task.end_date,
-                    )
-                    self._space_service.update_folder(parent_task.space_folder_id, space_folder)
             # Recursively update the parent's parent (if it exists)
             # This ensures all ancestors in the hierarchy are updated
             self._recalculate_parent_info(parent_task)

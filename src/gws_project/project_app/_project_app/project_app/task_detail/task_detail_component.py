@@ -73,7 +73,7 @@ def _tab_action_button() -> rx.Component:
                     "Create Note",
                     variant="soft",
                     size="2",
-                    on_click=DocumentsListState.open_create_constellab_doc_dialog,
+                    on_click=DocumentsListState.open_create_note_dialog,
                 ),
                 rx.upload.root(
                     rx.button(

@@ -162,7 +162,7 @@ class ProjectDetailState(rx.State):
         delete_dialog_state = await self.get_state(ConfirmDialogState)
         delete_dialog_state.open_dialog(
             title="Delete Project",
-            content="Are you sure you want to delete this project? The corresponding folders and files in the space will be moved to trash.",
+            content="Are you sure you want to delete this project? Its tasks, documents and notes will be permanently deleted. This action cannot be undone.",
             action=self._delete_project_action,
         )
 

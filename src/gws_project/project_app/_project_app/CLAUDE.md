@@ -139,7 +139,8 @@ All database operations go through service classes:
 - `ProjectService` - Project CRUD operations
 - `TaskService` - Task CRUD operations
 - `UserService` - User operations
-- `SpaceService` - Document/folder operations (from gws_core)
+- `DocumentService` - Document/note operations (local storage: brick DB + dedicated lab file store)
+- `SpaceService` - User/group directory only (list groups, resolve group users; from gws_core)
 
 Services are called within authenticated context:
 ```python

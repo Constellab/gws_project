@@ -3,29 +3,14 @@ from datetime import date, datetime
 from gws_core import (
     BaseTestCase,
     CurrentUserService,
-    PageDTO,
-    SpaceHierarchyObjectSearchParams,
     TestMockSpaceService,
-    UserGroup,
 )
-from gws_project.project.project import Project
-from gws_project.project.project_count_dto import ChildrenCountDTO, ProjectCountDTO
-from gws_project.project.project_dto import ProjectUserRole, SaveProjectDTO
+from gws_project.project.project_count_dto import ChildrenCountDTO
+from gws_project.project.project_dto import SaveProjectDTO
 from gws_project.project.project_service import ProjectService
-from gws_project.task.task import Task
-from gws_project.task.task_dto import CreateTaskDTO, TaskPriority, TaskStatus
+from gws_project.task.task_dto import CreateTaskDTO
 from gws_project.task.task_service import TaskService
 from gws_project.user.project_user_sync_service import ProjectUserSyncService
-from gws_project.user.user import User
-
-
-class MockSpaceServiceWithDocCount(TestMockSpaceService):
-    """Extended mock that also mocks search_project_children_objects_paginated."""
-
-    def search_project_children_objects_paginated(
-        self, folder_id, search_params, page, size
-    ):
-        return PageDTO.empty_page()
 
 
 # test_project_count
@@ -38,14 +23,11 @@ class TestProjectCount(BaseTestCase):
         sync_service = ProjectUserSyncService()
         sync_service.sync_all_users()
 
-    def _get_mock_space_service(self) -> MockSpaceServiceWithDocCount:
-        return MockSpaceServiceWithDocCount()
-
     def _get_project_service(self) -> ProjectService:
-        return ProjectService(self._get_mock_space_service())
+        return ProjectService(TestMockSpaceService())
 
     def _get_task_service(self) -> TaskService:
-        return TaskService(self._get_mock_space_service())
+        return TaskService()
 
     def test_count_current_user_projects(self):
         """Test counting user projects by status (total, ongoing, done, todo)."""

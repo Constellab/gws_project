@@ -1,4 +1,4 @@
-from gws_core import EnumField, RichTextDbField, RichTextDTO, Tag
+from gws_core import EnumField, RichTextDbField, RichTextDTO
 from peewee import BooleanField, CharField, DateField, ForeignKeyField, IntegerField
 
 from gws_project.core.model_with_user import ModelWithUser
@@ -32,12 +32,13 @@ class Task(ModelWithUser):
     priority = EnumField(choices=TaskPriority, max_length=10, default=TaskPriority.MEDIUM, null=False)
     allow_subtasks = BooleanField(default=False)
     assign_to = ForeignKeyField(User, null=False, backref="+")
+    # DEPRECATED - unused at runtime. Id of the Space folder that mirrored this
+    # root task before documents moved to local storage. Kept only for the
+    # MigrateProjectDataFromSpace task; dropped in a later release.
     space_folder_id = CharField(max_length=36, null=True)
     progress = IntegerField(default=0, null=False)
 
     subtasks: list["Task"]
-
-    SPACE_TASK_NAME: str = "task"
 
     def is_root_task(self) -> bool:
         """Check if the task is a root task (i.e., has no parent task)"""
@@ -258,20 +259,6 @@ class Task(ModelWithUser):
         """
         return cls.select().where((cls.assign_to == user_id) & (cls.project == project_id)).count()
 
-    def get_space_folder_id(self) -> str | None:
-        """Get the space folder ID for this task.
-
-        For root tasks, returns the task's own space_folder_id.
-        For child tasks, recursively gets the space_folder_id from the parent task.
-
-        :return: The space folder ID, or None if no folder is assigned
-        :rtype: str | None
-        """
-        if self.is_root_task():
-            return self.space_folder_id
-        else:
-            return self.parent_task.get_space_folder_id()
-
     def get_root_task(self) -> "Task":
         """Get the root task for this task.
 
@@ -331,9 +318,6 @@ class Task(ModelWithUser):
         else:
             return 1 + self.parent_task.get_depth()
 
-    def get_space_tag(self) -> Tag:
-        return Tag(key=self.SPACE_TASK_NAME, value=self.id)
-
     def to_dto(self) -> TaskDTO:
         """Convert the Task model to a TaskDTO for display in the frontend.
 
@@ -353,7 +337,6 @@ class Task(ModelWithUser):
             project_id=self.project.id,
             parent_task_id=self.parent_task.id if self.parent_task else None,
             parent_task_title=self.parent_task.title if self.parent_task else None,
-            space_folder_id=self.space_folder_id,
             progress=self.progress,
             created_at=self.created_at,
             created_by=self.created_by.to_dto(),

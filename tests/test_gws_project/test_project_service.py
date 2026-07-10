@@ -8,6 +8,7 @@ from gws_core import (
     TestMockSpaceService,
     UserGroup,
 )
+from gws_core.user.user_dto import UserLanguage, UserSpace, UserTheme
 from gws_project.project.project import Project
 from gws_project.project.project_dto import (
     CreateProjectFromTemplateDTO,
@@ -33,11 +34,28 @@ class TestProjectService(BaseTestCase):
         sync_service = ProjectUserSyncService()
         sync_service.sync_all_users()
 
-    def _get_project_service(self, users: list[User] | None = None) -> ProjectService:
+    def _get_project_service(
+        self, group_users: dict[str, list[User]] | None = None
+    ) -> ProjectService:
         mock_space_service = TestMockSpaceService()
-        if users:
-            mock_space_service.set_space_folder_users_mock([user.to_dto() for user in users])
+        if group_users:
+            for group_id, users in group_users.items():
+                mock_space_service.set_group_users_mock(
+                    group_id, [self._to_user_space(user) for user in users]
+                )
         return ProjectService(mock_space_service)
+
+    def _to_user_space(self, user: User) -> UserSpace:
+        """Build the UserSpace returned by the mocked Space group-users route."""
+        return UserSpace(
+            id=user.id,
+            email=user.email,
+            firstname=user.first_name,
+            lastname=user.last_name,
+            theme=UserTheme.LIGHT_THEME,
+            lang=UserLanguage.EN,
+            photo=None,
+        )
 
     def test_project(self):
         """Test all public methods of ProjectService in a coherent order"""
@@ -60,7 +78,6 @@ class TestProjectService(BaseTestCase):
         self.assertEqual(project.start_date, datetime(2025, 1, 1))
         self.assertEqual(project.end_date, datetime(2025, 12, 31))
         self.assertEqual(project.project_manager.id, current_user.id)
-        self.assertIsNotNone(project.space_folder_id)
 
         # Verify that the current user is added as owner
         project_user = ProjectUser.get_by_project_and_user(project.id, current_user.id)
@@ -80,7 +97,6 @@ class TestProjectService(BaseTestCase):
         self.assertEqual(updated_project.title, "Updated Project Name")
         self.assertEqual(updated_project.start_date, datetime(2025, 2, 1))
         self.assertEqual(updated_project.end_date, datetime(2025, 11, 30))
-        self.assertEqual(updated_project.space_folder_id, project.space_folder_id)
 
         # ========== Test 3: add_user_to_project ==========
         # Create a second user for testing
@@ -146,6 +162,63 @@ class TestProjectService(BaseTestCase):
         project_exists = Project.select().where(Project.id == project.id).exists()
         self.assertFalse(project_exists)
 
+    def test_add_group_to_project(self):
+        """Test adding a Space group to a project: the group users are resolved
+        via Space, imported into the lab and stored as local ProjectUser rows."""
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        member_1 = User(
+            email="member1@example.com",
+            first_name="Member",
+            last_name="One",
+            group=UserGroup.USER,
+        )
+        member_1.save()
+        member_2 = User(
+            email="member2@example.com",
+            first_name="Member",
+            last_name="Two",
+            group=UserGroup.USER,
+        )
+        member_2.save()
+
+        project_service = self._get_project_service(
+            group_users={"team-group-id": [member_1, member_2]}
+        )
+
+        project = project_service.create_project(
+            SaveProjectDTO(
+                name="Group Project",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 12, 31),
+            )
+        )
+
+        project_users = project_service.add_group_to_project(
+            project.id, "team-group-id", ProjectUserRole.VIEWER
+        )
+
+        # Both group members are added with the requested role
+        self.assertEqual(len(project_users), 2)
+        self.assertTrue(ProjectUser.is_user_in_project(project.id, member_1.id))
+        self.assertTrue(ProjectUser.is_user_in_project(project.id, member_2.id))
+        self.assertEqual(
+            ProjectUser.get_by_project_and_user(project.id, member_1.id).role,
+            ProjectUserRole.VIEWER,
+        )
+
+        # Re-adding the group with another role updates the local role (the lab
+        # is the authority on project roles)
+        project_service.add_group_to_project(project.id, "team-group-id", ProjectUserRole.USER)
+        self.assertEqual(
+            ProjectUser.get_by_project_and_user(project.id, member_1.id).role,
+            ProjectUserRole.USER,
+        )
+
+        # The owner is untouched
+        owner = ProjectUser.get_by_project_and_user(project.id, current_user.id)
+        self.assertEqual(owner.role, ProjectUserRole.OWNER)
+
     def test_create_project_with_invalid_dates(self):
         """Test create_project with invalid date range"""
         project_service = self._get_project_service()
@@ -184,7 +257,7 @@ class TestProjectService(BaseTestCase):
             group=UserGroup.USER,
         )
         developer.save()
-        project_service = self._get_project_service([project_manager, developer])
+        project_service = self._get_project_service()
 
         # ========== Create a project template ==========
         rich_text = RichText()

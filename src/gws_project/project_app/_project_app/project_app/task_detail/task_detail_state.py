@@ -213,14 +213,13 @@ class TaskDetailState(rx.State):
         delete_dialog_state = await self.get_state(ConfirmDialogState)
 
         # Build confirmation message
-        warning = ""
-        if task.parent_task_id is None:
-            warning = " The corresponding folders and files in the space will be moved to trash."
-        else:
-            warning = " The files assigned to this task will be moved to trash."
+        warning = " Its documents and notes will be permanently deleted."
 
         if task.allow_subtasks:
-            warning = " This will also delete all its descendants (subtasks, sub-subtasks, etc.)."
+            warning = (
+                " This will also permanently delete all its descendants "
+                "(subtasks, sub-subtasks, etc.) and their documents and notes."
+            )
 
         delete_dialog_state.open_dialog(
             title="Delete Task",

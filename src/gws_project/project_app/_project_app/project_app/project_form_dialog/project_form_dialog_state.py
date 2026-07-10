@@ -2,12 +2,11 @@ from datetime import datetime
 
 import reflex as rx
 from gws_core import UserDTO
-from gws_core.space.space_dto import SpaceGroupType
-from gws_core.space.space_service import SpaceService
 from gws_project.project.project_dto import CreateProjectFromTemplateDTO, ProjectDTO, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.template.project_template_dto import ProjectTemplateDTO
 from gws_project.template.project_template_service import ProjectTemplateService
+from gws_project.user.user import User
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 from ..common.project_app_router import ProjectAppRouter
@@ -51,15 +50,10 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             templates = template_service.get_all_templates()
             self.available_templates = [t.to_dto() for t in templates]
 
-            # Load users from space. Load only user because role assignemnt is per user.
-            # we use the SpaceService with token mode because this app is used within the space so the user might not be in the lab
-            space_service = SpaceService("gws-project")
-            groups = space_service.get_current_lab_all_groups()
-            available_users: list[UserDTO] = []
-            for group in groups:
-                if group.type == SpaceGroupType.SINGLE_USER and group.user:
-                    available_users.append(group.user)
-            self.available_users = available_users
+            # Load users from the local lab user list. Role assignment (and the
+            # project manager) must be a lab user; users enter the lab through
+            # the project member-add dialog.
+            self.available_users = [user.to_dto() for user in User.get_real_users()]
 
         # Open the dialog
         self.dialog_opened = True

@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from gws_core import BaseModelDTO, ModelDTO, RichTextDTO, SpaceRootFolderUserRole, UserDTO
+from gws_core import BaseModelDTO, ModelDTO, RichTextDTO, UserDTO
 
 from gws_project.task.task_dto import TaskDTO
 
@@ -15,7 +15,7 @@ class ProjectStatus(Enum):
 
 
 class ProjectUserRole(Enum):
-    """Role of a user in a project - corresponds to Space folder user roles"""
+    """Role of a user in a project"""
 
     OWNER = "OWNER"
     USER = "USER"
@@ -35,24 +35,6 @@ class ProjectUserRole(Enum):
             return 1  # Read-only access
         else:
             return 0  # No access
-
-    @staticmethod
-    def from_space_folder_user_role(
-        space_folder_user_role: SpaceRootFolderUserRole,
-    ) -> "ProjectUserRole":
-        """Convert a SpaceFolderUserRole string to a ProjectUserRole enum.
-
-        :param space_folder_user_role: The SpaceFolderUserRole as a string
-        :type space_folder_user_role: str
-        :return: Corresponding ProjectUserRole enum
-        :rtype: ProjectUserRole
-        """
-        mapping = {
-            SpaceRootFolderUserRole.OWNER: ProjectUserRole.OWNER,
-            SpaceRootFolderUserRole.USER: ProjectUserRole.USER,
-            SpaceRootFolderUserRole.VIEWER: ProjectUserRole.VIEWER,
-        }
-        return mapping.get(space_folder_user_role, ProjectUserRole.VIEWER)
 
 
 class ProjectUserDTO(BaseModelDTO):

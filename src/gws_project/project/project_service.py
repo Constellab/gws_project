@@ -2,19 +2,15 @@ from datetime import timedelta
 
 from gws_core import (
     BadRequestException,
-    BaseHTTPException,
     CurrentUserService,
-    ExternalSpaceCreateFolder,
-    Logger,
     RichText,
     RichTextDTO,
-    SearchOperator,
-    SpaceHierarchyObjectSearchParams,
-    SpaceRootFolderUserRole,
     SpaceService,
 )
 
 from gws_project.core.project_db_manager import ProjectDbManager
+from gws_project.document.document_service import DocumentService
+from gws_project.document.project_document import ProjectDocument
 from gws_project.project.project import Project
 from gws_project.project.project_count_dto import ChildrenCountDTO, ProjectCountDTO
 from gws_project.project.project_dto import (
@@ -36,9 +32,14 @@ from gws_project.user.user import User
 
 
 class ProjectService:
-    """Service class for managing projects and their synchronization with Space.
+    """Service class for managing projects.
 
-    :param space_service: Optional SpaceService instance to use for Space operations.
+    Projects, tasks, documents and membership are stored locally (brick DB +
+    dedicated lab file store). Space is only used as the user/group directory:
+    when adding a group to a project, its users are resolved via Space and
+    imported into the lab.
+
+    :param space_service: Optional SpaceService instance to use for group/user resolution.
                          If not provided, a default SpaceService instance will be created.
     :type space_service: Optional[SpaceService]
     """
@@ -48,7 +49,7 @@ class ProjectService:
     def __init__(self, space_service: SpaceService | None = None):
         """Initialize the ProjectService with an optional SpaceService instance.
 
-        :param space_service: Optional SpaceService instance to use for Space operations
+        :param space_service: Optional SpaceService instance to use for group/user resolution
         :type space_service: Optional[SpaceService]
         """
         # we use the SpaceService with token mode because this app is used within the space so the user might not be in the lab
@@ -140,18 +141,8 @@ class ProjectService:
             (Task.project == project.id) & (Task.parent_task.is_null())
         ).count()
 
-        # Count documents in the project's space folder
-        document_count = 0
-        if project.space_folder_id:
-            search_params = SpaceHierarchyObjectSearchParams()
-            search_params.add_object_type_filter(SearchOperator.NEQ, 'FOLDER')
-            page_dto = self._space_service.search_project_children_objects_paginated(
-                folder_id=project.space_folder_id,
-                search_params=search_params,
-                page=0,
-                size=1,
-            )
-            document_count = page_dto.total_number_of_items
+        # Count documents (files and notes) attached directly to the project
+        document_count = ProjectDocument.count_project_documents(project.id)
 
         return ChildrenCountDTO(
             subtask_count=subtask_count,
@@ -218,12 +209,12 @@ class ProjectService:
 
     @ProjectDbManager.transaction()
     def create_project(self, project_dto: SaveProjectDTO) -> Project:
-        """Create a project and sync it with Space by creating a corresponding folder.
+        """Create a project.
         Automatically adds the current user as the owner of the project.
 
         :param project_dto: The project data to create
         :type project_dto: SaveProjectDTO
-        :return: The created project with space_folder_id populated
+        :return: The created project
         :rtype: Project
         """
         # Get the current user
@@ -257,27 +248,11 @@ class ProjectService:
         project_user.role = ProjectUserRole.OWNER.value
         project_user.save()
 
-        # Create folder in Space with project information
-        space_folder = ExternalSpaceCreateFolder(
-            name=project.title,
-            code=None,  # You can add a code field to Project if needed
-            tags=None,  # You can add tags to Project if needed
-            starting_date=project.start_date,
-            ending_date=project.end_date,
-        )
-
-        # Call space service to create the root folder
-        created_folder = self._space_service.create_root_folder(space_folder)
-
-        # Update project with the space folder ID
-        project.space_folder_id = created_folder.id
-        project.save()
-
         return project
 
     @ProjectDbManager.transaction()
     def update_project(self, project_id: str, project_dto: SaveProjectDTO) -> Project:
-        """Update a project and sync it with Space by updating the corresponding folder.
+        """Update a project.
 
         :param project_id: The ID of the project to update
         :type project_id: str
@@ -292,12 +267,6 @@ class ProjectService:
 
         # Validate project dates
         self._validate_project_dates(project_dto.start_date, project_dto.end_date)
-
-        folder_has_changed = (
-            project.title != project_dto.name
-            or project.start_date != project_dto.start_date
-            or project.end_date != project_dto.end_date
-        )
 
         # Update the project fields from DTO
         project.title = project_dto.name
@@ -317,44 +286,23 @@ class ProjectService:
         # Save the project model to the database
         project.save()
 
-        # If the project has a space folder ID, update the folder in Space
-        if project.space_folder_id and folder_has_changed:
-            space_folder = ExternalSpaceCreateFolder(
-                name=project.title,
-                code=None,  # You can add a code field to Project if needed
-                tags=None,  # You can add tags to Project if needed
-                starting_date=project.start_date,
-                ending_date=project.end_date,
-            )
-
-            # Call space service to update the folder
-            self._space_service.update_folder(project.space_folder_id, space_folder)
-
         return project
 
     @ProjectDbManager.transaction()
     def delete_project(self, project_id: str) -> None:
-        """Delete a project and move its corresponding folder to trash in Space.
+        """Delete a project along with its documents (hard delete, the
+        documents and their files cannot be recovered).
 
-        :param project: The project to delete
-        :type project: Project
+        :param project_id: The ID of the project to delete
+        :type project_id: str
         """
         security_service = ProjectSecurityService()
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.OWNER)
 
-        # If the project has a space folder ID, delete the folder in Space first
-        if project.space_folder_id:
-            try:
-                self._space_service.delete_folder(project.space_folder_id)
-            except BaseHTTPException as e:
-                if e.status_code == 404:
-                    # Folder not found in Space, proceed with project deletion
-                    Logger.warning(
-                        f"Space folder {project.space_folder_id} not found. Proceeding with project deletion."
-                    )
-                else:
-                    # Reraise other exceptions
-                    raise e
+        # Delete the documents (and their files in the store) of the project
+        # and all its tasks. The DB CASCADE would remove the rows but not the
+        # file nodes on disk.
+        DocumentService().delete_documents_of_project(project)
 
         # Delete the project from the database
         project.delete_instance()
@@ -363,7 +311,43 @@ class ProjectService:
     def add_group_to_project(
         self, project_id: str, group_id: str, role: ProjectUserRole = ProjectUserRole.USER
     ) -> list[ProjectUser]:
-        """Add a user to a project and share the project folder in Space.
+        """Add a Space group (single user or team) to a project.
+
+        The group's users are resolved via Space (the user/group directory),
+        imported into the lab if needed, and stored as local ProjectUser rows
+        with the requested role. Membership is enforced locally only: nothing
+        is shared in Space.
+
+        :param project_id: The ID of the project
+        :type project_id: str
+        :param group_id: The ID of the Space group to add
+        :type group_id: str
+        :param role: The role of the group users in the project (default: USER)
+        :type role: ProjectUserRole
+        :return: The created/updated ProjectUser entities
+        :rtype: List[ProjectUser]
+        """
+        # Get the project
+        security_service = ProjectSecurityService()
+        project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.OWNER)
+
+        # Resolve the users of the group from Space
+        group_users = self._space_service.get_group_users(group_id)
+
+        project_users = []
+        for group_user in group_users:
+            project_users.append(self._add_user_to_project(project, group_user.id, role))
+
+        return project_users
+
+    @ProjectDbManager.transaction()
+    def add_user_to_project(
+        self, project_id: str, user_id: str, role: ProjectUserRole = ProjectUserRole.USER
+    ) -> ProjectUser:
+        """Add a single user to a project.
+
+        The user is imported into the lab if needed (via the Space user
+        directory) and stored as a local ProjectUser row with the requested role.
 
         :param project_id: The ID of the project
         :type project_id: str
@@ -371,44 +355,42 @@ class ProjectService:
         :type user_id: str
         :param role: The role of the user in the project (default: USER)
         :type role: ProjectUserRole
-        :return: The created ProjectUser entity
+        :return: The created/updated ProjectUser entity
         :rtype: ProjectUser
         """
-        # Get the project
         security_service = ProjectSecurityService()
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.OWNER)
 
-        # If the project has a space folder, share it with the user
-        project_users = []
-        if project.space_folder_id:
-            # Convert ProjectUserRole to SpaceRootFolderUserRole
-            space_role = SpaceRootFolderUserRole[role.name]
-            folder_users = self._space_service.share_root_folder(
-                project.space_folder_id, group_id, space_role
-            )
+        return self._add_user_to_project(project, user_id, role)
 
-            # Handle the case where folder_users is None (for mock testing)
-            for folder_user in folder_users:
-                user_sync_service = ProjectUserSyncService()
-                user = user_sync_service.get_or_import_from_space_user(folder_user.user.id)
+    def _add_user_to_project(
+        self, project: Project, user_id: str, role: ProjectUserRole
+    ) -> ProjectUser:
+        """Import a user into the lab if needed and add it to a project.
 
-                if not user:
-                    raise Exception(f"Error importing user {folder_user.user.email} in lab.")
+        :param project: The project
+        :type project: Project
+        :param user_id: The ID of the user to add
+        :type user_id: str
+        :param role: The role of the user in the project
+        :type role: ProjectUserRole
+        :return: The created/updated ProjectUser entity
+        :rtype: ProjectUser
+        """
+        user_sync_service = ProjectUserSyncService()
+        user = user_sync_service.get_or_import_from_space_user(user_id)
 
-                # Create the ProjectUser entity with the specified role
-                # use the role return from Space to ensure consistency (it might be different than provided
-                # role, if user was already shared with different role)
-                space_folder_role = ProjectUserRole.from_space_folder_user_role(folder_user.role)
-                project_user = ProjectUser.create_or_update(
-                    project=project, user=user, role=space_folder_role
-                )
-                project_users.append(project_user)
+        if not user:
+            raise BadRequestException(f"Error importing user '{user_id}' in lab.")
 
-        return project_users
+        # Create the ProjectUser entity with the requested role. The lab is
+        # the authority on project roles: an existing member keeps/receives
+        # the requested role.
+        return ProjectUser.create_or_update(project=project, user=user, role=role)
 
     @ProjectDbManager.transaction()
     def remove_user_from_project(self, project_id: str, user_id: str) -> None:
-        """Remove a user from a project and unshare the project folder in Space.
+        """Remove a user from a project.
         Prevents removing the last owner of the project.
         Prevents removing a user who has tasks assigned in the project.
 
@@ -449,16 +431,12 @@ class ProjectService:
                     "Please assign another owner before removing this user."
                 )
 
-        # If the project has a space folder, unshare it from the user
-        if project.space_folder_id:
-            self._space_service.unshare_root_folder(project.space_folder_id, user_id)
-
         # Delete the ProjectUser entity
         project_user.delete_instance()
 
     @ProjectDbManager.transaction()
     def update_user_role(self, project_id: str, user_id: str, role: ProjectUserRole) -> ProjectUser:
-        """Update a user's role in a project and update their Space folder permissions.
+        """Update a user's role in a project.
 
         :param project_id: The ID of the project
         :type project_id: str
@@ -491,18 +469,8 @@ class ProjectService:
                 )
 
         # Update the role
-        old_role = project_user.role
         project_user.role = role.value
         project_user.save()
-
-        # If the project has a space folder, update permissions
-        if project.space_folder_id and old_role != role.value:
-            # Convert ProjectUserRole to SpaceRootFolderUserRole
-            space_role = SpaceRootFolderUserRole[role.name]
-            # Update the user role in the folder
-            self._space_service.update_folder_user_role(
-                project.space_folder_id, user_id, space_role
-            )
 
         return project_user
 
@@ -572,12 +540,11 @@ class ProjectService:
             unique_user_ids = set(project_dto.role_mapping.values())
 
             for user_id in unique_user_ids:
-                # Add each user to the project using add_group_to_project
-                # The group_id is actually the user_id in this context
-                self.add_group_to_project(project.id, user_id, ProjectUserRole.USER)
+                # Add each user to the project
+                self.add_user_to_project(project.id, user_id, ProjectUserRole.USER)
 
         # Create TaskService instance
-        task_service = TaskService(self._space_service)
+        task_service = TaskService()
 
         # Create all tasks from the template
         for root_task_template in root_task_templates:

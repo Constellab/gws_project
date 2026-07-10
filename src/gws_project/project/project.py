@@ -22,6 +22,9 @@ class Project(ModelWithUser):
     start_date = DateField(null=False, index=True)
     end_date = DateField(null=False, index=True)
     project_manager: User = ForeignKeyField(User, null=False)
+    # DEPRECATED - unused at runtime. Id of the Space folder that mirrored this
+    # project before documents moved to local storage. Kept only for the
+    # MigrateProjectDataFromSpace task; dropped in a later release.
     space_folder_id = CharField(max_length=36, unique=True, null=True)
     progress = IntegerField(default=0, null=False)
 

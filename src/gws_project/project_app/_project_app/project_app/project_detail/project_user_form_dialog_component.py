@@ -1,5 +1,5 @@
 import reflex as rx
-from gws_core import SpaceRootFolderUserRole
+from gws_project.project.project_dto import ProjectUserRole
 from gws_reflex_main import form_dialog_component, group_select
 
 from .project_user_form_dialog_state import ProjectUserFormDialogState
@@ -35,7 +35,7 @@ def _form_content() -> rx.Component:
         rx.vstack(
             rx.text("Role", size="2", weight="bold"),
             rx.select(
-                SpaceRootFolderUserRole.get_as_str_list(),
+                [role.value for role in ProjectUserRole],
                 placeholder="Select a role",
                 name="role",
                 default_value=ProjectUserFormDialogState.selected_role,

@@ -39,19 +39,13 @@ class TestTaskService(BaseTestCase):
         sync_service = ProjectUserSyncService()
         sync_service.sync_all_users()
 
-    def _get_task_service(self, users: list[User] | None = None) -> TaskService:
-        """Create a TaskService instance with mock space service"""
-        mock_space_service = TestMockSpaceService()
-        if users:
-            mock_space_service.set_space_folder_users_mock([user.to_dto() for user in users])
-        return TaskService(mock_space_service)
+    def _get_task_service(self) -> TaskService:
+        """Create a TaskService instance"""
+        return TaskService()
 
-    def _get_project_service(self, users: list[User] | None = None) -> ProjectService:
+    def _get_project_service(self) -> ProjectService:
         """Create a ProjectService instance with mock space service"""
-        mock_space_service = TestMockSpaceService()
-        if users:
-            mock_space_service.set_space_folder_users_mock([user.to_dto() for user in users])
-        return ProjectService(mock_space_service)
+        return ProjectService(TestMockSpaceService())
 
     def _create_test_project(self, project_service: ProjectService) -> Project:
         """Helper method to create a test project"""
@@ -109,8 +103,6 @@ class TestTaskService(BaseTestCase):
         self.assertEqual(created_task.project.id, project.id)
         self.assertIsNone(created_task.parent_task)
         self.assertTrue(created_task.is_root_task())
-        # Space folder is created on demand when documents are uploaded, not immediately
-        self.assertIsNone(created_task.space_folder_id)
 
     def test_create_root_task_invalid_dates(self):
         """Test create_root_task with invalid dates"""
@@ -207,7 +199,6 @@ class TestTaskService(BaseTestCase):
         self.assertEqual(created_subtask.project.id, project.id)
         self.assertEqual(created_subtask.parent_task.id, root_task.id)
         self.assertFalse(created_subtask.is_root_task())
-        self.assertIsNone(created_subtask.space_folder_id)  # No Space folder for subtasks
 
     def test_create_sub_task_invalid_parent(self):
         """Test create_sub_task with invalid parent task conditions"""
@@ -314,14 +305,14 @@ class TestTaskService(BaseTestCase):
     def test_update_assign_to(self):
         """Test update_assign_to method"""
         second_user = self._create_test_user("second@example.com")
-        task_service = self._get_task_service([second_user])
-        project_service = self._get_project_service([second_user])
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Create another user and add them to the project
-        project_service.add_group_to_project(project.id, second_user.id, ProjectUserRole.USER)
+        project_service.add_user_to_project(project.id, second_user.id, ProjectUserRole.USER)
 
         # Create a task
         root_task_dto = CreateTaskDTO(
@@ -452,16 +443,16 @@ class TestTaskService(BaseTestCase):
         """Test a complete workflow of task operations"""
         # Add another user to the project
         second_user = self._create_test_user("workflow@example.com")
-        project_service = self._get_project_service([second_user])
+        project_service = self._get_project_service()
 
-        task_service = self._get_task_service([second_user])
-        project_service = self._get_project_service([second_user])
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
 
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Add another user to the project
-        project_service.add_group_to_project(project.id, second_user.id, ProjectUserRole.USER)
+        project_service.add_user_to_project(project.id, second_user.id, ProjectUserRole.USER)
 
         # 1. Create root task with subtasks allowed
         root_task_dto = CreateTaskDTO(

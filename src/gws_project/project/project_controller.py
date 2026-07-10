@@ -1,5 +1,4 @@
 from fastapi.param_functions import Depends
-
 from gws_core import AuthorizationService
 
 from gws_project.core.project_api import project_api

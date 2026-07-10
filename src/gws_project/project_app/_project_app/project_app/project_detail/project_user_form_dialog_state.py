@@ -1,5 +1,5 @@
 import reflex as rx
-from gws_core import SpaceGroupDTO, SpaceRootFolderUserRole, SpaceService
+from gws_core import SpaceGroupDTO, SpaceService
 from gws_project.project.project_dto import ProjectUserDTO, ProjectUserRole
 from gws_project.project.project_service import ProjectService
 from gws_reflex_main import FormDialogState, ReflexMainState
@@ -18,7 +18,7 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
     editing_project_user: ProjectUserDTO | None = None
 
     # Form field default values
-    selected_role: str = SpaceRootFolderUserRole.USER.value
+    selected_role: str = ProjectUserRole.USER.value
     groups: list[SpaceGroupDTO]
 
     @rx.event

@@ -1,46 +1,51 @@
-
-
-from typing import Optional
+import os
 
 from gws_core import (
     BadRequestException,
-    DocumentUploadOverrideMode,
+    NotFoundException,
     PageDTO,
-    SearchOperator,
-    SpaceHierarchyObjectDTO,
-    SpaceHierarchyObjectSearchParams,
-    SpaceService,
+    Paginator,
+    RichText,
+    RichTextDTO,
 )
+from gws_core.impl.file.local_file_store import LocalFileStore
 
+from gws_project.core.project_db_manager import ProjectDbManager
+from gws_project.document.document_dto import (
+    ProjectDocumentDTO,
+    ProjectDocumentType,
+    ProjectNoteDTO,
+)
+from gws_project.document.project_config import ProjectConfig
+from gws_project.document.project_document import ProjectDocument
+from gws_project.document.project_file import ProjectFile
+from gws_project.project.project import Project
 from gws_project.project.project_security_service import ProjectSecurityService, ProjectUserRole
-from gws_project.task.task_service import TaskService
+from gws_project.task.task import Task
 
 
 class DocumentService:
-    """Service class for managing documents in projects and tasks.
+    """Service class for managing documents (files and notes) of projects and tasks.
 
-    This service handles document operations for both projects and tasks,
-    including fetching and uploading documents to their respective space folders.
-
-    :param space_service: Optional SpaceService instance to use for Space operations.
-                         If not provided, a default SpaceService instance will be created.
-    :type space_service: Optional[SpaceService]
+    All storage is local: uploaded files live in the brick's dedicated
+    ``LocalFileStore`` (registered as ``ProjectFile`` rows) and rich-text notes
+    live in the ``ProjectDocument.content`` column. Space is not involved.
     """
 
-    def __init__(self, space_service: SpaceService | None = None, task_service: Optional['TaskService'] = None):
-        """Initialize the DocumentService with optional SpaceService and TaskService instances.
+    def get_store(self) -> LocalFileStore:
+        """Return the brick's dedicated LocalFileStore (find-or-create).
 
-        :param space_service: Optional SpaceService instance to use for Space operations
-        :type space_service: Optional[SpaceService]
-        :param task_service: Optional TaskService instance to use for task operations
-        :type task_service: Optional[TaskService]
+        :return: The dedicated LocalFileStore
+        :rtype: LocalFileStore
         """
-        # we use the SpaceService with token mode because this app is used within the space so the user might not be in the lab
-        self._space_service = space_service if space_service is not None else SpaceService('gws-project')
-        self._task_service = task_service if task_service is not None else TaskService()
+        return ProjectConfig.get_instance().get_or_create_file_store()
 
-    def get_project_documents(self, project_id: str, page: int, size: int) -> PageDTO[SpaceHierarchyObjectDTO]:
-        """Get documents of a project's space folder.
+    ################################ LISTING ################################
+
+    def get_project_documents(
+        self, project_id: str, page: int, size: int
+    ) -> PageDTO[ProjectDocumentDTO]:
+        """Get the documents (files and notes) attached directly to a project.
 
         :param project_id: The ID of the project
         :type project_id: str
@@ -48,26 +53,23 @@ class DocumentService:
         :type page: int
         :param size: Number of items per page
         :type size: int
-        :return: Paginated list of documents in the project's space folder
-        :rtype: PageDTO[SpaceHierarchyObjectDTO]
+        :return: Paginated list of documents of the project
+        :rtype: PageDTO[ProjectDocumentDTO]
         """
-        # Get the project and check permissions
         security_service = ProjectSecurityService()
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
-        search_params = SpaceHierarchyObjectSearchParams()
-        search_params.add_object_type_filter(SearchOperator.NEQ, 'FOLDER')
-
-        # Get paginated documents
-        return self._space_service.search_project_children_objects_paginated(
-            folder_id=project.space_folder_id,
-            search_params=search_params,
+        paginator: Paginator[ProjectDocument] = Paginator(
+            ProjectDocument.get_project_documents_query(project.id),
             page=page,
-            size=size
+            nb_of_items_per_page=size,
         )
+        return paginator.map_page(lambda document: document.to_dto())
 
-    def get_task_documents(self, task_id: str, page: int, size: int) -> PageDTO[SpaceHierarchyObjectDTO]:
-        """Get documents of a task's space folder.
+    def get_task_documents(
+        self, task_id: str, page: int, size: int
+    ) -> PageDTO[ProjectDocumentDTO]:
+        """Get the documents (files and notes) attached to a task.
 
         :param task_id: The ID of the task
         :type task_id: str
@@ -75,242 +77,401 @@ class DocumentService:
         :type page: int
         :param size: Number of items per page
         :type size: int
-        :return: Paginated list of documents in the task's space folder
-        :rtype: PageDTO[SpaceHierarchyObjectDTO]
+        :return: Paginated list of documents of the task
+        :rtype: PageDTO[ProjectDocumentDTO]
         """
-        # Get the task and check permissions
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
-        # Get the space folder ID (from task or parent)
-        space_folder_id = task.get_space_folder_id()
-
-        # If no space folder exists, return empty page
-        if not space_folder_id:
-            return PageDTO.empty_page()
-
-        search_params = SpaceHierarchyObjectSearchParams()
-        search_params.add_object_type_filter(SearchOperator.NEQ, 'FOLDER')
-
-        # filter the documents by the task's tag
-        search_params.add_tag_filter(SearchOperator.EQ, task.get_space_tag())
-
-        # Get paginated documents
-        return self._space_service.search_project_children_objects_paginated(
-            folder_id=space_folder_id,
-            search_params=search_params,
+        paginator: Paginator[ProjectDocument] = Paginator(
+            ProjectDocument.get_task_documents_query(task.id),
             page=page,
-            size=size
+            nb_of_items_per_page=size,
         )
+        return paginator.map_page(lambda document: document.to_dto())
 
+    ################################ UPLOAD ################################
+
+    @ProjectDbManager.transaction()
     def upload_document_to_project(
-        self,
-        project_id: str,
-        file_path: str,
-        filename: str | None = None,
-        override_mode: DocumentUploadOverrideMode = DocumentUploadOverrideMode.RENAME
-    ) -> SpaceHierarchyObjectDTO:
-        """Upload a document to a project's space folder without tagging.
+        self, project_id: str, file_path: str, filename: str | None = None
+    ) -> ProjectDocumentDTO:
+        """Upload a document file to a project.
 
         :param project_id: The ID of the project
         :type project_id: str
-        :param file_path: The path to the file to upload
+        :param file_path: The path to the file to upload (the file is MOVED into the store)
         :type file_path: str
         :param filename: Optional custom filename for the uploaded document
         :type filename: Optional[str]
-        :param override_mode: Override mode for handling existing files (default: RENAME)
-        :type override_mode: DocumentUploadOverrideMode
-        :return: The uploaded document object
-        :rtype: SpaceHierarchyObjectDTO
-        :raises BadRequestException: If the project doesn't have a space folder
+        :return: The created document
+        :rtype: ProjectDocumentDTO
         """
-        # Get the project and check permissions
         security_service = ProjectSecurityService()
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
-        # Ensure the project has a space folder
-        if not project.space_folder_id:
-            raise BadRequestException(
-                f"Project with ID '{project_id}' does not have an associated space folder. "
-                "Cannot upload document."
-            )
-
-        # Upload the document to the project's space folder
-        uploaded_doc = self._space_service.upload_document(
-            parent_folder_id=project.space_folder_id,
-            file_path=file_path,
-            override_mode=override_mode,
-            filename=filename
+        document = self._create_file_document(
+            project=project, task=None, file_path=file_path, filename=filename
         )
+        return document.to_dto()
 
-        return uploaded_doc
-
+    @ProjectDbManager.transaction()
     def upload_document_to_task(
-        self,
-        task_id: str,
-        file_path: str,
-        filename: str | None = None,
-        override_mode: DocumentUploadOverrideMode = DocumentUploadOverrideMode.RENAME
-    ) -> SpaceHierarchyObjectDTO:
-        """Upload a document to a task's space folder and tag it with the task's space tag.
-
-        If the task doesn't have a space folder yet, one will be created automatically.
+        self, task_id: str, file_path: str, filename: str | None = None
+    ) -> ProjectDocumentDTO:
+        """Upload a document file to a task.
 
         :param task_id: The ID of the task
         :type task_id: str
-        :param file_path: The path to the file to upload
+        :param file_path: The path to the file to upload (the file is MOVED into the store)
         :type file_path: str
         :param filename: Optional custom filename for the uploaded document
         :type filename: Optional[str]
-        :param override_mode: Override mode for handling existing files (default: RENAME)
-        :type override_mode: DocumentUploadOverrideMode
-        :return: The uploaded document object
-        :rtype: SpaceHierarchyObjectDTO
-        :raises BadRequestException: If the task's project doesn't have a space folder
+        :return: The created document
+        :rtype: ProjectDocumentDTO
         """
-        # Get the task and check permissions
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
-        space_folder_id = self._task_service.get_or_create_space_folder_id(task_id)
-
-        # Upload the document to the task's space folder
-        uploaded_doc = self._space_service.upload_document(
-            parent_folder_id=space_folder_id,
-            file_path=file_path,
-            override_mode=override_mode,
-            filename=filename
+        document = self._create_file_document(
+            project=task.project, task=task, file_path=file_path, filename=filename
         )
+        return document.to_dto()
 
-        # Tag the document with the task's space tag (for both root tasks and subtasks)
-        space_tag = task.get_space_tag()
-        self._space_service.add_or_replace_tags_on_object(
-            entity_id=uploaded_doc.id,
-            tags=[space_tag]
-        )
+    ################################ NOTES ################################
 
-        return uploaded_doc
-
-    def create_constellab_document_for_project(
-        self,
-        project_id: str,
-        name: str,
-    ) -> SpaceHierarchyObjectDTO:
-        """Create a Constellab document in a project's space folder.
+    @ProjectDbManager.transaction()
+    def create_note_for_project(self, project_id: str, name: str) -> ProjectDocumentDTO:
+        """Create an empty rich-text note attached to a project.
 
         :param project_id: The ID of the project
         :type project_id: str
-        :param name: The name of the Constellab document
+        :param name: The name of the note
         :type name: str
-        :return: The created document object
-        :rtype: SpaceHierarchyObjectDTO
-        :raises BadRequestException: If the project doesn't have a space folder
+        :return: The created note
+        :rtype: ProjectDocumentDTO
         """
         security_service = ProjectSecurityService()
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
-        if not project.space_folder_id:
-            raise BadRequestException(
-                f"Project with ID '{project_id}' does not have an associated space folder. "
-                "Cannot create Constellab document."
-            )
+        return self._create_note(project=project, task=None, name=name).to_dto()
 
-        return self._space_service.create_constellab_document(
-            folder_id=project.space_folder_id,
-            name=name,
-        )
-
-    def create_constellab_document_for_task(
-        self,
-        task_id: str,
-        name: str,
-    ) -> SpaceHierarchyObjectDTO:
-        """Create a Constellab document in a task's space folder and tag it.
-
-        If the task doesn't have a space folder yet, one will be created automatically.
+    @ProjectDbManager.transaction()
+    def create_note_for_task(self, task_id: str, name: str) -> ProjectDocumentDTO:
+        """Create an empty rich-text note attached to a task.
 
         :param task_id: The ID of the task
         :type task_id: str
-        :param name: The name of the Constellab document
+        :param name: The name of the note
         :type name: str
-        :return: The created document object
-        :rtype: SpaceHierarchyObjectDTO
+        :return: The created note
+        :rtype: ProjectDocumentDTO
         """
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
-        space_folder_id = self._task_service.get_or_create_space_folder_id(task_id)
+        return self._create_note(project=task.project, task=task, name=name).to_dto()
 
-        created_doc = self._space_service.create_constellab_document(
-            folder_id=space_folder_id,
-            name=name,
-        )
+    def get_note(self, document_id: str) -> ProjectNoteDTO:
+        """Get a note with its rich-text content.
 
-        space_tag = task.get_space_tag()
-        self._space_service.add_or_replace_tags_on_object(
-            entity_id=created_doc.id,
-            tags=[space_tag],
-        )
+        :param document_id: The ID of the note document
+        :type document_id: str
+        :return: The note with content
+        :rtype: ProjectNoteDTO
+        """
+        document = self._get_and_check_document(document_id)
 
-        return created_doc
+        if document.type != ProjectDocumentType.NOTE:
+            raise BadRequestException("The document is not a note.")
 
-    def rename_document(self, project_id: str, document_id: str, name: str) -> None:
-        """Rename a document.
+        return document.to_note_dto()
 
-        :param project_id: The ID of the project (to verify user access)
-        :type project_id: str
+    @ProjectDbManager.transaction()
+    def update_note_content(self, document_id: str, content: RichTextDTO) -> ProjectNoteDTO:
+        """Update the rich-text content of a note.
+
+        :param document_id: The ID of the note document
+        :type document_id: str
+        :param content: The new rich-text content
+        :type content: RichTextDTO
+        :return: The updated note
+        :rtype: ProjectNoteDTO
+        """
+        document = self._get_and_check_document(document_id)
+
+        if document.type != ProjectDocumentType.NOTE:
+            raise BadRequestException("The document is not a note.")
+
+        document.content = content
+        document.save()
+
+        return document.to_note_dto()
+
+    ################################ DOWNLOAD / RENAME / DELETE ################################
+
+    def download_document_bytes(self, document_id: str) -> bytes:
+        """Download a file document as bytes.
+
+        :param document_id: The ID of the document to download
+        :type document_id: str
+        :return: The document bytes
+        :rtype: bytes
+        """
+        document = self._get_and_check_document(document_id)
+
+        if document.type != ProjectDocumentType.FILE or not document.file:
+            raise BadRequestException("The document is not a file.")
+
+        absolute_path = document.file.get_absolute_path()
+        if not absolute_path or not os.path.exists(absolute_path):
+            raise NotFoundException(
+                f"The file of document '{document.name}' was not found in the file store."
+            )
+
+        with open(absolute_path, "rb") as file_handle:
+            return file_handle.read()
+
+    @ProjectDbManager.transaction()
+    def rename_document(self, document_id: str, name: str) -> ProjectDocumentDTO:
+        """Rename a document (file or note). Only the DB row is renamed, the
+        file on disk is untouched.
+
         :param document_id: The ID of the document to rename
         :type document_id: str
         :param name: The new name for the document
         :type name: str
-        :raises BadRequestException: If the name is empty
-        :raises UnauthorizedException: If the user doesn't have access to the project
+        :return: The renamed document
+        :rtype: ProjectDocumentDTO
         """
-        # Verify user has access to the project
-        security_service = ProjectSecurityService()
-        security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
-
         if not name or not name.strip():
             raise BadRequestException("Document name cannot be empty")
 
-        self._space_service.rename_document(
-            document_id=document_id,
-            name=name.strip()
-        )
+        document = self._get_and_check_document(document_id)
 
-    def delete_document(self, project_id: str, document_id: str) -> None:
-        """Delete a document (move to trash).
+        document.name = name.strip()
+        document.save()
 
-        :param project_id: The ID of the project (to verify user access)
-        :type project_id: str
+        return document.to_dto()
+
+    @ProjectDbManager.transaction()
+    def delete_document(self, document_id: str) -> None:
+        """Delete a document. For files, the file node is also removed from the
+        store. This is a HARD delete: there is no trash, the document cannot be
+        recovered.
+
         :param document_id: The ID of the document to delete
         :type document_id: str
-        :raises UnauthorizedException: If the user doesn't have access to the project
         """
-        # Verify user has access to the project
-        security_service = ProjectSecurityService()
-        security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
+        document = self._get_and_check_document(document_id)
 
-        self._space_service.delete_document(document_id)
+        self._delete_document_and_file(document)
 
-    def download_document_bytes(self, project_id: str, document_id: str, filename: str) -> bytes:
-        """Download a document as bytes.
+    def delete_documents_of_project(self, project: Project) -> None:
+        """Delete all documents of a project (including its tasks' documents)
+        and their file nodes. Called before deleting a project, because the DB
+        CASCADE removes the rows but not the files on disk.
 
-        :param project_id: The ID of the project (to verify user access)
-        :type project_id: str
-        :param document_id: The ID of the document to download
-        :type document_id: str
-        :param filename: The filename for the download
-        :type filename: str
-        :return: The document bytes
-        :rtype: bytes
-        :raises UnauthorizedException: If the user doesn't have access to the project
+        :param project: The project being deleted
+        :type project: Project
         """
-        # Verify user has access to the project
-        security_service = ProjectSecurityService()
-        security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
+        for document in ProjectDocument.get_documents_of_project_and_subtree(project.id):
+            self._delete_document_and_file(document)
 
-        return self._space_service.download_document_bytes(
-            document_id=document_id,
-            filename=filename
+    def delete_documents_of_tasks(self, tasks: list[Task]) -> None:
+        """Delete all documents of the given tasks and their file nodes.
+        Called before deleting a task subtree, because the DB CASCADE removes
+        the rows but not the files on disk.
+
+        :param tasks: The tasks being deleted
+        :type tasks: List[Task]
+        """
+        task_ids = [task.id for task in tasks]
+        if not task_ids:
+            return
+
+        documents = list(ProjectDocument.select().where(ProjectDocument.task.in_(task_ids)))
+        for document in documents:
+            self._delete_document_and_file(document)
+
+    ################################ MIGRATION HELPERS ################################
+
+    @ProjectDbManager.transaction()
+    def create_migrated_file_document(
+        self,
+        project: Project,
+        task: Task | None,
+        file_path: str,
+        name: str,
+        space_document_id: str,
+    ) -> ProjectDocument:
+        """Create a FILE document from a file downloaded from Space (migration
+        task only, no permission check).
+
+        :param project: The project the document belongs to
+        :type project: Project
+        :param task: The task the document belongs to (None for project-level)
+        :type task: Optional[Task]
+        :param file_path: The path of the downloaded file (MOVED into the store)
+        :type file_path: str
+        :param name: The document name
+        :type name: str
+        :param space_document_id: The id of the Space document (idempotency)
+        :type space_document_id: str
+        :return: The created document
+        :rtype: ProjectDocument
+        """
+        return self._create_file_document(
+            project=project,
+            task=task,
+            file_path=file_path,
+            filename=name,
+            space_document_id=space_document_id,
         )
+
+    @ProjectDbManager.transaction()
+    def create_migrated_note(
+        self,
+        project: Project,
+        task: Task | None,
+        name: str,
+        content: RichTextDTO,
+        space_document_id: str,
+    ) -> ProjectDocument:
+        """Create a NOTE document from a Space Constellab document (migration
+        task only, no permission check).
+
+        :param project: The project the note belongs to
+        :type project: Project
+        :param task: The task the note belongs to (None for project-level)
+        :type task: Optional[Task]
+        :param name: The note name
+        :type name: str
+        :param content: The rich-text content fetched from Space
+        :type content: RichTextDTO
+        :param space_document_id: The id of the Space document (idempotency)
+        :type space_document_id: str
+        :return: The created note
+        :rtype: ProjectDocument
+        """
+        note = self._create_note(project=project, task=task, name=name)
+        note.content = content
+        note.space_document_id = space_document_id
+        note.save()
+        return note
+
+    ################################ INTERNALS ################################
+
+    def _get_and_check_document(self, document_id: str) -> ProjectDocument:
+        """Get a document and check that the current user has access to its project.
+
+        :param document_id: The ID of the document
+        :type document_id: str
+        :return: The document
+        :rtype: ProjectDocument
+        :raises NotFoundException: If the document is not found
+        :raises UnauthorizedException: If the user doesn't have access to the project
+        """
+        document: ProjectDocument | None = ProjectDocument.get_by_id(document_id)
+
+        if not document:
+            raise NotFoundException(f"No document found with ID {document_id}")
+
+        security_service = ProjectSecurityService()
+        security_service.get_and_check_role_for_project(document.project.id, ProjectUserRole.USER)
+
+        return document
+
+    def _delete_document_and_file(self, document: ProjectDocument) -> None:
+        """Delete a document row and, for FILE documents, its ProjectFile row
+        and file node in the store.
+
+        :param document: The document to delete
+        :type document: ProjectDocument
+        """
+        file: ProjectFile | None = document.file
+        document.delete_instance()
+
+        if file is not None:
+            file.delete_file_from_store()
+            file.delete_instance()
+
+    def _create_file_document(
+        self,
+        project: Project,
+        task: Task | None,
+        file_path: str,
+        filename: str | None = None,
+        space_document_id: str | None = None,
+    ) -> ProjectDocument:
+        """Move a file into the dedicated store and create the ProjectFile +
+        ProjectDocument rows. On failure the file node is removed from the
+        store to avoid orphan files.
+
+        :param project: The project the document belongs to
+        :type project: Project
+        :param task: The task the document belongs to (None for project-level)
+        :type task: Optional[Task]
+        :param file_path: The path of the source file (MOVED into the store)
+        :type file_path: str
+        :param filename: Optional custom filename
+        :type filename: Optional[str]
+        :param space_document_id: Optional Space document id (migration)
+        :type space_document_id: Optional[str]
+        :return: The created document
+        :rtype: ProjectDocument
+        """
+        name = filename or os.path.basename(file_path)
+
+        store = self.get_store()
+        # the store moves the file and de-duplicates the destination name
+        node = store.add_node_from_path(file_path, name)
+
+        try:
+            project_file = ProjectFile(
+                file_store=store.id,
+                path=os.path.relpath(node.path, store.path),
+                name=name,
+                size=os.path.getsize(node.path),
+            )
+            project_file.save()
+
+            document = ProjectDocument(
+                project=project,
+                task=task,
+                type=ProjectDocumentType.FILE,
+                name=name,
+                file=project_file,
+                space_document_id=space_document_id,
+            )
+            document.save()
+            return document
+        except Exception:
+            # remove the moved node so a DB failure doesn't leave an orphan file
+            store.delete_node_path(node.path)
+            raise
+
+    def _create_note(self, project: Project, task: Task | None, name: str) -> ProjectDocument:
+        """Create an empty NOTE document.
+
+        :param project: The project the note belongs to
+        :type project: Project
+        :param task: The task the note belongs to (None for project-level)
+        :type task: Optional[Task]
+        :param name: The note name
+        :type name: str
+        :return: The created note
+        :rtype: ProjectDocument
+        """
+        if not name or not name.strip():
+            raise BadRequestException("Note name cannot be empty")
+
+        note = ProjectDocument(
+            project=project,
+            task=task,
+            type=ProjectDocumentType.NOTE,
+            name=name.strip(),
+            content=RichText().to_dto(),
+        )
+        note.save()
+        return note

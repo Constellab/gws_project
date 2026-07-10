@@ -2,6 +2,7 @@ import reflex as rx
 
 from .document_card_component import document_card
 from .documents_list_state import DocumentsListState
+from .note_editor_component import note_editor_dialog
 
 
 def documents_list_view() -> rx.Component:
@@ -20,7 +21,7 @@ def documents_list_view() -> rx.Component:
                 "Create Note",
                 variant="soft",
                 size="2",
-                on_click=DocumentsListState.open_create_constellab_doc_dialog,
+                on_click=DocumentsListState.open_create_note_dialog,
             ),
             rx.upload.root(
                 rx.button(
@@ -49,8 +50,10 @@ def documents_list_view() -> rx.Component:
         _documents_content(),
         # Rename dialog
         _rename_document_dialog(),
-        # Create Constellab document dialog
-        _create_constellab_doc_dialog(),
+        # Create note dialog
+        _create_note_dialog(),
+        # Note editor dialog
+        note_editor_dialog(),
         width="100%",
         spacing="3",
         align_items="start",
@@ -75,8 +78,10 @@ def documents_list_content() -> rx.Component:
         _documents_content(),
         # Rename dialog
         _rename_document_dialog(),
-        # Create Constellab document dialog
-        _create_constellab_doc_dialog(),
+        # Create note dialog
+        _create_note_dialog(),
+        # Note editor dialog
+        note_editor_dialog(),
         width="100%",
         spacing="3",
         align_items="start",
@@ -249,10 +254,10 @@ def _rename_document_dialog() -> rx.Component:
     )
 
 
-def _create_constellab_doc_dialog() -> rx.Component:
-    """Create the dialog for creating a new Constellab document (note).
+def _create_note_dialog() -> rx.Component:
+    """Create the dialog for creating a new note.
 
-    :return: The create Constellab document dialog component
+    :return: The create note dialog component
     :rtype: rx.Component
     """
     return rx.dialog.root(
@@ -268,8 +273,8 @@ def _create_constellab_doc_dialog() -> rx.Component:
                         weight="bold",
                     ),
                     rx.input(
-                        value=DocumentsListState.create_constellab_doc_name,
-                        on_change=DocumentsListState.set_create_constellab_doc_name,
+                        value=DocumentsListState.create_note_name,
+                        on_change=DocumentsListState.set_create_note_name,
                         placeholder="Enter note name",
                         name="name",
                         required=True,
@@ -284,13 +289,13 @@ def _create_constellab_doc_dialog() -> rx.Component:
                             variant="soft",
                             color_scheme="gray",
                             type="button",
-                            on_click=DocumentsListState.close_create_constellab_doc_dialog,
-                            disabled=DocumentsListState.is_creating_constellab_doc,
+                            on_click=DocumentsListState.close_create_note_dialog,
+                            disabled=DocumentsListState.is_creating_note,
                         ),
                     ),
                     rx.button(
                         rx.cond(
-                            DocumentsListState.is_creating_constellab_doc,
+                            DocumentsListState.is_creating_note,
                             rx.hstack(
                                 rx.spinner(size="2"),
                                 "Creating...",
@@ -299,19 +304,19 @@ def _create_constellab_doc_dialog() -> rx.Component:
                             "Create",
                         ),
                         type="submit",
-                        disabled=DocumentsListState.is_creating_constellab_doc,
+                        disabled=DocumentsListState.is_creating_note,
                     ),
                     padding_top="16px",
                     spacing="3",
                     margin_top="16px",
                     justify="end",
                 ),
-                on_submit=lambda _: DocumentsListState.handle_create_constellab_document(),
+                on_submit=lambda _: DocumentsListState.handle_create_note(),
                 reset_on_submit=False,
             ),
             style={"max_width": 450},
-            on_interact_outside=DocumentsListState.close_create_constellab_doc_dialog,
-            on_escape_key_down=DocumentsListState.close_create_constellab_doc_dialog,
+            on_interact_outside=DocumentsListState.close_create_note_dialog,
+            on_escape_key_down=DocumentsListState.close_create_note_dialog,
         ),
-        open=DocumentsListState.create_constellab_doc_dialog_open,
+        open=DocumentsListState.create_note_dialog_open,
     )

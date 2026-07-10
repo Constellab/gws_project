@@ -32,15 +32,25 @@ def document_card(document: DocumentInfo) -> rx.Component:
                         padding_bottom="8px",
                     ),
                     rx.hstack(
-                        rx.text(
-                            document.size_pretty, size="1", color="var(--accent-9)", trim="both"
-                        ),
-                        rx.box(
-                            width="3px",
-                            height="3px",
-                            border_radius="50%",
-                            background="var(--accent-7)",
-                            flex_shrink="0",
+                        rx.cond(
+                            document.size_pretty != "",
+                            rx.hstack(
+                                rx.text(
+                                    document.size_pretty,
+                                    size="1",
+                                    color="var(--accent-9)",
+                                    trim="both",
+                                ),
+                                rx.box(
+                                    width="3px",
+                                    height="3px",
+                                    border_radius="50%",
+                                    background="var(--accent-7)",
+                                    flex_shrink="0",
+                                ),
+                                spacing="2",
+                                align="center",
+                            ),
                         ),
                         rx.text(
                             document.last_modified, size="1", color="var(--accent-9)", trim="both"
@@ -58,15 +68,24 @@ def document_card(document: DocumentInfo) -> rx.Component:
             ),
             # Right side: actions
             rx.hstack(
-                rx.link(
+                rx.cond(
+                    document.type == "NOTE",
                     rx.button(
-                        rx.icon("external-link", size=14),
+                        rx.icon("notebook-pen", size=14),
                         "Open",
                         variant="solid",
                         size="2",
+                        on_click=lambda: DocumentsListState.open_note_editor(document.id),
                     ),
-                    href=document.url,
-                    is_external=True,
+                    rx.button(
+                        rx.icon("download", size=14),
+                        "Download",
+                        variant="solid",
+                        size="2",
+                        on_click=lambda: DocumentsListState.handle_download_document(
+                            document.id, document.name
+                        ),
+                    ),
                 ),
                 _document_menu(document),
                 spacing="2",
@@ -103,10 +122,15 @@ def _document_menu(document: DocumentInfo) -> rx.Component:
             margin_right="0",
         ),
         rx.menu.content(
-            rx.menu.item(
-                rx.icon("download", size=14),
-                "Download",
-                on_click=DocumentsListState.handle_download_document(document.id, document.name),
+            rx.cond(
+                document.type == "FILE",
+                rx.menu.item(
+                    rx.icon("download", size=14),
+                    "Download",
+                    on_click=DocumentsListState.handle_download_document(
+                        document.id, document.name
+                    ),
+                ),
             ),
             rx.menu.item(
                 rx.icon("pencil", size=14),
@@ -117,7 +141,7 @@ def _document_menu(document: DocumentInfo) -> rx.Component:
             rx.menu.item(
                 rx.icon("trash-2", size=14),
                 "Delete",
-                color="red",
+                color_scheme="red",
                 on_click=DocumentsListState.open_delete_document_dialog(document.id, document.name),
             ),
         ),

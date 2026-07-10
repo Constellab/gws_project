@@ -2,7 +2,6 @@ import reflex as rx
 from gws_reflex_main import (
     main_component,
     right_sidebar_close_button,
-    right_sidebar_open_button,
     user_inline_component,
 )
 
@@ -74,7 +73,7 @@ def _tab_action_button() -> rx.Component:
                     "Create Note",
                     variant="soft",
                     size="2",
-                    on_click=DocumentsListState.open_create_constellab_doc_dialog,
+                    on_click=DocumentsListState.open_create_note_dialog,
                 ),
                 rx.upload.root(
                     rx.button(
