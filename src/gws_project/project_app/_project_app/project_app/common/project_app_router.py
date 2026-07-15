@@ -31,6 +31,17 @@ class ProjectAppRouter:
         return f"/project/task/{task_id}"
 
     @staticmethod
+    def get_note_detail_url(note_id: str) -> str:
+        """Get the URL for the note detail page.
+
+        :param note_id: The ID of the note document
+        :type note_id: str
+        :return: The note detail URL
+        :rtype: str
+        """
+        return f"/project/note/{note_id}"
+
+    @staticmethod
     def get_kanban_url() -> str:
         """Get the URL for the kanban board page.
 

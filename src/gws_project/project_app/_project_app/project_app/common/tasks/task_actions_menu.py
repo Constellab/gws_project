@@ -53,7 +53,7 @@ def task_actions_menu(
         rx.menu.item(
             rx.icon("trash-2", size=16),
             "Delete",
-            color="red",
+            color_scheme="red",
             on_click=delete_click,
         )
     )

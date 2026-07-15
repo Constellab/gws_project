@@ -47,7 +47,7 @@ def template_action_menu() -> rx.Component:
             rx.menu.item(
                 rx.icon("trash-2", size=16),
                 "Delete Template",
-                color="red",
+                color_scheme="red",
                 on_click=TemplateDetailState.open_delete_template_dialog,
             ),
         ),

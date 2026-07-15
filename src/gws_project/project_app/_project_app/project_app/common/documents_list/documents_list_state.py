@@ -9,8 +9,8 @@ from gws_project.project.project import Project
 from gws_project.task.task import Task
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
+from ..project_app_router import ProjectAppRouter
 from ..projects.project_page_state import ProjectPageState
-from .note_editor_state import NoteEditorState
 
 
 class DocumentInfo(BaseModelDTO):
@@ -553,26 +553,14 @@ class DocumentsListState(rx.State):
             self.close_create_note_dialog()
             yield rx.toast.success("Note created successfully")
 
-            # Open the created note in the editor right away
-            note_editor_state = await self.get_state(NoteEditorState)
-            await note_editor_state.open_note(created_note.id)
+            # Navigate to the created note's page right away
+            yield rx.redirect(ProjectAppRouter.get_note_detail_url(created_note.id))
 
         except Exception as e:
             Logger.log_exception_stack_trace(e)
             yield rx.toast.error(f"Failed to create note: {str(e)}")
         finally:
             self.is_creating_note = False
-
-    # ===== Open Note Editor =====
-    @rx.event
-    async def open_note_editor(self, document_id: str):
-        """Open the note editor dialog for a note document.
-
-        :param document_id: The ID of the note document
-        :type document_id: str
-        """
-        note_editor_state = await self.get_state(NoteEditorState)
-        await note_editor_state.open_note(document_id)
 
     @rx.event
     def set_rename_document_name(self, name: str):

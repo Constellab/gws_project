@@ -5,6 +5,8 @@ from .gantt.gantt_page_component import gantt_page_component
 from .gantt.gantt_page_state import GanttPageState
 from .kanban.kanban_component import kanban_page
 from .kanban.kanban_state import KanbanState
+from .note_detail.note_detail_component import note_detail_page
+from .note_detail.note_detail_state import NoteDetailState
 from .project_detail.project_detail_component import project_detail_page
 from .project_list.project_list_component import project_list_page
 from .project_list.project_list_state import ProjectListState
@@ -39,6 +41,16 @@ def task_detail():
     The task_id is extracted from the URL path.
     """
     return task_detail_page()
+
+
+# Declare the note detail page with URL parameter
+@rx.page(route="/project/note/[note_id_param]", on_load=[NoteDetailState.on_load])
+def note_detail():
+    """Note detail page displaying a single note in a full-page rich-text editor.
+
+    The note_id is extracted from the URL path.
+    """
+    return note_detail_page()
 
 
 # Declare the project detail page with URL parameter

@@ -188,6 +188,31 @@ class DocumentService:
         return document.to_note_dto()
 
     @ProjectDbManager.transaction()
+    def update_note_name(self, document_id: str, name: str) -> ProjectNoteDTO:
+        """Update the name (title) of a note.
+
+        :param document_id: The ID of the note document
+        :type document_id: str
+        :param name: The new name for the note
+        :type name: str
+        :return: The updated note
+        :rtype: ProjectNoteDTO
+        :raises BadRequestException: If the document is not a note or the name is empty
+        """
+        if not name or not name.strip():
+            raise BadRequestException("Note name cannot be empty")
+
+        document = self._get_and_check_document(document_id)
+
+        if document.type != ProjectDocumentType.NOTE:
+            raise BadRequestException("The document is not a note.")
+
+        document.name = name.strip()
+        document.save()
+
+        return document.to_note_dto()
+
+    @ProjectDbManager.transaction()
     def update_note_content(self, document_id: str, content: RichTextDTO) -> ProjectNoteDTO:
         """Update the rich-text content of a note.
 

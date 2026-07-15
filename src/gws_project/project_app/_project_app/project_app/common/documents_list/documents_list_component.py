@@ -2,7 +2,6 @@ import reflex as rx
 
 from .document_card_component import document_card
 from .documents_list_state import DocumentsListState
-from .note_editor_component import note_editor_dialog
 
 
 def documents_list_view() -> rx.Component:
@@ -52,8 +51,6 @@ def documents_list_view() -> rx.Component:
         _rename_document_dialog(),
         # Create note dialog
         _create_note_dialog(),
-        # Note editor dialog
-        note_editor_dialog(),
         width="100%",
         spacing="3",
         align_items="start",
@@ -80,8 +77,6 @@ def documents_list_content() -> rx.Component:
         _rename_document_dialog(),
         # Create note dialog
         _create_note_dialog(),
-        # Note editor dialog
-        note_editor_dialog(),
         width="100%",
         spacing="3",
         align_items="start",

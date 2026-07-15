@@ -146,18 +146,36 @@ class TestDocumentService(BaseTestCase):
         updated = document_service.update_note_content(project_note.id, rich_text.to_dto())
         self.assert_json(updated.content.to_json_dict(), rich_text.to_dto().to_json_dict())
 
+        # ========== Update name ==========
+        renamed = document_service.update_note_name(project_note.id, "Renamed Note")
+        self.assertEqual(renamed.name, "Renamed Note")
+        self.assertEqual(renamed.type, ProjectDocumentType.NOTE)
+        # renaming preserves the content
+        self.assert_json(renamed.content.to_json_dict(), rich_text.to_dto().to_json_dict())
+
+        with self.assertRaises(BadRequestException):
+            document_service.update_note_name(project_note.id, "   ")
+
         # ========== The mixed list contains the note ==========
         project_page = document_service.get_project_documents(project.id, page=0, size=20)
         self.assertEqual(project_page.total_number_of_items, 1)
         self.assertEqual(project_page.objects[0].type, ProjectDocumentType.NOTE)
 
-        # get_note refuses a FILE document
+        # get_note and update_note_name refuse a FILE document
         file_path = self._write_temp_file("file.txt", b"x")
         file_doc = document_service.upload_document_to_project(project.id, file_path)
         with self.assertRaises(BadRequestException):
             document_service.get_note(file_doc.id)
         with self.assertRaises(BadRequestException):
+            document_service.update_note_name(file_doc.id, "Nope")
+        with self.assertRaises(BadRequestException):
             document_service.download_document_bytes(project_note.id)
+
+        # ========== Delete a note (no file on disk to clean) ==========
+        document_service.delete_document(task_note.id)
+        self.assertIsNone(ProjectDocument.get_by_id(task_note.id))
+        # the other note is untouched
+        self.assertIsNotNone(ProjectDocument.get_by_id(project_note.id))
 
     def test_delete_project_cleans_files(self):
         """Deleting a project removes its documents and their files on disk."""

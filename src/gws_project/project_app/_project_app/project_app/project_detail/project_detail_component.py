@@ -126,7 +126,7 @@ def project_action_menu() -> rx.Component:
             rx.menu.item(
                 rx.icon("trash-2", size=16),
                 "Delete Project",
-                color="red",
+                color_scheme="red",
                 on_click=ProjectDetailState.open_delete_project_dialog,
             ),
         ),

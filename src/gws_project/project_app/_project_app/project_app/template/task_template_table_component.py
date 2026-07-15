@@ -117,7 +117,7 @@ def _actions_menu(task_template: TaskTemplateDTO) -> rx.Component:
             rx.menu.item(
                 rx.icon("trash-2", size=16),
                 "Delete",
-                color="red",
+                color_scheme="red",
                 on_click=lambda: TaskTemplateListState.open_delete_task_template_dialog(
                     task_template
                 ),

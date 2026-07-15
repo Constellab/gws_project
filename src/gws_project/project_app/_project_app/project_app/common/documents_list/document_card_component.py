@@ -1,6 +1,7 @@
 import reflex as rx
 from gws_reflex_main import extension_badge_component
 
+from ..project_app_router import ProjectAppRouter
 from .documents_list_state import DocumentInfo, DocumentsListState
 
 
@@ -75,7 +76,9 @@ def document_card(document: DocumentInfo) -> rx.Component:
                         "Open",
                         variant="solid",
                         size="2",
-                        on_click=lambda: DocumentsListState.open_note_editor(document.id),
+                        on_click=lambda: rx.redirect(
+                            ProjectAppRouter.get_note_detail_url(document.id)
+                        ),
                     ),
                     rx.button(
                         rx.icon("download", size=14),
