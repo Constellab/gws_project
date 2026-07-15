@@ -2,6 +2,7 @@ import os
 from collections.abc import Callable
 
 from gws_core import (
+    MessageDispatcher,
     SearchOperator,
     Settings,
     SpaceHierarchyObjectDTO,
@@ -39,34 +40,38 @@ class SpaceMigrationService:
     - Other object types are skipped and listed in the report.
 
     Idempotent (migrated Space ids are recorded on ``space_document_id`` and
-    skipped on re-run), error-resilient (per-document errors are reported and
-    never abort the run) and non-destructive (Space is never written to).
+    skipped on re-run), error-resilient (errors are logged and reported but
+    never abort the run — the migration continues with the next object, folder
+    and project) and non-destructive (Space is never written to).
 
     :param space_service: The SpaceService to use (mockable in tests)
     :type space_service: Optional[SpaceService]
     :param dry_run: If True, only report what would be migrated without writing
     :type dry_run: bool
-    :param log_error: Optional callback called with each per-document error message
-    :type log_error: Optional[Callable[[str], None]]
+    :param message_dispatcher: Optional dispatcher used to log progress, warnings
+        and errors (with tracebacks) as the migration runs
+    :type message_dispatcher: Optional[MessageDispatcher]
     """
 
     _space_service: SpaceService
     _document_service: DocumentService
     _dry_run: bool
-    _log_error: Callable[[str], None] | None
+    _message_dispatcher: MessageDispatcher
 
     def __init__(
         self,
         space_service: SpaceService | None = None,
         dry_run: bool = True,
-        log_error: Callable[[str], None] | None = None,
+        message_dispatcher: MessageDispatcher | None = None,
     ):
         self._space_service = (
             space_service if space_service is not None else SpaceService("gws-project")
         )
         self._document_service = DocumentService()
         self._dry_run = dry_run
-        self._log_error = log_error
+        self._message_dispatcher = (
+            message_dispatcher if message_dispatcher is not None else MessageDispatcher()
+        )
 
     def migrate_all_projects(
         self, on_project_start: Callable[[int, int, Project], None] | None = None
@@ -84,10 +89,31 @@ class SpaceMigrationService:
 
         report: dict = {"dry_run": self._dry_run, "projects": []}
 
+        self._message_dispatcher.notify_info_message(
+            f"Starting Space migration of {len(projects)} project(s) (dry_run={self._dry_run})"
+        )
+
         for index, project in enumerate(projects):
             if on_project_start:
                 on_project_start(index, len(projects), project)
-            report["projects"].append(self.migrate_project(project))
+            try:
+                report["projects"].append(self.migrate_project(project))
+            except Exception as err:
+                # A project-level failure (e.g. Space API unreachable) must not
+                # abort the whole migration: log it, record it and move on.
+                self._message_dispatcher.notify_error_message(
+                    f"Failed to migrate project '{project.title}' "
+                    f"(id={project.id}, space_folder_id={project.space_folder_id})",
+                    exception=err,
+                )
+                report["projects"].append(
+                    {
+                        "project_id": project.id,
+                        "project_title": project.title,
+                        "space_folder_id": project.space_folder_id,
+                        "project_error": str(err),
+                    }
+                )
 
         report["totals"] = self._compute_totals(report["projects"])
         return report
@@ -114,6 +140,10 @@ class SpaceMigrationService:
             "total_bytes": 0,
         }
 
+        self._message_dispatcher.notify_info_message(
+            f"Migrating project '{project.title}' (id={project.id})"
+        )
+
         # 1. Task documents: each root task with a Space folder holds the
         # documents of its whole subtree, tagged with the exact task id.
         root_tasks = [
@@ -127,7 +157,11 @@ class SpaceMigrationService:
 
             for task in subtree:
                 objects = self._list_folder_objects(
-                    root_task.space_folder_id, tag=Tag(key=SPACE_TASK_TAG_KEY, value=task.id)
+                    root_task.space_folder_id,
+                    entry,
+                    project,
+                    task=task,
+                    tag=Tag(key=SPACE_TASK_TAG_KEY, value=task.id),
                 )
                 for space_object in objects:
                     self._migrate_object(project, task, space_object, entry)
@@ -136,7 +170,9 @@ class SpaceMigrationService:
             # 2. Orphans: documents of the task folder whose tag matched no
             # existing task (deleted task, manual upload via the Space UI, ...)
             # are attached to the root task.
-            for space_object in self._list_folder_objects(root_task.space_folder_id):
+            for space_object in self._list_folder_objects(
+                root_task.space_folder_id, entry, project, task=root_task
+            ):
                 if space_object.id in handled_ids:
                     continue
                 if space_object.objectType in (
@@ -149,7 +185,9 @@ class SpaceMigrationService:
         # 3. Project documents: direct non-folder children of the project
         # folder (task folders are separate folder ids, their content is not
         # returned here).
-        for space_object in self._list_folder_objects(project.space_folder_id):
+        for space_object in self._list_folder_objects(
+            project.space_folder_id, entry, project
+        ):
             self._migrate_object(project, None, space_object, entry)
 
         return entry
@@ -195,12 +233,20 @@ class SpaceMigrationService:
                 self._migrate_note(project, task, space_object)
                 entry["migrated_notes"].append(space_object.name)
         except Exception as err:
-            if self._log_error:
-                self._log_error(
-                    f"Error migrating '{space_object.name}' ({space_object.id}): {err}"
-                )
+            self._message_dispatcher.notify_error_message(
+                f"Error migrating {space_object.objectType} '{space_object.name}' "
+                f"(object_id={space_object.id}, project='{project.title}' id={project.id}"
+                f"{f', task_id={task.id}' if task is not None else ''})",
+                exception=err,
+            )
             entry["errors"].append(
-                {"id": space_object.id, "name": space_object.name, "error": str(err)}
+                {
+                    "id": space_object.id,
+                    "name": space_object.name,
+                    "type": space_object.objectType,
+                    "task_id": task.id if task is not None else None,
+                    "error": str(err),
+                }
             )
 
     def _migrate_file(
@@ -261,36 +307,68 @@ class SpaceMigrationService:
         )
 
     def _list_folder_objects(
-        self, folder_id: str, tag: Tag | None = None
+        self,
+        folder_id: str,
+        entry: dict,
+        project: Project,
+        task: Task | None = None,
+        tag: Tag | None = None,
     ) -> list[SpaceHierarchyObjectDTO]:
         """List all non-folder objects of a Space folder (paged through fully).
 
+        Error-resilient: a failure while querying Space (unreachable API, bad
+        folder id, ...) is logged and recorded in the report, and an empty list
+        is returned so the migration keeps going with the next folder.
+
         :param folder_id: The Space folder id
         :type folder_id: str
+        :param entry: The report entry of the project (mutated in place on error)
+        :type entry: dict
+        :param project: The project the folder belongs to (for error context)
+        :type project: Project
+        :param task: The task the folder belongs to, if any (for error context)
+        :type task: Optional[Task]
         :param tag: Optional tag filter
         :type tag: Optional[Tag]
-        :return: All non-folder objects of the folder
+        :return: All non-folder objects of the folder (empty on error)
         :rtype: List[SpaceHierarchyObjectDTO]
         """
         objects: list[SpaceHierarchyObjectDTO] = []
         page = 0
-        while True:
-            search_params = SpaceHierarchyObjectSearchParams()
-            search_params.add_object_type_filter(SearchOperator.NEQ, "FOLDER")
-            if tag is not None:
-                search_params.add_tag_filter(SearchOperator.EQ, tag)
+        try:
+            while True:
+                search_params = SpaceHierarchyObjectSearchParams()
+                search_params.add_object_type_filter(SearchOperator.NEQ, "FOLDER")
+                if tag is not None:
+                    search_params.add_tag_filter(SearchOperator.EQ, tag)
 
-            page_dto = self._space_service.search_project_children_objects_paginated(
-                folder_id=folder_id,
-                search_params=search_params,
-                page=page,
-                size=_PAGE_SIZE,
+                page_dto = self._space_service.search_project_children_objects_paginated(
+                    folder_id=folder_id,
+                    search_params=search_params,
+                    page=page,
+                    size=_PAGE_SIZE,
+                )
+                objects.extend(page_dto.objects)
+
+                if len(page_dto.objects) < _PAGE_SIZE:
+                    return objects
+                page += 1
+        except Exception as err:
+            tag_desc = f", tag={tag.key}:{tag.value}" if tag is not None else ""
+            self._message_dispatcher.notify_error_message(
+                f"Error listing Space folder {folder_id} "
+                f"(project='{project.title}' id={project.id}"
+                f"{f', task_id={task.id}' if task is not None else ''}{tag_desc})",
+                exception=err,
             )
-            objects.extend(page_dto.objects)
-
-            if len(page_dto.objects) < _PAGE_SIZE:
-                return objects
-            page += 1
+            entry["errors"].append(
+                {
+                    "folder_id": folder_id,
+                    "task_id": task.id if task is not None else None,
+                    "error": str(err),
+                }
+            )
+            return objects
 
     def _compute_totals(self, project_entries: list[dict]) -> dict:
         """Aggregate the per-project entries into global totals.
@@ -302,11 +380,20 @@ class SpaceMigrationService:
         """
         return {
             "projects": len(project_entries),
-            "migrated_files": sum(len(entry["migrated_files"]) for entry in project_entries),
-            "migrated_notes": sum(len(entry["migrated_notes"]) for entry in project_entries),
-            "already_migrated": sum(entry["already_migrated"] for entry in project_entries),
-            "orphans": sum(len(entry["orphans"]) for entry in project_entries),
-            "skipped": sum(len(entry["skipped"]) for entry in project_entries),
-            "errors": sum(len(entry["errors"]) for entry in project_entries),
-            "total_bytes": sum(entry["total_bytes"] for entry in project_entries),
+            "failed_projects": sum(
+                1 for entry in project_entries if "project_error" in entry
+            ),
+            "migrated_files": sum(
+                len(entry.get("migrated_files", [])) for entry in project_entries
+            ),
+            "migrated_notes": sum(
+                len(entry.get("migrated_notes", [])) for entry in project_entries
+            ),
+            "already_migrated": sum(
+                entry.get("already_migrated", 0) for entry in project_entries
+            ),
+            "orphans": sum(len(entry.get("orphans", [])) for entry in project_entries),
+            "skipped": sum(len(entry.get("skipped", [])) for entry in project_entries),
+            "errors": sum(len(entry.get("errors", [])) for entry in project_entries),
+            "total_bytes": sum(entry.get("total_bytes", 0) for entry in project_entries),
         }

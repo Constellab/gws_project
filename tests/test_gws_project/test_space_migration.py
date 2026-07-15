@@ -259,3 +259,33 @@ class TestSpaceMigration(BaseTestCase):
             entry for entry in report["projects"] if entry["project_id"] == project.id
         )
         self.assertEqual(project_entry["errors"][0]["id"], ids["file"])
+
+    def test_migration_folder_listing_resilience(self):
+        """A Space listing failure is reported and does not abort the run.
+
+        Named to sort after ``test_migration`` because ``BaseTestCase`` wipes the
+        DB per class (not per method): the project created here would otherwise
+        leak into ``test_migration``'s global-count assertions.
+        """
+        project, root_task, subtask, mock_space, ids = self._setup_project()
+
+        # make every Space listing raise (e.g. Space API unreachable)
+        def raise_error(*args, **kwargs):
+            raise Exception("Space API unreachable")
+
+        mock_space.search_project_children_objects_paginated = raise_error
+
+        report = SpaceMigrationService(
+            space_service=mock_space, dry_run=False
+        ).migrate_all_projects()
+
+        # the run completed and the project was still processed (not aborted)
+        project_entry = next(
+            entry for entry in report["projects"] if entry["project_id"] == project.id
+        )
+        self.assertNotIn("project_error", project_entry)
+        self.assertEqual(len(project_entry["migrated_files"]), 0)
+        self.assertEqual(len(project_entry["migrated_notes"]), 0)
+        # each failed listing is recorded as an error with its folder id
+        self.assertGreater(len(project_entry["errors"]), 0)
+        self.assertIn("folder_id", project_entry["errors"][0])

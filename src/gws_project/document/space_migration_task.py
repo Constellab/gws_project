@@ -77,7 +77,7 @@ class MigrateProjectDataFromSpace(Task):
         dry_run: bool = params["dry_run"]
 
         migration_service = SpaceMigrationService(
-            dry_run=dry_run, log_error=self.log_error_message
+            dry_run=dry_run, message_dispatcher=self.get_message_dispatcher()
         )
 
         def on_project_start(index: int, total: int, project: Project) -> None:
@@ -96,6 +96,7 @@ class MigrateProjectDataFromSpace(Task):
             f"{totals['already_migrated']} already migrated, "
             f"{totals['skipped']} skipped, "
             f"{totals['errors']} error(s), "
+            f"{totals['failed_projects']} failed project(s), "
             f"{totals['total_bytes']} byte(s)."
         )
 
