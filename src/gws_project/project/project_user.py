@@ -1,7 +1,6 @@
 from typing import Union
 
-from gws_core import EnumField
-from peewee import ForeignKeyField
+from gws_core import TypedEnumField, TypedForeignKeyField
 
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
@@ -19,10 +18,10 @@ class ProjectUser(ModelWithUser):
     assigned_at and assigned_by fields instead of created_at/created_by
     """
 
-    project = ForeignKeyField(Project, on_delete="CASCADE", null=False, backref="+")
-    user: User = ForeignKeyField(User, null=False, backref="+")
-    role: ProjectUserRole = EnumField(
-        choices=ProjectUserRole, max_length=20, null=False, default=ProjectUserRole.USER.value
+    project = TypedForeignKeyField(Project, on_delete="CASCADE", backref="+")
+    user = TypedForeignKeyField(User, backref="+")
+    role = TypedEnumField(
+        choices=ProjectUserRole, max_length=20, default=ProjectUserRole.USER.value
     )
 
     def to_dto(self) -> ProjectUserDTO:

@@ -1,5 +1,12 @@
-from gws_core import EnumField, RichTextDbField, RichTextDTO
-from peewee import CharField, ForeignKeyField, ModelSelect
+from gws_core import (
+    NullableCharField,
+    NullableForeignKeyField,
+    NullableRichTextDbField,
+    TypedCharField,
+    TypedEnumField,
+    TypedForeignKeyField,
+)
+from peewee import ModelSelect
 
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
@@ -42,15 +49,13 @@ class ProjectDocument(ModelWithUser):
     migrated from (provenance + idempotency of the migration task).
     """
 
-    project: Project = ForeignKeyField(Project, on_delete="CASCADE", null=False, backref="+")
-    task: Task = ForeignKeyField(Task, on_delete="CASCADE", null=True, backref="+")
-    type: ProjectDocumentType = EnumField(
-        choices=ProjectDocumentType, max_length=10, null=False
-    )
-    name = CharField(max_length=255, null=False)
-    file: ProjectFile = ForeignKeyField(ProjectFile, null=True, backref="+")
-    content: RichTextDTO = RichTextDbField(null=True)
-    space_document_id = CharField(max_length=36, unique=True, null=True)
+    project = TypedForeignKeyField(Project, on_delete="CASCADE", backref="+")
+    task = NullableForeignKeyField(Task, on_delete="CASCADE", backref="+")
+    type = TypedEnumField(choices=ProjectDocumentType, max_length=10)
+    name = TypedCharField(max_length=255)
+    file = NullableForeignKeyField(ProjectFile, backref="+")
+    content = NullableRichTextDbField()
+    space_document_id = NullableCharField(max_length=36, unique=True)
 
     @classmethod
     def get_project_documents_query(cls, project_id: str) -> ModelSelect:

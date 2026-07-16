@@ -1,8 +1,16 @@
 
 
 
-from gws_core import EnumField, RichTextDbField, RichTextDTO
-from peewee import BooleanField, CharField, ForeignKeyField, IntegerField
+from gws_core import (
+    NullableCharField,
+    NullableForeignKeyField,
+    TypedBooleanField,
+    TypedCharField,
+    TypedEnumField,
+    TypedForeignKeyField,
+    TypedIntegerField,
+    TypedRichTextDbField,
+)
 
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
@@ -24,26 +32,26 @@ class TaskTemplate(ModelWithUser):
     - assign_to_role: Optional role name for assignment (e.g., 'project_manager', 'team_member')
     """
 
-    project_template = ForeignKeyField(
-        ProjectTemplate, on_delete='CASCADE', null=False, backref='tasks')
-    parent_task: 'TaskTemplate' = ForeignKeyField(
-        'self', on_delete='CASCADE', null=True, backref='subtasks')
+    project_template = TypedForeignKeyField(
+        ProjectTemplate, on_delete='CASCADE', backref='tasks')
+    parent_task = NullableForeignKeyField['TaskTemplate'](
+        'self', on_delete='CASCADE', backref='subtasks')
 
     # Task definition fields
-    title = CharField(max_length=255, null=False)
-    description: RichTextDTO = RichTextDbField(null=False)
+    title = TypedCharField(max_length=255)
+    description = TypedRichTextDbField()
 
     # Relative timing (days offset from project start)
-    start_date_offset = IntegerField(default=0)  # Days from project start
-    duration_days = IntegerField(default=1)  # Task duration in days
+    start_date_offset = TypedIntegerField(default=0)  # Days from project start
+    duration_days = TypedIntegerField(default=1)  # Task duration in days
 
     # Task configuration
-    priority = EnumField(choices=TaskPriority, max_length=10,
-                         default=TaskPriority.MEDIUM, null=False)
-    allow_subtasks = BooleanField(default=False)
+    priority = TypedEnumField(choices=TaskPriority, max_length=10,
+                              default=TaskPriority.MEDIUM)
+    allow_subtasks = TypedBooleanField(default=False)
 
     # Assignment options (optional - can be assigned during project creation)
-    assign_to_role = CharField(max_length=100, null=True)
+    assign_to_role = NullableCharField(max_length=100)
 
     subtasks: list['TaskTemplate']
 

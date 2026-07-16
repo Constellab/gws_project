@@ -1,5 +1,14 @@
-from gws_core import EnumField, RichTextDbField, RichTextDTO
-from peewee import BooleanField, CharField, DateField, ForeignKeyField, IntegerField
+from gws_core import (
+    NullableCharField,
+    NullableForeignKeyField,
+    TypedBooleanField,
+    TypedCharField,
+    TypedDateField,
+    TypedEnumField,
+    TypedForeignKeyField,
+    TypedIntegerField,
+    TypedRichTextDbField,
+)
 
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
@@ -22,21 +31,21 @@ class Task(ModelWithUser):
     - Converting parent->leaf is only allowed if the task has no existing subtasks
     """
 
-    project = ForeignKeyField(Project, on_delete="CASCADE", null=False, backref="+")
-    parent_task: "Task" = ForeignKeyField("self", on_delete="CASCADE", null=True, backref="subtasks")
-    title = CharField(max_length=255, null=False)
-    description: RichTextDTO = RichTextDbField(null=False)
-    start_date = DateField(null=False)
-    end_date = DateField(null=False)
-    status = EnumField(choices=TaskStatus, max_length=20, default=TaskStatus.TODO, null=False)
-    priority = EnumField(choices=TaskPriority, max_length=10, default=TaskPriority.MEDIUM, null=False)
-    allow_subtasks = BooleanField(default=False)
-    assign_to = ForeignKeyField(User, null=False, backref="+")
+    project = TypedForeignKeyField(Project, on_delete="CASCADE", backref="+")
+    parent_task = NullableForeignKeyField["Task"]("self", on_delete="CASCADE", backref="subtasks")
+    title = TypedCharField(max_length=255)
+    description = TypedRichTextDbField()
+    start_date = TypedDateField()
+    end_date = TypedDateField()
+    status = TypedEnumField(choices=TaskStatus, max_length=20, default=TaskStatus.TODO)
+    priority = TypedEnumField(choices=TaskPriority, max_length=10, default=TaskPriority.MEDIUM)
+    allow_subtasks = TypedBooleanField(default=False)
+    assign_to = TypedForeignKeyField(User, backref="+")
     # DEPRECATED - unused at runtime. Id of the Space folder that mirrored this
     # root task before documents moved to local storage. Kept only for the
     # MigrateProjectDataFromSpace task; dropped in a later release.
-    space_folder_id = CharField(max_length=36, null=True)
-    progress = IntegerField(default=0, null=False)
+    space_folder_id = NullableCharField(max_length=36)
+    progress = TypedIntegerField(default=0)
 
     subtasks: list["Task"]
 

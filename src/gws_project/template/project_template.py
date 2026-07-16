@@ -1,7 +1,6 @@
 
 
-from gws_core import RichText, RichTextDbField, RichTextDTO
-from peewee import CharField
+from gws_core import RichText, TypedCharField, TypedRichTextDbField
 
 from gws_project.core.model_with_user import ModelWithUser
 from gws_project.core.project_db_manager import ProjectDbManager
@@ -16,8 +15,8 @@ class ProjectTemplate(ModelWithUser):
     set of tasks and subtasks based on common project types.
     """
 
-    name = CharField(max_length=255, null=False, unique=True)
-    description: RichTextDTO = RichTextDbField(null=False)
+    name = TypedCharField(max_length=255, unique=True)
+    description = TypedRichTextDbField()
 
     def to_dto(self) -> ProjectTemplateDTO:
         """Convert the ProjectTemplate model to a DTO for display in the frontend.

@@ -1,18 +1,25 @@
-from gws_core import EnumField, Model, UserDTO, UserGroup
+from gws_core import (
+    Model,
+    NullableCharField,
+    TypedBooleanField,
+    TypedCharField,
+    TypedEnumField,
+    UserDTO,
+    UserGroup,
+)
 from gws_core import User as GwsCoreUser
-from peewee import BooleanField, CharField
 
 from gws_project.core.project_db_manager import ProjectDbManager
 
 
 class User(Model):
-    email: str = CharField()
-    first_name: str = CharField()
-    last_name: str = CharField()
-    group: UserGroup = EnumField(choices=UserGroup, default=UserGroup.USER)
-    is_active = BooleanField(default=True)
+    email = TypedCharField()
+    first_name = TypedCharField()
+    last_name = TypedCharField()
+    group = TypedEnumField(choices=UserGroup, default=UserGroup.USER)
+    is_active = TypedBooleanField(default=True)
 
-    photo: str = CharField(null=True)
+    photo = NullableCharField()
 
     def to_dto(self) -> UserDTO:
         return UserDTO(

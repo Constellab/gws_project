@@ -1,6 +1,5 @@
-from gws_core import Model
+from gws_core import Model, NullableCharField
 from gws_core.impl.file.local_file_store import LocalFileStore
-from peewee import CharField
 
 from gws_project.core.project_db_manager import ProjectDbManager
 
@@ -14,7 +13,7 @@ class ProjectConfig(Model):
     :meth:`get_instance`.
     """
 
-    file_store_id = CharField(max_length=36, null=True)
+    file_store_id = NullableCharField(max_length=36)
 
     @classmethod
     def get_instance(cls) -> "ProjectConfig":

@@ -1,7 +1,13 @@
 from datetime import datetime
 
-from gws_core import RichTextDbField, RichTextDTO
-from peewee import CharField, DateField, ForeignKeyField, IntegerField
+from gws_core import (
+    NullableCharField,
+    TypedCharField,
+    TypedDateField,
+    TypedForeignKeyField,
+    TypedIntegerField,
+    TypedRichTextDbField,
+)
 
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project_dto import ProjectDTO, ProjectStatus
@@ -17,16 +23,16 @@ class Project(ModelWithUser):
     Status values: 'active' (default), 'completed', 'archived', 'cancelled'
     """
 
-    title = CharField(max_length=255, null=False)
-    description: RichTextDTO = RichTextDbField(null=False)
-    start_date = DateField(null=False, index=True)
-    end_date = DateField(null=False, index=True)
-    project_manager: User = ForeignKeyField(User, null=False)
+    title = TypedCharField(max_length=255)
+    description = TypedRichTextDbField()
+    start_date = TypedDateField(index=True)
+    end_date = TypedDateField(index=True)
+    project_manager = TypedForeignKeyField(User)
     # DEPRECATED - unused at runtime. Id of the Space folder that mirrored this
     # project before documents moved to local storage. Kept only for the
     # MigrateProjectDataFromSpace task; dropped in a later release.
-    space_folder_id = CharField(max_length=36, unique=True, null=True)
-    progress = IntegerField(default=0, null=False)
+    space_folder_id = NullableCharField(max_length=36, unique=True)
+    progress = TypedIntegerField(default=0)
 
     def get_status(self) -> ProjectStatus:
         """Determine the current status of the project based on dates and progress.

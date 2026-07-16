@@ -1,7 +1,6 @@
 
 
-from gws_core import CurrentUserService, Model
-from peewee import ForeignKeyField
+from gws_core import CurrentUserService, Model, TypedForeignKeyField
 
 from gws_project.user.user import User
 
@@ -14,8 +13,8 @@ class ModelWithUser(Model):
     """
 
     # Use ForeignKey to reference the local User entity
-    created_by = ForeignKeyField(User, null=False, backref='+')
-    last_modified_by = ForeignKeyField(User, null=False, backref='+')
+    created_by = TypedForeignKeyField(User, backref='+')
+    last_modified_by = TypedForeignKeyField(User, backref='+')
 
     def _before_insert(self) -> None:
         super()._before_insert()
@@ -27,4 +26,3 @@ class ModelWithUser(Model):
         super()._before_update()
         current_user = CurrentUserService.get_and_check_current_user()
         self.last_modified_by = current_user
-

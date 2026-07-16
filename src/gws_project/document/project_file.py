@@ -1,8 +1,7 @@
 import os
 
-from gws_core import Model
+from gws_core import Model, TypedBigIntegerField, TypedCharField
 from gws_core.impl.file.local_file_store import LocalFileStore
-from peewee import BigIntegerField, CharField
 
 from gws_project.core.project_db_manager import ProjectDbManager
 
@@ -17,10 +16,10 @@ class ProjectFile(Model):
     re-implementing storage, so there is one file pattern for the whole brick.
     """
 
-    file_store = CharField(max_length=36, null=False)
-    path = CharField(max_length=1024, null=False)  # relative to the store root
-    name = CharField(max_length=255, null=False)
-    size = BigIntegerField(null=False, default=0)  # size in bytes
+    file_store = TypedCharField(max_length=36)
+    path = TypedCharField(max_length=1024)  # relative to the store root
+    name = TypedCharField(max_length=255)
+    size = TypedBigIntegerField(default=0)  # size in bytes
 
     def get_store(self) -> LocalFileStore | None:
         """The LocalFileStore this file lives in (None if it no longer exists).
