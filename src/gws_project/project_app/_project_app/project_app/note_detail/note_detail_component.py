@@ -1,10 +1,11 @@
 import reflex as rx
+from gws_project.document.project_document import PROJECT_DOCUMENT_RICH_TEXT_OBJECT_TYPE
 from gws_reflex_main import (
     main_component,
     right_sidebar_close_button,
     user_inline_component,
 )
-from gws_reflex_main.gws_components import rich_text_component
+from gws_reflex_main.gws_components import RichTextImageConfig, rich_text_component
 
 from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..common.detail_page_layout import detail_page_layout
@@ -146,6 +147,10 @@ def _note_content() -> rx.Component:
             disabled=False,
             output_event=NoteDetailState.handle_content_change,
             custom_style={"flex": "1", "display": "flex", "backgroundColor": "white"},
+            image_config=RichTextImageConfig(
+                object_type=PROJECT_DOCUMENT_RICH_TEXT_OBJECT_TYPE,
+                object_id=NoteDetailState.note_id,
+            ),
         ),
         width="100%",
         spacing="3",

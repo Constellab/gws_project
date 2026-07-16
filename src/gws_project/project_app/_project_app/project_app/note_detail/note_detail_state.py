@@ -77,6 +77,20 @@ class NoteDetailState(rx.State):
         return self._note.content
 
     @rx.var
+    async def note_id(self) -> str | None:
+        """Return the id of the loaded note.
+
+        Used by the rich text editor to store the images of the note in a directory
+        dedicated to it.
+
+        :return: The note id or None if not loaded
+        :rtype: Optional[str]
+        """
+        if not self._note:
+            return None
+        return self._note.id
+
+    @rx.var
     async def breadcrumbs(self) -> list[BreadcrumbItem]:
         """Build the breadcrumb trail for the note page.
 

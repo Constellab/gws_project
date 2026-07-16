@@ -5,12 +5,18 @@ from gws_core import (
     BadRequestException,
     BaseTestCase,
     RichText,
+    RichTextFileService,
     Settings,
     TestMockSpaceService,
 )
+from PIL import Image
+
 from gws_project.document.document_dto import ProjectDocumentType
 from gws_project.document.document_service import DocumentService
-from gws_project.document.project_document import ProjectDocument
+from gws_project.document.project_document import (
+    PROJECT_DOCUMENT_RICH_TEXT_OBJECT_TYPE,
+    ProjectDocument,
+)
 from gws_project.document.project_file import ProjectFile
 from gws_project.project.project import Project
 from gws_project.project.project_dto import SaveProjectDTO
@@ -239,3 +245,69 @@ class TestDocumentService(BaseTestCase):
         self.assertIsNone(ProjectDocument.get_by_id(sub_doc.id))
         self.assertFalse(os.path.exists(disk_path))
         self.assertIsNotNone(ProjectDocument.get_by_id(kept_doc.id))
+
+    ############################### NOTE IMAGES ###############################
+
+    def _add_note_image(self, note_id: str) -> str:
+        """Store an image for a note, like the rich text editor does, and return its path."""
+        image = Image.new("RGB", (5, 5), color="blue")
+        result = RichTextFileService.save_image(
+            PROJECT_DOCUMENT_RICH_TEXT_OBJECT_TYPE, note_id, image, "png"
+        )
+        image_path = RichTextFileService.get_figure_file_path(
+            PROJECT_DOCUMENT_RICH_TEXT_OBJECT_TYPE, note_id, result.filename
+        )
+        self.assertTrue(os.path.exists(image_path))
+        return image_path
+
+    def test_delete_note_cleans_images(self):
+        """Deleting a note removes the images of its content."""
+        document_service = DocumentService()
+        project = self._create_project()
+
+        note = document_service.create_note_for_project(project.id, "Note with image")
+        image_path = self._add_note_image(note.id)
+
+        document_service.delete_document(note.id)
+
+        self.assertIsNone(ProjectDocument.get_by_id(note.id))
+        self.assertFalse(os.path.exists(image_path))
+
+    def test_delete_project_cleans_note_images(self):
+        """Deleting a project removes the images of its notes (project and task level)."""
+        document_service = DocumentService()
+        project_service = ProjectService(TestMockSpaceService())
+        project = self._create_project()
+        task = self._create_task(project)
+
+        project_note = document_service.create_note_for_project(project.id, "Project note")
+        task_note = document_service.create_note_for_task(task.id, "Task note")
+        image_paths = [
+            self._add_note_image(project_note.id),
+            self._add_note_image(task_note.id),
+        ]
+
+        project_service.delete_project(project.id)
+
+        for image_path in image_paths:
+            self.assertFalse(os.path.exists(image_path))
+
+    def test_delete_task_cleans_note_images(self):
+        """Deleting a task removes the images of its notes, and keeps the other ones."""
+        document_service = DocumentService()
+        task_service = TaskService()
+        project = self._create_project()
+        task = self._create_task(project)
+
+        task_note = document_service.create_note_for_task(task.id, "Task note")
+        task_image_path = self._add_note_image(task_note.id)
+
+        # a project-level note survives the task deletion, its images must be kept
+        kept_note = document_service.create_note_for_project(project.id, "Kept note")
+        kept_image_path = self._add_note_image(kept_note.id)
+
+        task_service.delete_task(task.id)
+
+        self.assertIsNone(ProjectDocument.get_by_id(task_note.id))
+        self.assertFalse(os.path.exists(task_image_path))
+        self.assertTrue(os.path.exists(kept_image_path))

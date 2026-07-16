@@ -7,6 +7,7 @@ from gws_core import (
     Paginator,
     RichText,
     RichTextDTO,
+    RichTextFileService,
 )
 from gws_core.impl.file.local_file_store import LocalFileStore
 
@@ -17,7 +18,10 @@ from gws_project.document.document_dto import (
     ProjectNoteDTO,
 )
 from gws_project.document.project_config import ProjectConfig
-from gws_project.document.project_document import ProjectDocument
+from gws_project.document.project_document import (
+    PROJECT_DOCUMENT_RICH_TEXT_OBJECT_TYPE,
+    ProjectDocument,
+)
 from gws_project.document.project_file import ProjectFile
 from gws_project.project.project import Project
 from gws_project.project.project_security_service import ProjectSecurityService, ProjectUserRole
@@ -279,11 +283,22 @@ class DocumentService:
 
         return document.to_dto()
 
-    @ProjectDbManager.transaction()
     def delete_document(self, document_id: str) -> None:
         """Delete a document. For files, the file node is also removed from the
         store. This is a HARD delete: there is no trash, the document cannot be
         recovered.
+
+        :param document_id: The ID of the document to delete
+        :type document_id: str
+        """
+        self._delete_document_db(document_id)
+
+        # if the transaction is successful, delete the images in the file system
+        self._delete_documents_images([document_id])
+
+    @ProjectDbManager.transaction()
+    def _delete_document_db(self, document_id: str) -> None:
+        """Delete a document and its file node in the database.
 
         :param document_id: The ID of the document to delete
         :type document_id: str
@@ -293,20 +308,24 @@ class DocumentService:
         self._delete_document_and_file(document)
 
     def delete_documents_of_project(self, project: Project) -> None:
-        """Delete all documents of a project (including its tasks' documents)
-        and their file nodes. Called before deleting a project, because the DB
-        CASCADE removes the rows but not the files on disk.
+        """Delete all documents of a project (including its tasks' documents),
+        their file nodes and their rich-text images. Called before deleting a
+        project, because the DB CASCADE removes the rows but not the files on disk.
 
         :param project: The project being deleted
         :type project: Project
         """
-        for document in ProjectDocument.get_documents_of_project_and_subtree(project.id):
+        document_ids = [
             self._delete_document_and_file(document)
+            for document in ProjectDocument.get_documents_of_project_and_subtree(project.id)
+        ]
+
+        self._delete_documents_images(document_ids)
 
     def delete_documents_of_tasks(self, tasks: list[Task]) -> None:
-        """Delete all documents of the given tasks and their file nodes.
-        Called before deleting a task subtree, because the DB CASCADE removes
-        the rows but not the files on disk.
+        """Delete all documents of the given tasks, their file nodes and their
+        rich-text images. Called before deleting a task subtree, because the DB
+        CASCADE removes the rows but not the files on disk.
 
         :param tasks: The tasks being deleted
         :type tasks: List[Task]
@@ -316,8 +335,9 @@ class DocumentService:
             return
 
         documents = list(ProjectDocument.select().where(ProjectDocument.task.in_(task_ids)))
-        for document in documents:
-            self._delete_document_and_file(document)
+        document_ids = [self._delete_document_and_file(document) for document in documents]
+
+        self._delete_documents_images(document_ids)
 
     ################################ MIGRATION HELPERS ################################
 
@@ -407,19 +427,43 @@ class DocumentService:
 
         return document
 
-    def _delete_document_and_file(self, document: ProjectDocument) -> None:
+    def _delete_document_and_file(self, document: ProjectDocument) -> str:
         """Delete a document row and, for FILE documents, its ProjectFile row
         and file node in the store.
 
+        The rich-text images of the document are NOT deleted here: this runs inside a
+        transaction, so the images are deleted by the caller once it is committed (a
+        rollback must not leave a document pointing at a deleted image directory). Use
+        :meth:`_delete_documents_images` with the returned id.
+
         :param document: The document to delete
         :type document: ProjectDocument
+        :return: The id of the deleted document, to delete its images after the commit
+        :rtype: str
         """
+        document_id: str = document.id
         file: ProjectFile | None = document.file
         document.delete_instance()
 
         if file is not None:
             file.delete_file_from_store()
             file.delete_instance()
+
+        return document_id
+
+    def _delete_documents_images(self, document_ids: list[str]) -> None:
+        """Delete the rich-text image directories of documents.
+
+        MUST be called after the DB deletion is committed, never inside the transaction:
+        the files cannot be restored by a rollback.
+
+        :param document_ids: The ids of the deleted documents
+        :type document_ids: List[str]
+        """
+        for document_id in document_ids:
+            RichTextFileService.delete_object_dir(
+                PROJECT_DOCUMENT_RICH_TEXT_OBJECT_TYPE, document_id
+            )
 
     def _create_file_document(
         self,

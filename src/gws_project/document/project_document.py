@@ -12,6 +12,14 @@ from gws_project.document.project_file import ProjectFile
 from gws_project.project.project import Project
 from gws_project.task.task import Task
 
+PROJECT_DOCUMENT_RICH_TEXT_OBJECT_TYPE = "project_document"
+"""Rich text object type owning the images of a document's content.
+
+The images of a NOTE document are stored by ``RichTextFileService`` in a directory
+dedicated to the document (``.../project_document/{document_id}``), so they are deleted
+with the document (see ``DocumentService._delete_document_and_file``).
+"""
+
 
 class ProjectDocument(ModelWithUser):
     """A document attached to a project or a task.
@@ -22,7 +30,9 @@ class ProjectDocument(ModelWithUser):
       file registry backed by the dedicated ``LocalFileStore``); this row only
       references it.
     - ``type = NOTE``: the rich-text content lives in ``content`` (kept in DB,
-      transactional with edits, consistent with project/task descriptions).
+      transactional with edits, consistent with project/task descriptions). The
+      images of that content live on disk, see
+      ``PROJECT_DOCUMENT_RICH_TEXT_OBJECT_TYPE``.
 
     ``task`` points to the EXACT task the document belongs to (including
     subtasks), replacing the Space tag ``task:<id>``; ``task`` is null for

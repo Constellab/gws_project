@@ -7,5 +7,6 @@
     "env_type": "NONE",
     "env_file_path": "",
     "is_reflex_enterprise": false,
-    "dev_user_email": "test@gencovery.com"
+    "dev_user_email": "test@gencovery.com",
+    "access_mode": "AUTHENTICATED"
 }
