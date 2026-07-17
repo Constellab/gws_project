@@ -245,7 +245,7 @@ class ProjectService:
         project_user = ProjectUser()
         project_user.project = project
         project_user.user = User.get_by_id_and_check(current_user.id)
-        project_user.role = ProjectUserRole.OWNER.value
+        project_user.role = ProjectUserRole.OWNER
         project_user.save()
 
         return project
@@ -469,7 +469,7 @@ class ProjectService:
                 )
 
         # Update the role
-        project_user.role = role.value
+        project_user.role = role
         project_user.save()
 
         return project_user
