@@ -5,10 +5,10 @@ from gws_project.task.task_dto import TaskDTO, TaskStatus
 from gws_reflex_main import user_profile_picture
 
 from ...task_list.task_list_state import TaskListState
+from ..progress_bar import progress_bar
 from ..project_app_router import ProjectAppRouter
 from .task_actions_menu import task_actions_menu
 from .task_components import task_icon_component
-from ..progress_bar import progress_bar
 from .task_priority_chip_component import task_priority_chip
 from .task_status_chip_component import task_status_chip
 
@@ -120,7 +120,7 @@ def _task_card(task: TaskDTO) -> rx.Component:
             width="100%",
         ),
         padding="16px 20px",
-        background="white",
+        background="var(--card-background)",
         border_radius="14px",
         border="1px solid var(--gray-4)",
         width="100%",

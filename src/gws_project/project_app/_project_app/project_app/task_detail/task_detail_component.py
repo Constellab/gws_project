@@ -157,12 +157,12 @@ def _task_description_content() -> rx.Component:
             output_event=TaskDetailState.handle_description_change,
             custom_style=rx.cond(
                 TaskDetailState.description_edit_mode,
-                {"flex": "1", "display": "flex", "backgroundColor": "white"},
+                {"flex": "1", "display": "flex", "backgroundColor": "var(--card-background)"},
                 {
                     "padding": "0",
                     "flex": "1",
                     "display": "flex",
-                    "backgroundColor": "white",
+                    "backgroundColor": "var(--card-background)",
                 },
             ),
         ),

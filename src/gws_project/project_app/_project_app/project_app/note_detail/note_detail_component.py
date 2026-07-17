@@ -146,7 +146,7 @@ def _note_content() -> rx.Component:
             value=NoteDetailState.note_content,
             disabled=False,
             output_event=NoteDetailState.handle_content_change,
-            custom_style={"flex": "1", "display": "flex", "backgroundColor": "white"},
+            custom_style={"flex": "1", "display": "flex", "backgroundColor": "var(--card-background)"},
             image_config=RichTextImageConfig(
                 object_type=PROJECT_DOCUMENT_RICH_TEXT_OBJECT_TYPE,
                 object_id=NoteDetailState.note_id,

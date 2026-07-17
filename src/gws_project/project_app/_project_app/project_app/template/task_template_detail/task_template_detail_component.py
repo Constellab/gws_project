@@ -152,7 +152,7 @@ def task_template_description() -> rx.Component:
         min_height="0",
         display="flex",
         flex_direction="column",
-        background="white",
+        background="var(--card-background)",
         border_radius="8px",
         padding="1rem",
     )

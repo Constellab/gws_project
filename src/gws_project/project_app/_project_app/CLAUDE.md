@@ -204,4 +204,3 @@ Backend models are converted to DTOs for frontend use:
 
 - `rxconfig.py` - Reflex configuration (app name, API URL, frontend packages)
 - `dev_config.json` - Development configuration (app directory, user email)
-- `assets/style.css` - Custom CSS styles

@@ -1,7 +1,6 @@
 """Header component displaying project statistics cards."""
 
 import reflex as rx
-
 from gws_project.project.project_count_dto import ProjectCountDTO
 
 from ..common.status_colors import StatusColors
@@ -57,7 +56,7 @@ def _stat_card(
             spacing="3",
             align="center",
         ),
-        background="white",
+        background="var(--card-background)",
         border_radius="14px",
         padding="18px 20px",
         border="1px solid var(--gray-4)",

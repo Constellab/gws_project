@@ -20,8 +20,8 @@ def project_description_content() -> rx.Component:
             output_event=ProjectDetailState.handle_description_change,
             custom_style=rx.cond(
                 ProjectDetailState.description_edit_mode,
-                {"flex": "1", "display": "flex", "backgroundColor": "white"},
-                {"padding": "0", "flex": "1", "display": "flex", "backgroundColor": "white"}
+                {"flex": "1", "display": "flex", "backgroundColor": "var(--card-background)"},
+                {"padding": "0", "flex": "1", "display": "flex", "backgroundColor": "var(--card-background)"}
             )
         ),
         width="100%",
