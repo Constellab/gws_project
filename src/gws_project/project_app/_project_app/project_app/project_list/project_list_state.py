@@ -24,16 +24,22 @@ class ProjectListState(rx.State):
     # Filter state
     search_text: str = ""
     selected_manager_id: str = ""
+    selected_status_filter: str = ""
 
     # Data for filters
     available_managers: list[UserDTO] = []
 
+    # All projects matching the text/manager filters, before the status filter is applied.
+    # Kept separate so the stat cards always reflect the full counts, regardless of which
+    # status card is currently selected.
+    _all_projects: list[ProjectDTO] = []
+
     def _compute_project_count(self):
-        """Compute project count statistics from the loaded projects list."""
+        """Compute project count statistics from the full (status-unfiltered) projects list."""
         ongoing = 0
         done = 0
         todo = 0
-        for project in self.projects:
+        for project in self._all_projects:
             if project.status == ProjectStatus.COMPLETED:
                 done += 1
             elif project.status == ProjectStatus.ACTIVE:
@@ -42,11 +48,24 @@ class ProjectListState(rx.State):
                 todo += 1
 
         self.project_count = ProjectCountDTO(
-            total=len(self.projects),
+            total=len(self._all_projects),
             ongoing=ongoing,
             done=done,
             todo=todo,
         )
+
+    def _apply_status_filter(self) -> list[ProjectDTO]:
+        """Filter `_all_projects` by `selected_status_filter`, since project status is
+        computed on the fly and can't be filtered at the database level.
+
+        :return: The projects matching the currently selected status filter
+        :rtype: list[ProjectDTO]
+        """
+        if not self.selected_status_filter:
+            return self._all_projects
+
+        status = ProjectStatus(self.selected_status_filter)
+        return [project for project in self._all_projects if project.status == status]
 
     async def load_managers(self):
         """Load the list of all users who can be project managers.
@@ -90,10 +109,13 @@ class ProjectListState(rx.State):
             projects = search_builder.search_all()
 
             # Convert projects to DTOs
-            self.projects = [project.to_dto() for project in projects]
+            self._all_projects = [project.to_dto() for project in projects]
 
-            # Compute project count from loaded projects
+            # Compute project count from the full (status-unfiltered) list
             self._compute_project_count()
+
+            # Apply the status filter (if any) for display
+            self.projects = self._apply_status_filter()
 
         finally:
             self.is_loading = False
@@ -131,7 +153,20 @@ class ProjectListState(rx.State):
         """Clear all filters and reload projects."""
         self.search_text = ""
         self.selected_manager_id = ""
+        self.selected_status_filter = ""
         await self.load_projects()
+
+    @rx.event
+    def handle_status_filter_click(self, status: str):
+        """Handle a click on one of the stat cards (Ongoing, Completed, Not started).
+
+        Clicking the already-selected card clears the filter (toggle behavior).
+
+        :param status: The `ProjectStatus` value to filter by (e.g. "ACTIVE")
+        :type status: str
+        """
+        self.selected_status_filter = "" if self.selected_status_filter == status else status
+        self.projects = self._apply_status_filter()
 
     @rx.event
     def open_create_dialog(self):
