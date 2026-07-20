@@ -54,6 +54,7 @@ def _filter_bar() -> rx.Component:
             ),
             rx.select.content(
                 rx.select.item("All", value="all"),
+                rx.select.item("Last Week", value="last_week"),
                 rx.select.item("Current Week", value="current_week"),
                 rx.select.item("Next Week", value="next_week"),
                 rx.select.item("Current Month", value="current_month"),
