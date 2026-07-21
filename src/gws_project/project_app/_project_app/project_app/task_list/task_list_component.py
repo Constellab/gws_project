@@ -1,7 +1,67 @@
 import reflex as rx
+from gws_project.task.task_dto import TaskPriority, TaskStatus
+from gws_reflex_main.components.reflex_user_components import user_select
 
 from ..common.tasks.task_card_component import task_card_list_component
 from .task_list_state import TaskListState
+
+
+def _filter_bar() -> rx.Component:
+    """Create the filter bar with search, status, priority, and assignee filters.
+
+    :return: The filter bar component
+    :rtype: rx.Component
+    """
+    return rx.hstack(
+        # Text search input
+        rx.input(
+            rx.input.slot(rx.icon("search", size=16)),
+            placeholder="Search tasks...",
+            value=TaskListState.search_text,
+            on_change=TaskListState.handle_search_change,
+            min_width="250px",
+        ),
+        # Status filter select
+        rx.select.root(
+            rx.select.trigger(placeholder="All Statuses", width="160px"),
+            rx.select.content(
+                rx.select.item("All Statuses", value=""),
+                *[rx.select.item(status.value, value=status.value) for status in TaskStatus],
+            ),
+            value=TaskListState.selected_status_filter,
+            on_change=TaskListState.handle_status_filter_change,
+        ),
+        # Priority filter select
+        rx.select.root(
+            rx.select.trigger(placeholder="All Priorities", width="160px"),
+            rx.select.content(
+                rx.select.item("All Priorities", value=""),
+                *[rx.select.item(priority.value, value=priority.value) for priority in TaskPriority],
+            ),
+            value=TaskListState.selected_priority_filter,
+            on_change=TaskListState.handle_priority_filter_change,
+        ),
+        # Assignee filter select
+        user_select(
+            users=TaskListState.available_users,
+            placeholder="All Assignees",
+            value=TaskListState.selected_assignee_id,
+            on_change=TaskListState.handle_assignee_change,
+            width="200px",
+        ),
+        # Clear filters button
+        rx.button(
+            "Clear",
+            on_click=TaskListState.clear_filters,
+            variant="surface",
+            size="2",
+            color_scheme="gray",
+            radius="large",
+        ),
+        width="100%",
+        spacing="3",
+        wrap="wrap",
+    )
 
 
 def task_list_component() -> rx.Component:
@@ -63,6 +123,7 @@ def task_list_content() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
+        _filter_bar(),
         task_list_component(),
         width="100%",
         spacing="3",

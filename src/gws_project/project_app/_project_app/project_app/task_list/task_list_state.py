@@ -1,6 +1,8 @@
 import reflex as rx
-from gws_project.task.task_dto import TaskDTO
+from gws_core import UserDTO
+from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from gws_project.task.task_service import TaskService
+from gws_project.user.user import User
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import Task
@@ -18,6 +20,15 @@ class TaskListState(rx.State):
     _url_params: ProjectUrlParam | None = None
     _tasks: list[Task] = []
     is_loading: bool = False
+
+    # Filter state
+    search_text: str = ""
+    selected_status_filter: str = ""
+    selected_priority_filter: str = ""
+    selected_assignee_id: str = ""
+
+    # Data for filters
+    available_users: list[UserDTO] = []
 
     @rx.var
     async def current_object_id(self) -> str:
@@ -40,14 +51,36 @@ class TaskListState(rx.State):
 
     @rx.var
     async def get_tasks(self) -> list[TaskDTO]:
-        """Return the list of tasks as DTOs.
+        """Return the list of tasks as DTOs, with the current filters applied.
 
         Tasks are loaded on component mount via fetch_tasks_on_mount event.
+        Filtering happens in-memory since the full task list is already cached.
 
-        :return: List of TaskDTOs
+        :return: List of filtered TaskDTOs
         :rtype: List[TaskDTO]
         """
-        return [task.to_dto() for task in self._tasks]
+        tasks = [task.to_dto() for task in self._tasks]
+
+        if self.search_text:
+            search_lower = self.search_text.lower()
+            tasks = [task for task in tasks if search_lower in task.title.lower()]
+
+        if self.selected_status_filter:
+            status = TaskStatus(self.selected_status_filter)
+            tasks = [task for task in tasks if task.status == status]
+
+        if self.selected_priority_filter:
+            priority = TaskPriority(self.selected_priority_filter)
+            tasks = [task for task in tasks if task.priority == priority]
+
+        if self.selected_assignee_id:
+            tasks = [
+                task
+                for task in tasks
+                if task.assign_to and task.assign_to.id == self.selected_assignee_id
+            ]
+
+        return tasks
 
     @rx.event(background=True)  # type: ignore
     async def fetch_tasks_on_mount(self):
@@ -82,14 +115,61 @@ class TaskListState(rx.State):
                 else:
                     tasks = []
 
+                users = User.get_real_users()
+
                 async with self:
                     self._tasks = tasks
+                    self.available_users = [user.to_dto() for user in users]
                     self.is_loading = False
         except Exception as e:
             async with self:
                 self._tasks = []
                 self.is_loading = False
             raise e
+
+    @rx.event
+    def handle_search_change(self, value: str):
+        """Handle text search filter change.
+
+        :param value: The search text
+        :type value: str
+        """
+        self.search_text = value
+
+    @rx.event
+    def handle_status_filter_change(self, value: str):
+        """Handle status filter change.
+
+        :param value: The selected status ('TODO', 'DOING', 'DONE', or '' for all)
+        :type value: str
+        """
+        self.selected_status_filter = value
+
+    @rx.event
+    def handle_priority_filter_change(self, value: str):
+        """Handle priority filter change.
+
+        :param value: The selected priority ('HIGH', 'MEDIUM', 'LOW', or '' for all)
+        :type value: str
+        """
+        self.selected_priority_filter = value
+
+    @rx.event
+    def handle_assignee_change(self, value: str):
+        """Handle assignee filter change.
+
+        :param value: The selected user ID (empty string for "All Assignees")
+        :type value: str
+        """
+        self.selected_assignee_id = value
+
+    @rx.event
+    def clear_filters(self):
+        """Clear all task filters."""
+        self.search_text = ""
+        self.selected_status_filter = ""
+        self.selected_priority_filter = ""
+        self.selected_assignee_id = ""
 
     async def add_or_update_task(self, task: Task):
         """Update a task in the state.
@@ -221,3 +301,7 @@ class TaskListState(rx.State):
         self._tasks = []
         self._url_params = None
         self.is_loading = False
+        self.search_text = ""
+        self.selected_status_filter = ""
+        self.selected_priority_filter = ""
+        self.selected_assignee_id = ""
