@@ -7,6 +7,7 @@ from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import Task
 from ..common.projects.project_page_state import ProjectPageState, ProjectUrlParam
+from ..move_task_dialog.move_task_dialog_state import MoveTaskDialogState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 
 
@@ -214,6 +215,40 @@ class TaskListState(rx.State):
         form_state = await self.get_state(TaskFormDialogState)
 
         await form_state.open_update_dialog(task=task, callback_after_close=self.add_or_update_task)
+
+    @rx.event
+    async def open_move_task_dialog(self, task: TaskDTO):
+        """Open the move task dialog for the given task.
+
+        :param task: The task to move
+        :type task: TaskDTO
+        """
+        move_dialog_state = await self.get_state(MoveTaskDialogState)
+        await move_dialog_state.open_move_dialog(
+            task=task, callback_after_close=self._on_task_moved
+        )
+
+    async def _on_task_moved(self, task: Task):
+        """Callback invoked after a task is moved.
+
+        Keeps the local list in sync with the move: if the task still belongs in the
+        current view (same project root list, or same parent task's subtask list), it's
+        refreshed in place; otherwise it's removed since it now lives elsewhere.
+
+        :param task: The moved task
+        :type task: Task
+        """
+        still_here = False
+        if self._url_params:
+            if self._url_params.type == "project":
+                still_here = task.project.id == self._url_params.id and task.parent_task is None
+            elif self._url_params.type == "task":
+                still_here = bool(task.parent_task) and task.parent_task.id == self._url_params.id
+
+        if still_here:
+            await self.add_or_update_task(task)
+        else:
+            await self.delete_task(task.id)
 
     @rx.event
     async def open_change_task_type_dialog(self, task: TaskDTO):

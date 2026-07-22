@@ -104,6 +104,7 @@ def _task_card(task: TaskDTO) -> rx.Component:
                         on_update=lambda: TaskListState.open_update_task_dialog(task.id),
                         on_delete=lambda: TaskListState.open_delete_task_dialog(task),
                         on_change_type=lambda: TaskListState.open_change_task_type_dialog(task),
+                        on_move=lambda: TaskListState.open_move_task_dialog(task),
                         stop_propagation=True,
                     ),
                     spacing="2",

@@ -13,6 +13,7 @@ from ..common.documents_list.documents_list_state import DocumentsListState
 from ..common.page_layout import page_layout
 from ..common.progress_ring import progress_ring
 from ..common.projects.project_status_chip_component import project_status_chip
+from ..move_task_dialog.move_task_dialog_component import move_task_dialog
 from ..project_form_dialog.project_form_dialog_component import project_update_dialog
 from ..project_form_dialog.project_form_dialog_state import ProjectFormDialogState
 from ..task_form.task_form_dialog_component import task_form_dialog
@@ -451,4 +452,6 @@ def project_detail_page() -> rx.Component:
         manage_users_dialog(),
         # Add the task form dialog
         task_form_dialog(),
+        # Add the move task dialog
+        move_task_dialog(),
     )
