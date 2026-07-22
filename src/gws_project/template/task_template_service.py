@@ -2,6 +2,7 @@
 
 
 from gws_core import BadRequestException, RichText, RichTextDTO
+from peewee import fn
 
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.template.project_template import ProjectTemplate
@@ -113,11 +114,28 @@ class TaskTemplateService:
         task_template.priority = task_template_dto.priority
         task_template.allow_subtasks = task_template_dto.allow_subtasks
         task_template.assign_to_role = task_template_dto.assign_to_role
+        # Creation order, so sibling templates (and the tasks created from them) keep
+        # the order they were defined in, even when their dates/offsets tie
+        task_template.order_index = self._get_next_order_index()
 
         # Save to database
         task_template.save()
 
         return task_template
+
+    def _get_next_order_index(self) -> int:
+        """Get the next order_index value to assign to a newly created task template.
+
+        A single, brick-wide increasing counter is enough: order_index is only ever
+        compared between templates that are already scoped to the same listing (same
+        project template root level, or same parent's subtasks), so it just needs to
+        reflect relative creation order within any such group.
+
+        :return: The next order_index value
+        :rtype: int
+        """
+        max_order_index = TaskTemplate.select(fn.MAX(TaskTemplate.order_index)).scalar()
+        return (max_order_index or 0) + 1
 
     @ProjectDbManager.transaction()
     def update_task_template(self, task_template_id: str,

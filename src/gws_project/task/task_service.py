@@ -6,6 +6,7 @@ from gws_core import (
     RichText,
     RichTextDTO,
 )
+from peewee import fn
 
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.document.document_service import DocumentService
@@ -699,6 +700,9 @@ class TaskService:
         task.parent_task = parent_task
         task.title = task_dto.title
         task.description = RichText().to_dto()  # Initialize with empty rich text
+        # Creation order, used as a tiebreaker so tasks sharing the same start_date
+        # (e.g. created from a template with the same date offset) keep their order
+        task.order_index = self._get_next_order_index()
 
         # Set dates with defaults from project
         task.start_date = task_dto.start_date or project.start_date
@@ -718,6 +722,20 @@ class TaskService:
         task.assign_to = self._validate_assign_to_in_project(project.id, task_dto.assign_to_id)
 
         return task
+
+    def _get_next_order_index(self) -> int:
+        """Get the next order_index value to assign to a newly created task.
+
+        A single, brick-wide increasing counter is enough: order_index is only ever
+        compared between tasks that are already scoped to the same listing (same
+        project root level, or same parent's subtasks), so it just needs to reflect
+        relative creation order within any such group.
+
+        :return: The next order_index value
+        :rtype: int
+        """
+        max_order_index = Task.select(fn.MAX(Task.order_index)).scalar()
+        return (max_order_index or 0) + 1
 
     def _recalculate_parent_info(self, task: Task) -> None:
         """Update parent task information (dates, status, priority, progress) based on all its subtasks.

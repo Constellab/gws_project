@@ -45,6 +45,10 @@ class TaskTemplate(ModelWithUser):
     start_date_offset = TypedIntegerField(default=0)  # Days from project start
     duration_days = TypedIntegerField(default=1)  # Task duration in days
 
+    # Creation order, used to list sibling templates in the order they were defined,
+    # and copied onto the tasks created from them so they keep this order too.
+    order_index = TypedIntegerField(default=0)
+
     # Task configuration
     priority = TypedEnumField(choices=TaskPriority, max_length=10,
                               default=TaskPriority.MEDIUM)
@@ -130,27 +134,35 @@ class TaskTemplate(ModelWithUser):
     def get_root_tasks_of_template(cls, template_id: str) -> list['TaskTemplate']:
         """Get all root template tasks for a template
 
+        Ordered by order_index (creation order), not created_at: several templates can be
+        created within the same second, and created_at alone is not precise enough to keep
+        them in the order they were defined.
+
         :param template_id: The template ID
         :type template_id: str
-        :return: List of root template tasks ordered by created_at
+        :return: List of root template tasks in definition order
         :rtype: List[TaskTemplate]
         """
         return list(cls.select().where(
             (cls.project_template == template_id) & (cls.parent_task.is_null())
-        ).order_by(cls.created_at))
+        ).order_by(cls.order_index))
 
     @classmethod
     def get_subtasks_of_template_task(cls, parent_task_id: str) -> list['TaskTemplate']:
         """Get all subtasks of a parent template task
 
+        Ordered by order_index (creation order), not created_at: several templates can be
+        created within the same second, and created_at alone is not precise enough to keep
+        them in the order they were defined.
+
         :param parent_task_id: The parent template task ID
         :type parent_task_id: str
-        :return: List of subtasks ordered by created_at
+        :return: List of subtasks in definition order
         :rtype: List[TaskTemplate]
         """
         return list(cls.select().where(
             cls.parent_task == parent_task_id
-        ).order_by(cls.created_at))
+        ).order_by(cls.order_index))
 
     def to_dto(self) -> TaskTemplateDTO:
         """Convert the TaskTemplate model to a TaskTemplateDTO for display in the frontend.
