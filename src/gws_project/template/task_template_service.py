@@ -2,6 +2,7 @@
 
 
 from gws_core import BadRequestException, RichText, RichTextDTO
+from peewee import fn
 
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.template.project_template import ProjectTemplate
@@ -32,7 +33,7 @@ class TaskTemplateService:
 
         :param template_id: The ID of the project template
         :type template_id: str
-        :return: List of root task templates ordered by created_at
+        :return: List of root task templates ordered by start offset
         :rtype: List[TaskTemplate]
         """
         return TaskTemplate.get_root_tasks_of_template(template_id)
@@ -42,7 +43,7 @@ class TaskTemplateService:
 
         :param task_template_id: The ID of the task template
         :type task_template_id: str
-        :return: List of subtask templates ordered by created_at
+        :return: List of subtask templates ordered by start offset
         :rtype: List[TaskTemplate]
         :raises NotFoundException: If the task template is not found
         """
@@ -50,6 +51,59 @@ class TaskTemplateService:
         TaskTemplate.get_by_id_and_check(task_template_id)
 
         return TaskTemplate.get_subtasks_of_template_task(task_template_id)
+
+    @ProjectDbManager.transaction()
+    def move_task_template(self, task_template_id: str, direction: str) -> TaskTemplate:
+        """Move a task template up or down among its sibling templates that share the
+        same start_date_offset.
+
+        start_date_offset is always the primary sort order; this only lets the user
+        break ties between templates scheduled on the same offset, by swapping the
+        moved template's order_index with its neighbor's within that tied group.
+
+        :param task_template_id: The ID of the task template to move
+        :type task_template_id: str
+        :param direction: "up" or "down"
+        :type direction: str
+        :return: The moved task template
+        :rtype: TaskTemplate
+        :raises NotFoundException: If the task template is not found
+        :raises BadRequestException: If direction is invalid, or the template is already
+            at the top/bottom of its tied group
+        """
+        if direction not in ("up", "down"):
+            raise BadRequestException("Direction must be 'up' or 'down'.")
+
+        task_template = TaskTemplate.get_by_id_and_check(task_template_id)
+
+        if task_template.parent_task:
+            siblings = TaskTemplate.get_subtasks_of_template_task(task_template.parent_task.id)
+        else:
+            siblings = TaskTemplate.get_root_tasks_of_template(task_template.project_template.id)
+
+        # Siblings are already ordered by (start_date_offset, order_index), so filtering
+        # to the same offset preserves their relative order_index order.
+        tied_group = [t for t in siblings if t.start_date_offset == task_template.start_date_offset]
+        index = next(i for i, t in enumerate(tied_group) if t.id == task_template.id)
+
+        if direction == "up":
+            if index == 0:
+                raise BadRequestException(
+                    "This task template is already first among templates with the same start offset."
+                )
+            neighbor = tied_group[index - 1]
+        else:
+            if index == len(tied_group) - 1:
+                raise BadRequestException(
+                    "This task template is already last among templates with the same start offset."
+                )
+            neighbor = tied_group[index + 1]
+
+        task_template.order_index, neighbor.order_index = neighbor.order_index, task_template.order_index
+        task_template.save()
+        neighbor.save()
+
+        return task_template
 
     @ProjectDbManager.transaction()
     def create_task_template(self, template_id: str, task_template_dto: SaveTaskTemplateDTO,
@@ -113,11 +167,28 @@ class TaskTemplateService:
         task_template.priority = task_template_dto.priority
         task_template.allow_subtasks = task_template_dto.allow_subtasks
         task_template.assign_to_role = task_template_dto.assign_to_role
+        # Creation order, so sibling templates (and the tasks created from them) keep
+        # the order they were defined in, even when their dates/offsets tie
+        task_template.order_index = self._get_next_order_index()
 
         # Save to database
         task_template.save()
 
         return task_template
+
+    def _get_next_order_index(self) -> int:
+        """Get the next order_index value to assign to a newly created task template.
+
+        A single, brick-wide increasing counter is enough: order_index is only ever
+        compared between templates that are already scoped to the same listing (same
+        project template root level, or same parent's subtasks), so it just needs to
+        reflect relative creation order within any such group.
+
+        :return: The next order_index value
+        :rtype: int
+        """
+        max_order_index = TaskTemplate.select(fn.MAX(TaskTemplate.order_index)).scalar()
+        return (max_order_index or 0) + 1
 
     @ProjectDbManager.transaction()
     def update_task_template(self, task_template_id: str,

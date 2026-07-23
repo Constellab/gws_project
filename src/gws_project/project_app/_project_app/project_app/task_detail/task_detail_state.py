@@ -10,6 +10,7 @@ from gws_reflex_main import ConfirmDialogState, ReflexMainState
 from ..common.project_app_router import ProjectAppRouter
 from ..common.projects.project_page_state import ProjectPageState
 from ..common.view_mode_state import ViewModeState
+from ..move_task_dialog.move_task_dialog_state import MoveTaskDialogState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 from ..task_list.task_list_state import TaskListState
 
@@ -170,6 +171,32 @@ class TaskDetailState(rx.State):
         :type task: Task
         """
         # Refresh the current task by reloading from the page state
+        project_page_state = await self.get_state(ProjectPageState)
+        await project_page_state.refresh_object()
+
+    @rx.event
+    async def open_move_task_dialog(self):
+        """Open the move task dialog for the currently viewed task."""
+        task = await self.task
+        if not task:
+            yield rx.toast.error("Task not found")
+            return
+
+        move_dialog_state = await self.get_state(MoveTaskDialogState)
+        await move_dialog_state.open_move_dialog(
+            task=task, callback_after_close=self._on_task_moved
+        )
+
+    async def _on_task_moved(self, _: Task):
+        """Callback after the currently viewed task is moved.
+
+        The task keeps the same ID (and URL) and its own subtasks are unaffected by the
+        move, so we only need to refresh its cached project/parent task relationship,
+        used by the breadcrumb and the details sidebar.
+
+        :param task: The moved task
+        :type task: Task
+        """
         project_page_state = await self.get_state(ProjectPageState)
         await project_page_state.refresh_object()
 

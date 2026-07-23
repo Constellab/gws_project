@@ -9,6 +9,7 @@ def task_actions_menu(
     on_update: rx.EventHandler | Callable,
     on_delete: rx.EventHandler | Callable,
     on_change_type: rx.EventHandler | Callable | None = None,
+    on_move: rx.EventHandler | Callable | None = None,
     stop_propagation: bool = False,
     **kwargs,
 ) -> rx.Component:
@@ -20,6 +21,8 @@ def task_actions_menu(
     :type on_delete: rx.EventHandler | Callable
     :param on_change_type: Event handler for the change type action
     :type on_change_type: rx.EventHandler | Callable | None
+    :param on_move: Event handler for the move (change project/parent task) action
+    :type on_move: rx.EventHandler | Callable | None
     :param stop_propagation: Whether to stop event propagation (useful in table rows)
     :type stop_propagation: bool
     :return: The actions menu component
@@ -45,6 +48,16 @@ def task_actions_menu(
                 rx.icon("arrow-left-right", size=16),
                 "Change task type",
                 on_click=change_type_click,
+            )
+        )
+
+    if on_move:
+        move_click = [rx.stop_propagation, on_move] if stop_propagation else on_move
+        menu_items.append(
+            rx.menu.item(
+                rx.icon("move", size=16),
+                "Move",
+                on_click=move_click,
             )
         )
 

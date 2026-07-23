@@ -17,6 +17,7 @@ from ..common.tasks.task_actions_menu import task_actions_menu
 from ..common.tasks.task_components import task_icon_component
 from ..common.tasks.task_priority_chip_component import task_priority_chip
 from ..common.tasks.task_status_chip_component import task_status_chip
+from ..move_task_dialog.move_task_dialog_component import move_task_dialog
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_list.task_list_component import task_list_content
 from .task_detail_state import TaskDetailState
@@ -135,6 +136,7 @@ def task_header() -> rx.Component:
             on_update=TaskDetailState.open_update_task_dialog,
             on_delete=TaskDetailState.open_delete_task_dialog,
             on_change_type=TaskDetailState.open_change_task_type_dialog,
+            on_move=TaskDetailState.open_move_task_dialog,
         ),
         width="100%",
         align="center",
@@ -511,4 +513,6 @@ def task_detail_page() -> rx.Component:
         ),
         # Add the task form dialog
         task_form_dialog(),
+        # Add the move task dialog
+        move_task_dialog(),
     )

@@ -46,6 +46,10 @@ class Task(ModelWithUser):
     # MigrateProjectDataFromSpace task; dropped in a later release.
     space_folder_id = NullableCharField(max_length=36)
     progress = TypedIntegerField(default=0)
+    # Creation order, used as a tiebreaker when sorting tasks that share the same
+    # start_date (e.g. tasks created from a template with the same date offset),
+    # so they keep the order they were defined/created in.
+    order_index = TypedIntegerField(default=0)
 
     subtasks: list["Task"]
 
@@ -226,25 +230,39 @@ class Task(ModelWithUser):
     def get_root_tasks_of_project(cls, project_id: str) -> list["Task"]:
         """Get all tasks associated with a project
 
+        Ordered by start_date, then by order_index (creation order) as a tiebreaker so
+        tasks sharing the same start_date (e.g. created from a template with the same
+        date offset) keep their original order.
+
         :param project: The project
         :type project: Project
         :return: List of tasks
         :rtype: List[Task]
         """
         return list(
-            cls.select().where((cls.project == project_id) & (cls.parent_task.is_null())).order_by(cls.start_date)
+            cls.select()
+            .where((cls.project == project_id) & (cls.parent_task.is_null()))
+            .order_by(cls.start_date, cls.order_index)
         )
 
     @classmethod
     def get_subtasks_of_task(cls, parent_task_id: str) -> list["Task"]:
         """Get all subtasks of a parent task
 
+        Ordered by start_date, then by order_index (creation order) as a tiebreaker so
+        tasks sharing the same start_date (e.g. created from a template with the same
+        date offset) keep their original order.
+
         :param parent_task: The parent task
         :type parent_task: Task
         :return: List of subtasks
         :rtype: List[Task]
         """
-        return list(cls.select().where(cls.parent_task == parent_task_id).order_by(cls.start_date))
+        return list(
+            cls.select()
+            .where(cls.parent_task == parent_task_id)
+            .order_by(cls.start_date, cls.order_index)
+        )
 
     @classmethod
     def get_tasks_of_user(cls, user_id: str) -> list["Task"]:

@@ -1,5 +1,6 @@
 
 import reflex as rx
+from gws_core import BaseModelDTO
 from gws_project.template.task_template import TaskTemplate
 from gws_project.template.task_template_dto import TaskTemplateDTO
 from gws_project.template.task_template_service import TaskTemplateService
@@ -7,6 +8,22 @@ from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..task_template_form_dialog import TaskTemplateFormDialogState
 from ..template_page_state import TemplatePageState, TemplateUrlParam
+
+
+class TaskTemplateRowDTO(BaseModelDTO):
+    """A task template annotated with whether it can be moved up/down among the
+    sibling templates that share its start_date_offset (used to enable/disable the
+    move up/down menu items in the table).
+
+    A pydantic DTO (not a plain dataclass), so the nested `template` field's own
+    fields (title, start_date_offset, ...) bind correctly as Reflex Vars in the
+    frontend - a dataclass wrapping a pydantic model does not serialize its nested
+    fields the same way.
+    """
+
+    template: TaskTemplateDTO
+    can_move_up: bool
+    can_move_down: bool
 
 
 class TaskTemplateListState(rx.State):
@@ -49,11 +66,11 @@ class TaskTemplateListState(rx.State):
         return len(templates)
 
     @rx.var
-    async def get_task_templates(self) -> list[TaskTemplateDTO]:
+    async def get_task_templates(self) -> list[TaskTemplateRowDTO]:
         """Get all task templates for the current project template.
 
-        :return: List of task template DTOs
-        :rtype: List[TaskTemplateDTO]
+        :return: List of task template rows, annotated with move up/down eligibility
+        :rtype: List[TaskTemplateRowDTO]
         """
         template_state = await self.get_state(TemplatePageState)
         url_param = await template_state.get_url_params()
@@ -72,7 +89,78 @@ class TaskTemplateListState(rx.State):
                 else:
                     self._task_templates = []
 
-        return [task_template.to_dto() for task_template in self._task_templates]
+        return self._build_rows()
+
+    def _build_rows(self) -> list[TaskTemplateRowDTO]:
+        """Build the display rows from `_task_templates`.
+
+        `_task_templates` is already ordered by (start_date_offset, order_index), so a
+        template can move up if the previous one shares its offset, and down if the
+        next one does - no separate query needed to know that.
+
+        :return: List of task template rows
+        :rtype: List[TaskTemplateRowDTO]
+        """
+        rows: list[TaskTemplateRowDTO] = []
+        last_index = len(self._task_templates) - 1
+        for index, task_template in enumerate(self._task_templates):
+            can_move_up = (
+                index > 0
+                and self._task_templates[index - 1].start_date_offset == task_template.start_date_offset
+            )
+            can_move_down = (
+                index < last_index
+                and self._task_templates[index + 1].start_date_offset == task_template.start_date_offset
+            )
+            rows.append(
+                TaskTemplateRowDTO(
+                    template=task_template.to_dto(),
+                    can_move_up=can_move_up,
+                    can_move_down=can_move_down,
+                )
+            )
+        return rows
+
+    @rx.event
+    async def move_task_template_up(self, task_template_id: str):
+        """Move a task template up among the sibling templates that share its start offset.
+
+        :param task_template_id: The ID of the task template to move
+        :type task_template_id: str
+        """
+        await self._move_task_template(task_template_id, "up")
+
+    @rx.event
+    async def move_task_template_down(self, task_template_id: str):
+        """Move a task template down among the sibling templates that share its start offset.
+
+        :param task_template_id: The ID of the task template to move
+        :type task_template_id: str
+        """
+        await self._move_task_template(task_template_id, "down")
+
+    async def _move_task_template(self, task_template_id: str, direction: str):
+        """Move a task template and refresh the local list to reflect the new order.
+
+        :param task_template_id: The ID of the task template to move
+        :type task_template_id: str
+        :param direction: "up" or "down"
+        :type direction: str
+        """
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            task_template_service = TaskTemplateService()
+            task_template_service.move_task_template(task_template_id, direction)
+
+            # Refresh the cached list so the new order is reflected
+            if self._url_params and self._url_params.type == "template":
+                self._task_templates = task_template_service.get_root_tasks_of_template(
+                    self._url_params.id
+                )
+            elif self._url_params and self._url_params.type == "task_template":
+                self._task_templates = task_template_service.get_subtasks_of_task_template(
+                    self._url_params.id
+                )
 
     def delete_task_template(self, task_template_id: str):
         """Delete a task template from the state.

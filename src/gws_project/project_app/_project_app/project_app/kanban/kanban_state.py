@@ -74,7 +74,7 @@ class KanbanState(rx.State):
     def _get_date_range(self, filter_type: str) -> tuple[date | None, date | None]:
         """Calculate start and end dates based on the selected filter type.
 
-        :param filter_type: One of 'all', 'current_week', 'next_week', 'current_month'
+        :param filter_type: One of 'all', 'last_week', 'current_week', 'next_week', 'current_month'
         :type filter_type: str
         :return: Tuple of (start_date, end_date), or (None, None) for 'all'
         :rtype: tuple[date | None, date | None]
@@ -89,6 +89,11 @@ class KanbanState(rx.State):
             # Get Monday of current week (weekday 0 = Monday)
             start_date = today - timedelta(days=today.weekday())
             # Get Sunday of current week
+            end_date = start_date + timedelta(days=6)
+        elif filter_type == "last_week":
+            # Get Monday of last week
+            start_date = today - timedelta(days=today.weekday()) - timedelta(weeks=1)
+            # Get Sunday of last week
             end_date = start_date + timedelta(days=6)
         elif filter_type == "next_week":
             # Get Monday of next week
@@ -193,7 +198,7 @@ class KanbanState(rx.State):
     async def handle_date_filter_change(self, value: str):
         """Handle date filter change.
 
-        :param value: The selected date filter ('current_week', 'next_week', 'current_month')
+        :param value: The selected date filter ('last_week', 'current_week', 'next_week', 'current_month')
         :type value: str
         """
         self.selected_date_filter = value

@@ -6,6 +6,7 @@ from gws_core import (
     RichText,
     RichTextDTO,
 )
+from peewee import fn
 
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.document.document_service import DocumentService
@@ -388,6 +389,208 @@ class TaskService:
 
         return task
 
+    def _resolve_new_parent_task(
+        self, task: Task, new_project: Project, new_parent_task_id: str | None
+    ) -> Task | None:
+        """Resolve and validate the destination parent task for a move operation.
+
+        :param task: The task being moved
+        :type task: Task
+        :param new_project: The destination project
+        :type new_project: Project
+        :param new_parent_task_id: The ID of the destination parent task, or None for a root task
+        :type new_parent_task_id: Optional[str]
+        :return: The destination parent task, or None if moving to a root position
+        :rtype: Optional[Task]
+        :raises BadRequestException: If the destination parent is invalid
+        """
+        if not new_parent_task_id:
+            return None
+
+        security_service = ProjectSecurityService()
+        new_parent_task = security_service.get_and_check_role_for_task(
+            new_parent_task_id, ProjectUserRole.USER
+        )
+
+        if new_parent_task.id == task.id:
+            raise BadRequestException("Cannot move a task under itself.")
+
+        if new_parent_task.project.id != new_project.id:
+            raise BadRequestException(
+                "The destination parent task must belong to the destination project."
+            )
+
+        if not new_parent_task.allow_subtasks:
+            raise BadRequestException(
+                f"Cannot move the task under '{new_parent_task.title}' because it does not "
+                "allow subtasks. Enable subtasks on that task first."
+            )
+
+        if task.allow_subtasks:
+            descendant_ids = {descendant.id for descendant in task.get_all_descendants()}
+            if new_parent_task.id in descendant_ids:
+                raise BadRequestException("Cannot move a task under one of its own subtasks.")
+
+        return new_parent_task
+
+    def _validate_move(
+        self,
+        task: Task,
+        new_project: Project,
+        new_parent_task: Task | None,
+        same_project: bool,
+        old_parent_task: Task | None,
+    ) -> None:
+        """Validate a move operation before it is applied.
+
+        :param task: The task being moved
+        :type task: Task
+        :param new_project: The destination project
+        :type new_project: Project
+        :param new_parent_task: The destination parent task, or None for a root task
+        :type new_parent_task: Optional[Task]
+        :param same_project: Whether the destination project is the same as the current one
+        :type same_project: bool
+        :param old_parent_task: The task's current parent task, or None if it's a root task
+        :type old_parent_task: Optional[Task]
+        :raises BadRequestException: If the move is a no-op, or if an assignee (of the task or one
+            of its descendants) is not a member of the destination project, or if a leaf task's
+            dates fall outside the destination project's bounds
+        """
+        old_parent_id = old_parent_task.id if old_parent_task else None
+        new_parent_id = new_parent_task.id if new_parent_task else None
+        if same_project and old_parent_id == new_parent_id:
+            raise BadRequestException("The task is already in that location.")
+
+        # Moving to another project: the assignees of the task and all its descendants
+        # must be members of the destination project
+        if not same_project:
+            self._validate_assign_to_in_project(
+                new_project.id, task.assign_to.id if task.assign_to else None
+            )
+            for descendant in task.get_all_descendants():
+                self._validate_assign_to_in_project(
+                    new_project.id, descendant.assign_to.id if descendant.assign_to else None
+                )
+
+        # A leaf task becoming a root task must respect the destination project's date bounds
+        # (parent tasks have their dates auto-calculated from subtasks, so no check for them)
+        if new_parent_task is None and task.is_leaf_task():
+            self._validate_task_dates_within_project(new_project, task.start_date, task.end_date)
+
+    @ProjectDbManager.transaction()
+    def move_task(
+        self, task_id: str, new_project_id: str, new_parent_task_id: str | None
+    ) -> Task:
+        """Move a task to a new project and/or under a new parent task.
+
+        This supports every combination:
+        - Promote a subtask to a root task (new_parent_task_id=None), in the same or another project
+        - Move a root task under a task with subtasks, in the same or another project
+        - Re-parent a subtask under another task, in the same or another project
+        - Move a task (and its whole subtree, if any) to another project without changing its parent
+
+        The old and new ancestor chains (and project progress) are recalculated after the move.
+
+        :param task_id: The ID of the task to move
+        :type task_id: str
+        :param new_project_id: The ID of the destination project
+        :type new_project_id: str
+        :param new_parent_task_id: The ID of the destination parent task, or None to make it a root task
+        :type new_parent_task_id: Optional[str]
+        :return: The moved task
+        :rtype: Task
+        :raises BadRequestException: If the destination is invalid (cycle, wrong project, parent
+            doesn't allow subtasks, assignees not in the destination project, or no-op move)
+        :raises NotFoundException: If the task, destination project, or destination parent is not found
+        :raises UnauthorizedException: If the user doesn't have access to the task or destination project
+        """
+        security_service = ProjectSecurityService()
+        task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
+        new_project = security_service.get_and_check_role_for_project(
+            new_project_id, ProjectUserRole.USER
+        )
+        new_parent_task = self._resolve_new_parent_task(task, new_project, new_parent_task_id)
+
+        old_parent_task = task.parent_task
+        old_project = task.project
+        same_project = old_project.id == new_project.id
+        self._validate_move(task, new_project, new_parent_task, same_project, old_parent_task)
+
+        task.project = new_project
+        task.parent_task = new_parent_task
+        task.save()
+
+        # The whole subtree moves along with the task when the project changes
+        if not same_project:
+            for descendant in task.get_all_descendants():
+                descendant.project = new_project
+                descendant.save()
+
+        # Recalculate the old side: the old parent lost a subtask, or the old project's
+        # root task set changed
+        if old_parent_task:
+            self._recalculate_task_chain(old_parent_task)
+        else:
+            self._recalculate_project_progress(old_project)
+
+        # Recalculate the new side: the new parent gained a subtask, or the new project's
+        # root task set changed
+        if new_parent_task:
+            self._recalculate_task_chain(new_parent_task)
+        else:
+            self._recalculate_project_progress(new_project)
+
+        return task
+
+    def get_navigable_child_tasks(
+        self, project_id: str, parent_task_id: str | None, exclude_task_id: str | None = None
+    ) -> list[Task]:
+        """Get the child "folder" tasks at one level of the task hierarchy: either the
+        root tasks of a project (if `parent_task_id` is None) or the subtasks of a given
+        parent task, keeping only tasks that themselves allow subtasks (so they can be
+        browsed into further or used as a destination).
+
+        Powers the hierarchical folder-style browser used to move a task: excludes
+        `exclude_task_id` and all of its descendants, since moving a task under itself or
+        one of its own subtasks would create a cycle.
+
+        :param project_id: The ID of the project being browsed
+        :type project_id: str
+        :param parent_task_id: The ID of the parent task to list subtasks of, or None to
+            list the project's root tasks
+        :type parent_task_id: Optional[str]
+        :param exclude_task_id: A task ID to exclude, along with its descendants
+        :type exclude_task_id: Optional[str]
+        :return: List of child tasks that allow subtasks
+        :rtype: List[Task]
+        """
+        security_service = ProjectSecurityService()
+
+        if parent_task_id:
+            parent_task = security_service.get_and_check_role_for_task(
+                parent_task_id, ProjectUserRole.USER
+            )
+            if parent_task.project.id != project_id:
+                raise BadRequestException("The parent task does not belong to the given project.")
+            children = Task.get_subtasks_of_task(parent_task.id)
+        else:
+            project = security_service.get_and_check_role_for_project(
+                project_id, ProjectUserRole.USER
+            )
+            children = Task.get_root_tasks_of_project(project.id)
+
+        excluded_ids: set[str] = set()
+        if exclude_task_id:
+            excluded_ids.add(exclude_task_id)
+            excluded_task = Task.get_by_id(exclude_task_id)
+            if excluded_task:
+                excluded_ids.update(
+                    descendant.id for descendant in excluded_task.get_all_descendants()
+                )
+
+        return [task for task in children if task.allow_subtasks and task.id not in excluded_ids]
+
     @ProjectDbManager.transaction()
     def delete_task(self, task_id: str) -> None:
         """Delete a task and all its descendants recursively, along with their
@@ -497,6 +700,9 @@ class TaskService:
         task.parent_task = parent_task
         task.title = task_dto.title
         task.description = RichText().to_dto()  # Initialize with empty rich text
+        # Creation order, used as a tiebreaker so tasks sharing the same start_date
+        # (e.g. created from a template with the same date offset) keep their order
+        task.order_index = self._get_next_order_index()
 
         # Set dates with defaults from project
         task.start_date = task_dto.start_date or project.start_date
@@ -516,6 +722,20 @@ class TaskService:
         task.assign_to = self._validate_assign_to_in_project(project.id, task_dto.assign_to_id)
 
         return task
+
+    def _get_next_order_index(self) -> int:
+        """Get the next order_index value to assign to a newly created task.
+
+        A single, brick-wide increasing counter is enough: order_index is only ever
+        compared between tasks that are already scoped to the same listing (same
+        project root level, or same parent's subtasks), so it just needs to reflect
+        relative creation order within any such group.
+
+        :return: The next order_index value
+        :rtype: int
+        """
+        max_order_index = Task.select(fn.MAX(Task.order_index)).scalar()
+        return (max_order_index or 0) + 1
 
     def _recalculate_parent_info(self, task: Task) -> None:
         """Update parent task information (dates, status, priority, progress) based on all its subtasks.
@@ -551,6 +771,27 @@ class TaskService:
 
         else:
             # If this is a root task, recalculate project progress
+            self._recalculate_project_progress(task.project)
+
+    def _recalculate_task_chain(self, task: Task) -> None:
+        """Recalculate `task` itself from its subtasks, then its whole ancestor chain.
+
+        Unlike `_recalculate_parent_info` (which starts from the ancestors of the task
+        that was directly modified), this starts at `task` itself. Used after moving a
+        task, where `task` is the old/new parent whose subtask set just changed (not the
+        moved task, whose own values are unaffected by the move).
+
+        :param task: The task to recalculate (and all its ancestors)
+        :type task: Task
+        """
+        if task.allow_subtasks:
+            has_changes = task.update_from_subtasks()
+            if has_changes:
+                task.save()
+
+        if task.parent_task:
+            self._recalculate_task_chain(task.parent_task)
+        else:
             self._recalculate_project_progress(task.project)
 
     @ProjectDbManager.transaction()
