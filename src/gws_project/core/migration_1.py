@@ -6,11 +6,11 @@ from gws_project.template.task_template import TaskTemplate
 
 
 @brick_migration(
-    "0.2.0-beta.4",
+    "0.2.0-beta.5",
     short_description="Add order_index to task and task template to preserve creation order for tied dates",
     db_manager=ProjectDbManager.get_instance(),
 )
-class Migration0204Beta4(BrickMigration):
+class Migration0205Beta5(BrickMigration):
     @classmethod
     def migrate(cls, sql_migrator: SqlMigrator, from_version: Version, to_version: Version) -> None:
         # Add order_index column to Task and TaskTemplate tables
