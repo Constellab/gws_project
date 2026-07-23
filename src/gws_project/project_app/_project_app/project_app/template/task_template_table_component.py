@@ -1,20 +1,23 @@
 import reflex as rx
-from gws_project.template.task_template_dto import TaskTemplateDTO
 
 from ..common.project_app_router import ProjectAppRouter
 from ..common.tasks.task_priority_chip_component import task_priority_chip
+from .task_template_list.task_template_list_state import TaskTemplateListState, TaskTemplateRowDTO
 
 
 def task_template_table_component(
-    task_templates: list[TaskTemplateDTO], empty_message: str = "No task templates found"
+    task_templates: list[TaskTemplateRowDTO], empty_message: str = "No task templates found"
 ) -> rx.Component:
     """Create a reusable task template table component.
 
     This component displays a table of task templates with columns for title,
     dates (offset and duration), priority, assigned role, and actions menu.
 
-    :param task_templates: List of task template DTOs to display
-    :type task_templates: List[TaskTemplateDTO]
+    Templates are expected to already be sorted by start offset (ascending); the
+    actions menu lets the user reorder templates that share the same offset.
+
+    :param task_templates: List of task template rows to display
+    :type task_templates: List[TaskTemplateRowDTO]
     :param empty_message: Message to display when no task templates are found
     :type empty_message: str
     :return: The task template table component
@@ -51,14 +54,15 @@ def task_template_table_component(
     )
 
 
-def _task_template_row(task_template: TaskTemplateDTO) -> rx.Component:
+def _task_template_row(row: TaskTemplateRowDTO) -> rx.Component:
     """Create a table row for a single task template.
 
-    :param task_template: The task template data transfer object
-    :type task_template: TaskTemplateDTO
+    :param row: The task template row (template + move up/down eligibility)
+    :type row: TaskTemplateRowDTO
     :return: The task template row component
     :rtype: rx.Component
     """
+    task_template = row.template
     return rx.table.row(
         rx.table.cell(
             rx.hstack(
@@ -85,7 +89,7 @@ def _task_template_row(task_template: TaskTemplateDTO) -> rx.Component:
                 rx.text("Unassigned", size="2", color="gray"),
             )
         ),
-        rx.table.cell(_actions_menu(task_template)),
+        rx.table.cell(_actions_menu(row)),
         style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
         on_click=lambda: rx.redirect(
             ProjectAppRouter.get_task_template_detail_url(task_template.id)
@@ -93,15 +97,19 @@ def _task_template_row(task_template: TaskTemplateDTO) -> rx.Component:
     )
 
 
-def _actions_menu(task_template: TaskTemplateDTO) -> rx.Component:
+def _actions_menu(row: TaskTemplateRowDTO) -> rx.Component:
     """Create the actions menu for a task template.
 
-    :param task_template: The task template data transfer object
-    :type task_template: TaskTemplateDTO
+    Includes "Move up"/"Move down" to reorder templates that share the same start
+    offset (start_date_offset is always the primary order, so these items only
+    appear when there's an adjacent sibling with the same offset to swap with).
+
+    :param row: The task template row (template + move up/down eligibility)
+    :type row: TaskTemplateRowDTO
     :return: The actions menu component
     :rtype: rx.Component
     """
-    from .task_template_list.task_template_list_state import TaskTemplateListState
+    task_template = row.template
 
     return rx.menu.root(
         rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="ghost", color_scheme="gray", size="2")),
@@ -111,6 +119,26 @@ def _actions_menu(task_template: TaskTemplateDTO) -> rx.Component:
                 "Update",
                 on_click=lambda: TaskTemplateListState.open_update_task_template_dialog(
                     task_template.id
+                ),
+            ),
+            rx.cond(
+                row.can_move_up,
+                rx.menu.item(
+                    rx.icon("arrow-up", size=16),
+                    "Move up",
+                    on_click=lambda: TaskTemplateListState.move_task_template_up(
+                        task_template.id
+                    ),
+                ),
+            ),
+            rx.cond(
+                row.can_move_down,
+                rx.menu.item(
+                    rx.icon("arrow-down", size=16),
+                    "Move down",
+                    on_click=lambda: TaskTemplateListState.move_task_template_down(
+                        task_template.id
+                    ),
                 ),
             ),
             rx.menu.separator(),

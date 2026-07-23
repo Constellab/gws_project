@@ -134,35 +134,35 @@ class TaskTemplate(ModelWithUser):
     def get_root_tasks_of_template(cls, template_id: str) -> list['TaskTemplate']:
         """Get all root template tasks for a template
 
-        Ordered by order_index (creation order), not created_at: several templates can be
-        created within the same second, and created_at alone is not precise enough to keep
-        them in the order they were defined.
+        Ordered by start_date_offset (ascending), then by order_index (creation order)
+        as a tiebreaker for templates sharing the same offset - not created_at, since
+        several templates can be created within the same second.
 
         :param template_id: The template ID
         :type template_id: str
-        :return: List of root template tasks in definition order
+        :return: List of root template tasks ordered by start offset
         :rtype: List[TaskTemplate]
         """
         return list(cls.select().where(
             (cls.project_template == template_id) & (cls.parent_task.is_null())
-        ).order_by(cls.order_index))
+        ).order_by(cls.start_date_offset, cls.order_index))
 
     @classmethod
     def get_subtasks_of_template_task(cls, parent_task_id: str) -> list['TaskTemplate']:
         """Get all subtasks of a parent template task
 
-        Ordered by order_index (creation order), not created_at: several templates can be
-        created within the same second, and created_at alone is not precise enough to keep
-        them in the order they were defined.
+        Ordered by start_date_offset (ascending), then by order_index (creation order)
+        as a tiebreaker for templates sharing the same offset - not created_at, since
+        several templates can be created within the same second.
 
         :param parent_task_id: The parent template task ID
         :type parent_task_id: str
-        :return: List of subtasks in definition order
+        :return: List of subtasks ordered by start offset
         :rtype: List[TaskTemplate]
         """
         return list(cls.select().where(
             cls.parent_task == parent_task_id
-        ).order_by(cls.order_index))
+        ).order_by(cls.start_date_offset, cls.order_index))
 
     def to_dto(self) -> TaskTemplateDTO:
         """Convert the TaskTemplate model to a TaskTemplateDTO for display in the frontend.
