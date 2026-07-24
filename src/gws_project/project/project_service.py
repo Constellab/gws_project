@@ -14,6 +14,7 @@ from gws_project.document.project_document import ProjectDocument
 from gws_project.project.project import Project
 from gws_project.project.project_count_dto import ChildrenCountDTO, ProjectCountDTO
 from gws_project.project.project_dto import (
+    AddTasksFromTemplateDTO,
     CreateProjectFromTemplateDTO,
     ProjectStatus,
     ProjectUserRole,
@@ -553,6 +554,49 @@ class ProjectService:
             )
 
         return project
+
+    @ProjectDbManager.transaction()
+    def add_tasks_from_template(
+        self, project_id: str, add_dto: AddTasksFromTemplateDTO
+    ) -> list[Task]:
+        """Add all the tasks of a project template into an existing project.
+
+        Every root task template (and its whole subtree, if any) is created as a new
+        root task of the project, with dates calculated from `add_dto.start_date` and
+        each template's `start_date_offset`/`duration_days` - the project's own dates
+        are left untouched.
+
+        :param project_id: The ID of the existing project to add tasks to
+        :type project_id: str
+        :param add_dto: The template to use, the reference start date, and the role mapping
+        :type add_dto: AddTasksFromTemplateDTO
+        :return: The created root tasks (one per root task template)
+        :rtype: List[Task]
+        :raises NotFoundException: If the project or the project template is not found
+        :raises UnauthorizedException: If the user doesn't have access to the project
+        :raises BadRequestException: If the template has no tasks, or a leaf root task's
+            computed dates fall outside the project's bounds
+        """
+        project = self.get_project(project_id)
+        project_template = ProjectTemplate.get_by_id_and_check(add_dto.project_template_id)
+
+        root_task_templates = TaskTemplate.get_root_tasks_of_template(project_template.id)
+        if not root_task_templates:
+            raise BadRequestException("This template has no tasks to add.")
+
+        # Add all users from role_mapping to the project
+        if add_dto.role_mapping:
+            unique_user_ids = set(add_dto.role_mapping.values())
+            for user_id in unique_user_ids:
+                self.add_user_to_project(project.id, user_id, ProjectUserRole.USER)
+
+        task_service = TaskService()
+        return [
+            task_service.create_task_from_template(
+                project, root_task_template, add_dto.start_date, add_dto.role_mapping
+            )
+            for root_task_template in root_task_templates
+        ]
 
     def _calculate_project_end_date_from_template(
         self, project_start_date, task_templates: list[TaskTemplate]

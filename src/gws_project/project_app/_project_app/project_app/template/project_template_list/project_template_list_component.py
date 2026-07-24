@@ -77,7 +77,7 @@ def project_template_list_page() -> rx.Component:
                 margin_top="16px",
             ),
             header_content=rx.hstack(
-                rx.heading("Project Templates", size="6"),
+                rx.heading("Templates", size="6"),
                 create_template_dialog(),
                 justify="between",
                 align="center",

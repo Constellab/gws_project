@@ -4,7 +4,7 @@ from typing import Literal
 
 import reflex as rx
 from gws_core import UserDTO
-from gws_project.project.project_dto import ProjectDTO
+from gws_project.project.project_dto import AddTasksFromTemplateDTO, ProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
 from gws_project.task.task_dto import (
@@ -15,6 +15,8 @@ from gws_project.task.task_dto import (
     UpdateTaskDTO,
 )
 from gws_project.task.task_service import TaskService
+from gws_project.template.project_template_dto import ProjectTemplateDTO
+from gws_project.template.project_template_service import ProjectTemplateService
 from gws_reflex_main import FormDialogState, ReflexDialogCloseEvent, ReflexMainState
 
 
@@ -57,6 +59,12 @@ class TaskFormDialogState(FormDialogState, rx.State):
     # Track selected task type in create root mode
     selected_task_type: Literal['with_children', 'without_children'] = "without_children"
 
+    # Template-related state (only used in CREATE_ROOT mode)
+    available_templates: list[ProjectTemplateDTO] = []
+    selected_template_id: str = ""
+    template_roles: list[str] = []
+    role_mapping: dict[str, str] = {}
+
     _callback_after_close: ReflexDialogCloseEvent[Task] | None = None
 
     def set_selected_task_type(self, value: str):
@@ -77,6 +85,16 @@ class TaskFormDialogState(FormDialogState, rx.State):
         return self._form_mode == TaskFormMode.CREATE_SUB.value
 
     @rx.var
+    def is_create_root_mode(self) -> bool:
+        """Check if the form is in CREATE_ROOT mode - the only mode where a task
+        template can be picked (mirrors the "New Project" dialog's template picker).
+
+        Returns:
+            True if in CREATE_ROOT mode, False otherwise
+        """
+        return self._form_mode == TaskFormMode.CREATE_ROOT.value
+
+    @rx.var
     def should_show_dates_and_priority(self) -> bool:
         """Check if dates and priority fields should be shown.
 
@@ -88,12 +106,9 @@ class TaskFormDialogState(FormDialogState, rx.State):
         Returns:
             True if dates and priority should be shown, False otherwise
         """
-        # Hide in create root mode if "Task with subtasks" is selected
-        if self.selected_task_type == "with_children":
-            return False
-
-        # Show for all other cases (create root without subtasks, update regular task, update subtask)
-        return True
+        # Hide in create root mode if "Task with subtasks" is selected; show for all
+        # other cases (create root without subtasks, update regular task, update subtask)
+        return self.selected_task_type != "with_children"
 
     async def _init_form_fields(self, task: TaskDTO | None = None):
         """Initialize form fields for create or update mode.
@@ -200,8 +215,48 @@ class TaskFormDialogState(FormDialogState, rx.State):
         # Load users for the project
         await self._load_users(project.id)
 
+        # Load task templates that can be used to bulk-create tasks instead
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            self.available_templates = [
+                t.to_dto() for t in ProjectTemplateService().get_all_templates()
+            ]
+
         # Open the dialog
         await self.open_dialog()
+
+    @rx.event
+    async def handle_template_change(self, template_id: str):
+        """Handle task template selection change: load its roles and reset the mapping.
+
+        :param template_id: The selected project template ID (empty string for none)
+        :type template_id: str
+        """
+        self.selected_template_id = template_id
+        self.role_mapping = {}
+
+        if template_id:
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
+                self.template_roles = ProjectTemplateService().get_all_roles_for_template(
+                    template_id
+                )
+        else:
+            self.template_roles = []
+
+    @rx.event
+    def handle_role_user_change(self, role: str, user_id: str):
+        """Handle user assignment change for a specific template role.
+
+        :param role: The role name
+        :type role: str
+        :param user_id: The selected user ID for this role (empty string clears it)
+        :type user_id: str
+        """
+        if user_id:
+            self.role_mapping[role] = user_id
+        elif role in self.role_mapping:
+            del self.role_mapping[role]
 
     async def open_create_sub_dialog(self, parent_task_id: str, project: ProjectDTO,
                                      callback_after_close: ReflexDialogCloseEvent[Task] | None = None):
@@ -304,7 +359,8 @@ class TaskFormDialogState(FormDialogState, rx.State):
         )
 
     async def _create(self, form_data: dict):
-        """Create a new task (root or subtask) using the form data.
+        """Create a new task (root or subtask), or bulk-create tasks from a template,
+        using the form data.
 
         Args:
             form_data: Dictionary containing form fields
@@ -316,6 +372,12 @@ class TaskFormDialogState(FormDialogState, rx.State):
         main_state: ReflexMainState
         async with self:
             main_state = await self.get_state(ReflexMainState)
+
+        # Creating from a template only applies to CREATE_ROOT mode
+        if self._form_mode == TaskFormMode.CREATE_ROOT.value and self.selected_template_id:
+            async for event in self._create_from_template(form_data, main_state):
+                yield event
+            return
 
         # Validate and parse form data for create operations
         task_dto = self._validate_and_parse_create_task_form_data(form_data)
@@ -344,6 +406,45 @@ class TaskFormDialogState(FormDialogState, rx.State):
 
         if self._callback_after_close:
             await self._callback_after_close(task)
+
+    async def _create_from_template(self, form_data: dict, main_state: ReflexMainState):
+        """Bulk-create tasks from the selected project template instead of a single task.
+
+        Every root task template of the selected project template (and its whole
+        subtree, if any) is created as a new root task of the project.
+
+        Args:
+            form_data: Dictionary containing the "start_date" form field
+            main_state: The main state instance
+
+        Yields:
+            Reflex events (rx.toast)
+        """
+        start_date_str = form_data.get('start_date', '').strip()
+        if not start_date_str:
+            raise Exception("Start date is required")
+
+        if len(self.role_mapping) != len(self.template_roles):
+            missing_roles = [role for role in self.template_roles if role not in self.role_mapping]
+            raise Exception(
+                f"Please assign users to all roles. Missing: {', '.join(missing_roles)}"
+            )
+
+        add_dto = AddTasksFromTemplateDTO(
+            project_template_id=self.selected_template_id,
+            start_date=datetime.fromisoformat(start_date_str),
+            role_mapping=self.role_mapping,
+        )
+
+        with await main_state.authenticate_user():
+            project_service = ProjectService()
+            created_tasks = project_service.add_tasks_from_template(self._project.id, add_dto)
+
+        yield rx.toast.success("Tasks added from template successfully")
+
+        if self._callback_after_close:
+            for task in created_tasks:
+                await self._callback_after_close(task)
 
     async def _update(self, form_data: dict):
         """Update an existing task using the form data.
@@ -394,6 +495,10 @@ class TaskFormDialogState(FormDialogState, rx.State):
         self.selected_task_type = "without_children"
         self.is_update_mode = False
         self._callback_after_close = None
+        self.available_templates = []
+        self.selected_template_id = ""
+        self.template_roles = []
+        self.role_mapping = {}
 
     async def _load_users(self, project_id: str):
         """Load users available for assignment from the project.

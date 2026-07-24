@@ -5,9 +5,61 @@ from gws_reflex_main import form_dialog_component, user_select
 from .task_form_dialog_state import TaskFormDialogState
 
 
-def _form_content() -> rx.Component:
-    """Form content for entering task details."""
-    return rx.vstack(
+def _role_assignment_row(role: str) -> rx.Component:
+    """Create a row for assigning a project member to a template role.
+
+    :param role: The role name
+    :type role: str
+    :return: Component with role name and user select dropdown
+    :rtype: rx.Component
+    """
+    return rx.hstack(
+        rx.text(role, size="2", weight="medium", min_width="120px"),
+        user_select(
+            users=TaskFormDialogState.users,
+            placeholder="Select user (required)",
+            on_change=lambda user_id, r=role: TaskFormDialogState.handle_role_user_change(
+                r, user_id
+            ),
+        ),
+        width="100%",
+        spacing="3",
+        align="center",
+    )
+
+
+def _template_picker() -> rx.Component:
+    """Task template selector (only shown when creating a root task)."""
+    return rx.cond(
+        TaskFormDialogState.is_create_root_mode,
+        rx.vstack(
+            rx.text("Task Template (Optional)", size="2", weight="bold"),
+            rx.select.root(
+                rx.select.trigger(
+                    placeholder="Select a template (optional)",
+                    width="100%",
+                ),
+                rx.select.content(
+                    rx.foreach(
+                        TaskFormDialogState.available_templates,
+                        lambda template: rx.select.item(
+                            template.name,
+                            value=template.id,
+                        ),
+                    )
+                ),
+                value=TaskFormDialogState.selected_template_id,
+                on_change=TaskFormDialogState.handle_template_change,
+            ),
+            width="100%",
+            spacing="1",
+        ),
+    )
+
+
+def _single_task_fields() -> rx.Component:
+    """Fields for creating/updating a single task (hidden when a template is selected)."""
+    return rx.fragment(
         # Title field
         rx.vstack(
             rx.text("Task Title*", size="2", weight="bold"),
@@ -157,7 +209,67 @@ def _form_content() -> rx.Component:
                 spacing="1"
             )
         ),
+    )
 
+
+def _template_fields() -> rx.Component:
+    """Fields for bulk-creating tasks from a template: a reference start date and,
+    if the template defines roles, a project-member picker for each one."""
+    return rx.vstack(
+        rx.vstack(
+            rx.text("Start Date*", size="2", weight="bold"),
+            rx.input(
+                type="date",
+                name="start_date",
+                required=True,
+                width="100%",
+                default_value=TaskFormDialogState.form_start_date,
+                min=TaskFormDialogState.get_min_start_date,
+                max=TaskFormDialogState.get_max_end_date,
+            ),
+            width="100%",
+            spacing="1"
+        ),
+        rx.cond(
+            TaskFormDialogState.template_roles.length() > 0,
+            rx.vstack(
+                rx.text("Role Assignments", size="2", weight="bold"),
+                rx.text(
+                    "Assign a project member to each role. These users will be assigned "
+                    "to the corresponding tasks.",
+                    size="1",
+                    color="gray",
+                ),
+                rx.box(
+                    rx.vstack(
+                        rx.foreach(TaskFormDialogState.template_roles, _role_assignment_row),
+                        width="100%",
+                        spacing="2",
+                    ),
+                    padding="0.5rem",
+                    border="1px solid var(--gray-6)",
+                    border_radius="0.5rem",
+                    width="100%",
+                ),
+                width="100%",
+                spacing="1",
+            ),
+        ),
+        width="100%",
+        spacing="3",
+    )
+
+
+def _form_content() -> rx.Component:
+    """Form content for entering task details, or picking a template to bulk-create
+    tasks from instead (mirrors the "New Project" dialog's template picker)."""
+    return rx.vstack(
+        _template_picker(),
+        rx.cond(
+            TaskFormDialogState.selected_template_id == "",
+            _single_task_fields(),
+            _template_fields(),
+        ),
         width="100%",
         spacing="3"
     )

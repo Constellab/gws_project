@@ -15,14 +15,13 @@ def _form_content() -> rx.Component:
                 name="name",
                 required=True,
                 width="100%",
-                default_value=ProjectTemplateFormDialogState.form_name
+                default_value=ProjectTemplateFormDialogState.form_name,
             ),
             width="100%",
-            spacing="1"
+            spacing="1",
         ),
-
         width="100%",
-        spacing="3"
+        spacing="3",
     )
 
 
@@ -37,17 +36,15 @@ def _dialog() -> rx.Component:
     return form_dialog_component(
         state=ProjectTemplateFormDialogState,
         title=rx.cond(
-            ProjectTemplateFormDialogState.is_update_mode,
-            "Update Template",
-            "Create New Template"
+            ProjectTemplateFormDialogState.is_update_mode, "Update Template", "Create New Template"
         ),
         description=rx.cond(
             ProjectTemplateFormDialogState.is_update_mode,
             "Update the template details below.",
-            "Fill in the details below to create a new project template."
+            "Fill in the details below to create a new template.",
         ),
         form_content=_form_content(),
-        max_width="500px"
+        max_width="500px",
     )
 
 
@@ -65,9 +62,9 @@ def create_template_dialog() -> rx.Component:
             rx.icon("plus", size=18),
             "Create New Template",
             size="3",
-            on_click=ProjectTemplateFormDialogState.open_dialog
+            on_click=ProjectTemplateFormDialogState.open_dialog,
         ),
-        _dialog()
+        _dialog(),
     )
 
 

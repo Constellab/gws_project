@@ -65,6 +65,18 @@ class CreateProjectFromTemplateDTO(BaseModelDTO):
     role_mapping: dict[str, str] | None = None
 
 
+class AddTasksFromTemplateDTO(BaseModelDTO):
+    """DTO for adding all the tasks of a project template into an existing project.
+
+    role_mapping is a dictionary that maps template role names to user IDs.
+    For example: {"project_manager": "user-id-123", "developer": "user-id-456"}
+    """
+
+    project_template_id: str
+    start_date: datetime
+    role_mapping: dict[str, str] | None = None
+
+
 class ProjectDTO(ModelDTO):
     """DTO for displaying project information in the frontend."""
 
