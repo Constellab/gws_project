@@ -459,11 +459,7 @@ def details_sidebar() -> rx.Component:
             ),
             _sidebar_metadata_row(
                 "Created at",
-                rx.text(
-                    rx.moment(TaskDetailState.task.created_at, format="MMM D, YYYY HH:mm"),
-                    size="1",
-                    weight="medium",
-                ),
+                rx.text(TaskDetailState.created_at_text, size="1", weight="medium"),
             ),
             _sidebar_metadata_row(
                 "Last modified by",
@@ -471,11 +467,7 @@ def details_sidebar() -> rx.Component:
             ),
             _sidebar_metadata_row(
                 "Last modified at",
-                rx.text(
-                    rx.moment(TaskDetailState.task.last_modified_at, format="MMM D, YYYY HH:mm"),
-                    size="1",
-                    weight="medium",
-                ),
+                rx.text(TaskDetailState.last_modified_at_text, size="1", weight="medium"),
             ),
             spacing="1",
             width="100%",

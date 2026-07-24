@@ -338,14 +338,20 @@ def details_sidebar() -> rx.Component:
             _sidebar_section_label("Dates"),
             rx.hstack(
                 rx.text(
-                    rx.moment(ProjectDetailState.project.start_date, format="MMM D, YYYY"),
+                    rx.moment(
+                        ProjectDetailState.project.start_date.to(str).replace(" ", "T"),
+                        format="MMM D, YYYY",
+                    ),
                     size="2",
                     weight="bold",
                     color="var(--accent-9)",
                 ),
                 rx.text("→", size="2", color="gray"),
                 rx.text(
-                    rx.moment(ProjectDetailState.project.end_date, format="MMM D, YYYY"),
+                    rx.moment(
+                        ProjectDetailState.project.end_date.to(str).replace(" ", "T"),
+                        format="MMM D, YYYY",
+                    ),
                     size="2",
                     weight="bold",
                     color="var(--accent-9)",
@@ -390,11 +396,7 @@ def details_sidebar() -> rx.Component:
             ),
             _sidebar_metadata_row(
                 "Created at",
-                rx.text(
-                    rx.moment(ProjectDetailState.project.created_at, format="MMM D, YYYY HH:mm"),
-                    size="1",
-                    weight="medium",
-                ),
+                rx.text(ProjectDetailState.created_at_text, size="1", weight="medium"),
             ),
             _sidebar_metadata_row(
                 "Last modified by",
@@ -402,13 +404,7 @@ def details_sidebar() -> rx.Component:
             ),
             _sidebar_metadata_row(
                 "Last modified at",
-                rx.text(
-                    rx.moment(
-                        ProjectDetailState.project.last_modified_at, format="MMM D, YYYY HH:mm"
-                    ),
-                    size="1",
-                    weight="medium",
-                ),
+                rx.text(ProjectDetailState.last_modified_at_text, size="1", weight="medium"),
             ),
             spacing="1",
             width="100%",

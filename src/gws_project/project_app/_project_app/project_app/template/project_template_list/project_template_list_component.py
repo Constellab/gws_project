@@ -102,7 +102,9 @@ def _row(template: ProjectTemplateDTO) -> rx.Component:
             ),
         ),
         rx.table.cell(user_inline_component(template.created_by)),
-        rx.table.cell(rx.moment(template.created_at, format="MMM D, YYYY")),
+        rx.table.cell(
+            rx.moment(template.created_at.to(str).replace(" ", "T"), format="MMM D, YYYY")
+        ),
         style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
         on_click=lambda: ProjectTemplateListState.go_to_project_template(template.id),
     )

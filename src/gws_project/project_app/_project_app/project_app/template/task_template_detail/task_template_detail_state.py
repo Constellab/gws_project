@@ -8,6 +8,7 @@ from gws_project.template.task_template_service import TaskTemplateService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ...common.project_app_router import ProjectAppRouter
+from ...common.timestamp_text_component import format_timestamp
 from ..task_template_form_dialog.task_template_form_dialog_state import TaskTemplateFormDialogState
 from ..template_page_state import TemplatePageState
 
@@ -34,6 +35,26 @@ class TaskTemplateDetailState(rx.State):
         if current_object:
             return current_object.to_dto()
         return None
+
+    @rx.var
+    async def created_at_text(self) -> str:
+        """Return the formatted creation timestamp of the current task template.
+
+        :return: The formatted timestamp, or "" if there is no current task template
+        :rtype: str
+        """
+        task_template = await self.task_template
+        return format_timestamp(task_template.created_at) if task_template else ""
+
+    @rx.var
+    async def last_modified_at_text(self) -> str:
+        """Return the formatted last-modified timestamp of the current task template.
+
+        :return: The formatted timestamp, or "" if there is no current task template
+        :rtype: str
+        """
+        task_template = await self.task_template
+        return format_timestamp(task_template.last_modified_at) if task_template else ""
 
     async def _get_project_template(self) -> ProjectTemplateDTO | None:
         """Return the current project template DTO.

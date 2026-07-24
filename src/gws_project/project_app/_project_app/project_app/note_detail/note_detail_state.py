@@ -8,6 +8,7 @@ from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbItem
 from ..common.project_app_router import ProjectAppRouter
+from ..common.timestamp_text_component import format_timestamp
 
 
 class NoteDetailState(rx.State):
@@ -64,6 +65,26 @@ class NoteDetailState(rx.State):
         :rtype: Optional[ProjectNoteDTO]
         """
         return self._note
+
+    @rx.var
+    async def created_at_text(self) -> str:
+        """Return the formatted creation timestamp of the current note.
+
+        :return: The formatted timestamp, or "" if there is no current note
+        :rtype: str
+        """
+        note = await self.note
+        return format_timestamp(note.created_at) if note else ""
+
+    @rx.var
+    async def last_modified_at_text(self) -> str:
+        """Return the formatted last-modified timestamp of the current note.
+
+        :return: The formatted timestamp, or "" if there is no current note
+        :rtype: str
+        """
+        note = await self.note
+        return format_timestamp(note.last_modified_at) if note else ""
 
     @rx.var
     async def note_content(self) -> RichTextDTO | None:

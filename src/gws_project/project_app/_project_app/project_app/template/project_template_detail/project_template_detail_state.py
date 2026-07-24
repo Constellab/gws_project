@@ -6,6 +6,7 @@ from gws_project.template.project_template_service import ProjectTemplateService
 from gws_reflex_main import ReflexMainState
 
 from ...common.project_app_router import ProjectAppRouter
+from ...common.timestamp_text_component import format_timestamp
 from ..template_page_state import TemplatePageState
 
 
@@ -46,6 +47,26 @@ class TemplateDetailState(rx.State):
         if current_object:
             return current_object.to_dto()
         return None
+
+    @rx.var
+    async def created_at_text(self) -> str:
+        """Return the formatted creation timestamp of the current project template.
+
+        :return: The formatted timestamp, or "" if there is no current template
+        :rtype: str
+        """
+        project_template = await self.project_template
+        return format_timestamp(project_template.created_at) if project_template else ""
+
+    @rx.var
+    async def last_modified_at_text(self) -> str:
+        """Return the formatted last-modified timestamp of the current project template.
+
+        :return: The formatted timestamp, or "" if there is no current template
+        :rtype: str
+        """
+        project_template = await self.project_template
+        return format_timestamp(project_template.last_modified_at) if project_template else ""
 
     @rx.var
     async def template_roles(self) -> list[str]:

@@ -9,6 +9,7 @@ from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.project_app_router import ProjectAppRouter
 from ..common.projects.project_page_state import ProjectPageState
+from ..common.timestamp_text_component import format_timestamp
 from ..common.view_mode_state import ViewModeState
 from ..move_task_dialog.move_task_dialog_state import MoveTaskDialogState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
@@ -65,6 +66,26 @@ class TaskDetailState(rx.State):
         if current_object:
             return current_object.to_dto()
         return None
+
+    @rx.var
+    async def created_at_text(self) -> str:
+        """Return the formatted creation timestamp of the current task.
+
+        :return: The formatted timestamp, or "" if there is no current task
+        :rtype: str
+        """
+        task = await self.task
+        return format_timestamp(task.created_at) if task else ""
+
+    @rx.var
+    async def last_modified_at_text(self) -> str:
+        """Return the formatted last-modified timestamp of the current task.
+
+        :return: The formatted timestamp, or "" if there is no current task
+        :rtype: str
+        """
+        task = await self.task
+        return format_timestamp(task.last_modified_at) if task else ""
 
     async def _get_project(self) -> ProjectDTO | None:
         """Return the current project DTO.
