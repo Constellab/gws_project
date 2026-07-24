@@ -90,6 +90,18 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
 
         return group_id, enum_role
 
+    def _get_group(self, group_id: str) -> SpaceGroupDTO:
+        """Return the loaded SpaceGroupDTO matching the given id.
+
+        The groups are already loaded in ``self.groups`` when the dialog opens,
+        so the service does not need to fetch them again from Space.
+        """
+        for group in self.groups:
+            if group.id == group_id:
+                return group
+
+        raise Exception("Please select a group")
+
     async def _create(self, form_data: dict):
         """Add a new group to the project.
 
@@ -102,6 +114,10 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
         # Validate form data
         group_id, role = self._validate_form_data(form_data)
 
+        # Resolve the selected group DTO from the already-loaded groups so the
+        # service does not need to fetch them again from Space
+        group = self._get_group(group_id)
+
         # Get project_id from ProjectDetailState
         async with self:
             main_state = await self.get_state(ReflexMainState)
@@ -111,7 +127,7 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
         # Add group to project
         with await main_state.authenticate_user():
             project_service = ProjectService()
-            project_service.add_group_to_project(project_id, group_id, role)
+            project_service.add_group_to_project(project_id, group, role)
 
         # Reload project detail to refresh the user list
         await self._reload_project_detail()

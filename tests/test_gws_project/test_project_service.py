@@ -5,6 +5,8 @@ from gws_core import (
     BaseTestCase,
     CurrentUserService,
     RichText,
+    SpaceGroupDTO,
+    SpaceGroupType,
     TestMockSpaceService,
     UserGroup,
 )
@@ -163,7 +165,7 @@ class TestProjectService(BaseTestCase):
         self.assertFalse(project_exists)
 
     def test_add_group_to_project(self):
-        """Test adding a Space group to a project: the group users are resolved
+        """Test adding a Space team to a project: the team users are resolved
         via Space, imported into the lab and stored as local ProjectUser rows."""
         current_user = CurrentUserService.get_and_check_current_user()
 
@@ -186,6 +188,13 @@ class TestProjectService(BaseTestCase):
             group_users={"team-group-id": [member_1, member_2]}
         )
 
+        team_group = SpaceGroupDTO(
+            id="team-group-id",
+            label="Team Group",
+            type=SpaceGroupType.TEAM,
+            user=None,
+        )
+
         project = project_service.create_project(
             SaveProjectDTO(
                 name="Group Project",
@@ -195,7 +204,7 @@ class TestProjectService(BaseTestCase):
         )
 
         project_users = project_service.add_group_to_project(
-            project.id, "team-group-id", ProjectUserRole.VIEWER
+            project.id, team_group, ProjectUserRole.VIEWER
         )
 
         # Both group members are added with the requested role
@@ -209,7 +218,7 @@ class TestProjectService(BaseTestCase):
 
         # Re-adding the group with another role updates the local role (the lab
         # is the authority on project roles)
-        project_service.add_group_to_project(project.id, "team-group-id", ProjectUserRole.USER)
+        project_service.add_group_to_project(project.id, team_group, ProjectUserRole.USER)
         self.assertEqual(
             ProjectUser.get_by_project_and_user(project.id, member_1.id).role,
             ProjectUserRole.USER,
@@ -218,6 +227,49 @@ class TestProjectService(BaseTestCase):
         # The owner is untouched
         owner = ProjectUser.get_by_project_and_user(project.id, current_user.id)
         self.assertEqual(owner.role, ProjectUserRole.OWNER)
+
+    def test_add_single_user_group_to_project(self):
+        """Test adding a single-user Space group to a project: the user carried
+        by the group is added directly, without resolving members via Space."""
+        single_user = User(
+            email="single@example.com",
+            first_name="Single",
+            last_name="User",
+            group=UserGroup.USER,
+        )
+        single_user.save()
+
+        # A single-user group carries its user directly and provides no
+        # group-users mock: the service must NOT call get_group_users for it.
+        project_service = self._get_project_service()
+
+        single_user_group = SpaceGroupDTO(
+            id="single-user-group-id",
+            label="Single User",
+            type=SpaceGroupType.SINGLE_USER,
+            user=self._to_user_space(single_user),
+        )
+
+        project = project_service.create_project(
+            SaveProjectDTO(
+                name="Single User Project",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 12, 31),
+            )
+        )
+
+        project_users = project_service.add_group_to_project(
+            project.id, single_user_group, ProjectUserRole.VIEWER
+        )
+
+        # Exactly the single user is added with the requested role
+        self.assertEqual(len(project_users), 1)
+        self.assertEqual(project_users[0].user.id, single_user.id)
+        self.assertTrue(ProjectUser.is_user_in_project(project.id, single_user.id))
+        self.assertEqual(
+            ProjectUser.get_by_project_and_user(project.id, single_user.id).role,
+            ProjectUserRole.VIEWER,
+        )
 
     def test_create_project_with_invalid_dates(self):
         """Test create_project with invalid date range"""
