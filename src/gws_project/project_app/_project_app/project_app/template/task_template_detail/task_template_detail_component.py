@@ -28,7 +28,7 @@ def task_template_header() -> rx.Component:
     """
     return rx.hstack(
         # Icon indicating if task template allows subtasks
-        task_template_icon_component(TaskTemplateDetailState.task_template, size=24),
+        task_template_icon_component(TaskTemplateDetailState.task_template, size="6"),
         # Title
         rx.heading(
             TaskTemplateDetailState.task_template.title,

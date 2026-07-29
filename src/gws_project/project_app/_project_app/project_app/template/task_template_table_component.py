@@ -1,6 +1,7 @@
 import reflex as rx
 
 from ..common.project_app_router import ProjectAppRouter
+from ..common.tasks.task_components import task_template_icon_component
 from ..common.tasks.task_priority_chip_component import task_priority_chip
 from .task_template_list.task_template_list_state import TaskTemplateListState, TaskTemplateRowDTO
 
@@ -67,11 +68,7 @@ def _task_template_row(row: TaskTemplateRowDTO) -> rx.Component:
         rx.table.cell(
             rx.hstack(
                 # Icon indicating if task template allows subtasks
-                rx.cond(
-                    task_template.allow_subtasks,
-                    rx.icon("folder", size=16),
-                    rx.icon("file", size=16),
-                ),
+                task_template_icon_component(task_template, size="3"),
                 rx.text(
                     task_template.title,
                 ),
@@ -112,7 +109,14 @@ def _actions_menu(row: TaskTemplateRowDTO) -> rx.Component:
     task_template = row.template
 
     return rx.menu.root(
-        rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="ghost", color_scheme="gray", size="2")),
+        rx.menu.trigger(
+            rx.button(
+                rx.icon("ellipsis-vertical", size=18),
+                variant="ghost",
+                color_scheme="gray",
+                size="2",
+            )
+        ),
         rx.menu.content(
             rx.menu.item(
                 rx.icon("pencil", size=16),
@@ -126,9 +130,7 @@ def _actions_menu(row: TaskTemplateRowDTO) -> rx.Component:
                 rx.menu.item(
                     rx.icon("arrow-up", size=16),
                     "Move up",
-                    on_click=lambda: TaskTemplateListState.move_task_template_up(
-                        task_template.id
-                    ),
+                    on_click=lambda: TaskTemplateListState.move_task_template_up(task_template.id),
                 ),
             ),
             rx.cond(
