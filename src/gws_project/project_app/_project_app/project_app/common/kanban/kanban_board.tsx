@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import type {
+  CollisionDetection,
   DragStartEvent,
   DragOverEvent,
   DragEndEvent,
@@ -7,7 +8,10 @@ import type {
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  pointerWithin,
+  rectIntersection,
+  getFirstCollision,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -64,6 +68,39 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, on
     return null;
   };
 
+  // Custom collision detection: closestCorners alone fails to register a drop in
+  // the empty space below the last card of a column (its corners are far from a
+  // small nearby card's corners, which often "wins" the comparison even though the
+  // pointer is well past it). pointerWithin checks the actual pointer coordinate
+  // against droppable rects first, which reliably covers that empty area since the
+  // column's own droppable spans its full height. Falls back to rectIntersection,
+  // then narrows a container-level match down to its closest card so in-column
+  // reordering stays precise. This mirrors dnd-kit's own multi-container example.
+  const collisionDetectionStrategy: CollisionDetection = (args) => {
+    const pointerIntersections = pointerWithin(args);
+    const intersections = pointerIntersections.length > 0 ? pointerIntersections : rectIntersection(args);
+    let overId = getFirstCollision(intersections, 'id');
+
+    if (overId == null) {
+      return [];
+    }
+
+    const overColumn = columns.find((col) => col.id === overId);
+    if (overColumn && overColumn.cards.length > 0) {
+      const closestCard = closestCenter({
+        ...args,
+        droppableContainers: args.droppableContainers.filter((container) =>
+          overColumn.cards.some((card) => card.id === container.id)
+        ),
+      });
+      if (closestCard.length > 0) {
+        overId = closestCard[0].id;
+      }
+    }
+
+    return [{ id: overId }];
+  };
+
   // Derive displayed columns: if dragging across columns, move the card virtually
   const displayedColumns = useMemo(() => {
     if (!activeId || !overColumnId || !originalContainerRef.current) return columns;
@@ -98,7 +135,10 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, on
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
-    if (!over) return;
+    if (!over) {
+      setOverColumnId(prev => prev === null ? prev : null);
+      return;
+    }
 
     // Determine which column the pointer is over
     const overContainer = findContainer(over.id as string, displayedColumns) || (over.id as string);
@@ -214,7 +254,7 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, on
       {/* Kanban Board */}
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetectionStrategy}
         measuring={measuringConfig}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
