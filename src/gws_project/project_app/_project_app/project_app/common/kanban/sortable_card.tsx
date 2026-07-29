@@ -24,6 +24,7 @@ export const SortableCard = React.memo(function SortableCard({ id, card, onCardC
     backgroundColor: '#fff',
     padding: '16px 18px',
     borderRadius: '12px',
+    overflow: 'hidden',
     border: isHovered ? `1px solid var(--${columnColorPrefix}-8)` : `1px solid var(--${columnColorPrefix}-6)`,
     cursor: onCardClick ? 'pointer' : 'grab',
     boxShadow: isDragging
@@ -56,7 +57,7 @@ export const SortableCard = React.memo(function SortableCard({ id, card, onCardC
         <>
           {/* Title + Priority */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '10px' }}>
-            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', lineHeight: '1.3em', color: 'var(--gray-12)' }}>{card.title}</h4>
+            <h4 style={{ margin: 0, minWidth: 0, overflowWrap: 'break-word', fontSize: '14px', fontWeight: '600', lineHeight: '1.3em', color: 'var(--gray-12)' }}>{card.title}</h4>
             {card.priority && (() => {
               const pColorPrefix = priorityColorMap?.[card.priority] || 'gray';
               return (
