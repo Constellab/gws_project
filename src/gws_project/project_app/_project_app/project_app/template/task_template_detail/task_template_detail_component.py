@@ -2,7 +2,6 @@ import reflex as rx
 from gws_reflex_main import (
     main_component,
     right_sidebar_close_button,
-    right_sidebar_open_button,
     user_inline_component,
 )
 from gws_reflex_main.gws_components import rich_text_component
@@ -405,7 +404,6 @@ def task_template_detail_page() -> rx.Component:
                 detail_page_layout(
                     main_content=main_content_area(),
                     header_content=task_template_header(),
-                    header_right_content=right_sidebar_open_button(),
                 ),
             ),
             header_content=breadcrumb_component(TemplateBreadcrumbState.breadcrumbs),
