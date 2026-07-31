@@ -7,6 +7,7 @@ from gws_core import BaseModelDTO, ModelDTO, RichTextDTO, UserDTO
 
 
 class TaskStatus(Enum):
+    BACKLOG = 'BACKLOG'
     TODO = 'TODO'
     DOING = 'DOING'
     DONE = 'DONE'

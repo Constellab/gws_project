@@ -341,7 +341,7 @@ class TaskService:
 
         Converting to allow_subtasks=False (parent -> leaf):
         - Only allowed if the task has NO existing subtasks.
-        - Progress is adjusted to match the current status: 0 for TODO/DOING, 100 for DONE.
+        - Progress is adjusted to match the current status: 0 for BACKLOG/TODO/DOING, 100 for DONE.
 
         After either conversion, the ancestor chain is recalculated.
 

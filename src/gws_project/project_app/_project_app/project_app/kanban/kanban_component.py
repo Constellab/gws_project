@@ -2,7 +2,12 @@ import reflex as rx
 from gws_reflex_main import main_component
 from gws_reflex_main.components.reflex_user_components import user_select
 
-from ..common.kanban.kanban import PRIORITY_COLOR_MAP, STATUS_COLOR_MAP, USER_COLOR_MAP, kanban_board
+from ..common.kanban.kanban import (
+    PRIORITY_COLOR_MAP,
+    STATUS_COLOR_MAP,
+    USER_COLOR_MAP,
+    kanban_board,
+)
 from ..common.page_layout import page_layout
 from .kanban_state import KanbanState
 
@@ -62,6 +67,17 @@ def _filter_bar() -> rx.Component:
             value=KanbanState.selected_date_filter,
             on_change=KanbanState.handle_date_filter_change,
         ),
+        # Show Backlog toggle (off by default to avoid cluttering the board)
+        rx.text(
+            rx.switch(
+                checked=KanbanState.show_backlog,
+                on_change=KanbanState.handle_show_backlog_change,
+            ),
+            "Show Backlog",
+            as_="label",
+            size="2",
+            style={"display": "flex", "align-items": "center", "gap": "8px", "cursor": "pointer"},
+        ),
         # Clear filters button
         rx.button(
             "Clear",
@@ -75,6 +91,7 @@ def _filter_bar() -> rx.Component:
         spacing="3",
         wrap="wrap",
         margin_top="16px",
+        align="center",
     )
 
 
@@ -82,7 +99,8 @@ def kanban_page() -> rx.Component:
     """Create the kanban page showing all tasks across all projects.
 
     This page displays all tasks accessible to the current user in a kanban board
-    format with columns for TODO, DOING, and DONE statuses.
+    format with columns for TODO, DOING, and DONE statuses (plus an optional Backlog
+    column, hidden by default, toggled via the "Show Backlog" switch).
 
     :return: The kanban page component
     :rtype: rx.Component

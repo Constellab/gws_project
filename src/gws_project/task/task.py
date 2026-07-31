@@ -21,7 +21,7 @@ class Task(ModelWithUser):
     """
     Task model - Manages tasks linked to projects
 
-    Status values: 'TODO' (default), 'DOING', 'DONE',
+    Status values: 'BACKLOG', 'TODO' (default), 'DOING', 'DONE',
     Priority values: 'HIGH', 'MEDIUM' (default), 'LOW'
 
     Business rules:
@@ -71,6 +71,7 @@ class Task(ModelWithUser):
         Rules:
         - If any subtask is DOING, set to DOING
         - If all subtasks are DONE, set to DONE
+        - If all subtasks are still BACKLOG, set to BACKLOG
         - Otherwise, set to TODO
 
         :return: True if the status was changed, False otherwise
@@ -89,6 +90,9 @@ class Task(ModelWithUser):
             # If all subtasks are DONE, parent should be DONE
             elif all(status == TaskStatus.DONE for status in subtask_statuses):
                 new_status = TaskStatus.DONE
+            # If all subtasks are still BACKLOG, parent stays in BACKLOG too
+            elif all(status == TaskStatus.BACKLOG for status in subtask_statuses):
+                new_status = TaskStatus.BACKLOG
             # Otherwise, parent should be TODO
             else:
                 new_status = TaskStatus.TODO

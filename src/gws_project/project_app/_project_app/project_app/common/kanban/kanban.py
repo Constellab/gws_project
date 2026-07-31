@@ -4,10 +4,11 @@ from collections.abc import Callable
 
 import reflex as rx
 from gws_core import BaseModelDTO
+from gws_core.apps.reflex._gws_reflex.gws_reflex_main.components.reflex_user_components import (
+    get_user_color_mapping,
+)
 from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from reflex.vars import Var
-
-from gws_core.apps.reflex._gws_reflex.gws_reflex_main.components.reflex_user_components import get_user_color_mapping
 
 from ..status_colors import StatusColors
 from ..tasks.task_priority_chip_component import PriorityColors
@@ -160,6 +161,7 @@ class KanbanBoard(rx.Component):
 
 
 STATUS_COLOR_MAP: dict[str, str] = {
+    TaskStatus.BACKLOG.value: StatusColors.BACKLOG,
     TaskStatus.TODO.value: StatusColors.TODO,
     TaskStatus.DOING.value: StatusColors.ONGOING,
     TaskStatus.DONE.value: StatusColors.DONE,
@@ -179,7 +181,8 @@ kanban_board = KanbanBoard.create
 
 def build_kanban_board_data(
     tasks: list[TaskDTO],
-    task_to_card_converter: Callable[[TaskDTO], CardDTO]
+    task_to_card_converter: Callable[[TaskDTO], CardDTO],
+    include_backlog: bool = False,
 ) -> BoardDataDTO:
     """Build kanban board data from a list of tasks.
 
@@ -189,6 +192,9 @@ def build_kanban_board_data(
     :type tasks: List[TaskDTO]
     :param task_to_card_converter: Function to convert a TaskDTO to a CardDTO
     :type task_to_card_converter: Callable[[TaskDTO], CardDTO]
+    :param include_backlog: Whether to include the Backlog column. Off by default so the
+        board isn't cluttered with a column most users don't need to see.
+    :type include_backlog: bool
     :return: BoardDataDTO with columns structure for the Kanban board
     :rtype: BoardDataDTO
     """
@@ -197,22 +203,34 @@ def build_kanban_board_data(
     doing_tasks = [task for task in tasks if task.status == TaskStatus.DOING]
     done_tasks = [task for task in tasks if task.status == TaskStatus.DONE]
 
-    return BoardDataDTO(
-        columns=[
+    columns = []
+
+    if include_backlog:
+        backlog_tasks = [task for task in tasks if task.status == TaskStatus.BACKLOG]
+        columns.append(
             ColumnDTO(
-                id=TaskStatus.TODO.value,
-                title="To Do",
-                cards=[task_to_card_converter(task) for task in todo_tasks]
-            ),
-            ColumnDTO(
-                id=TaskStatus.DOING.value,
-                title="In Progress",
-                cards=[task_to_card_converter(task) for task in doing_tasks]
-            ),
-            ColumnDTO(
-                id=TaskStatus.DONE.value,
-                title="Done",
-                cards=[task_to_card_converter(task) for task in done_tasks]
+                id=TaskStatus.BACKLOG.value,
+                title="Backlog",
+                cards=[task_to_card_converter(task) for task in backlog_tasks]
             )
-        ]
-    )
+        )
+
+    columns.extend([
+        ColumnDTO(
+            id=TaskStatus.TODO.value,
+            title="To Do",
+            cards=[task_to_card_converter(task) for task in todo_tasks]
+        ),
+        ColumnDTO(
+            id=TaskStatus.DOING.value,
+            title="In Progress",
+            cards=[task_to_card_converter(task) for task in doing_tasks]
+        ),
+        ColumnDTO(
+            id=TaskStatus.DONE.value,
+            title="Done",
+            cards=[task_to_card_converter(task) for task in done_tasks]
+        )
+    ])
+
+    return BoardDataDTO(columns=columns)

@@ -32,6 +32,9 @@ class KanbanState(rx.State):
     selected_project_id: str = ""
     selected_user_id: str = ""
     selected_date_filter: str = "current_week"  # Default to current week
+    # Backlog tasks are hidden by default to avoid cluttering the board with a column
+    # most users don't need to see; the user can opt in via the "Show Backlog" toggle.
+    show_backlog: bool = False
 
     # Data for filters
     available_projects: list[ProjectDTO] = []
@@ -155,6 +158,10 @@ class KanbanState(rx.State):
         # only show the leaf tasks
         search_builder.add_allow_subtasks_filter(False)
 
+        # Backlog tasks are excluded unless the user opted in via the "Show Backlog" toggle
+        if not self.show_backlog:
+            search_builder.add_exclude_status_filter(TaskStatus.BACKLOG)
+
         tasks = search_builder.search_all()
 
         self.tasks = [task.to_dto() for task in tasks]
@@ -204,12 +211,22 @@ class KanbanState(rx.State):
         self.selected_date_filter = value
         await self.load_tasks()
 
+    async def handle_show_backlog_change(self, value: bool):
+        """Handle the "Show Backlog" toggle change.
+
+        :param value: Whether the Backlog column should be shown
+        :type value: bool
+        """
+        self.show_backlog = value
+        await self.load_tasks()
+
     async def clear_filters(self):
         """Clear all filters and reload tasks. Date filter is reset to current week."""
         self.search_text = ""
         self.selected_project_id = ""
         self.selected_user_id = ""
         self.selected_date_filter = "current_week"
+        self.show_backlog = False
         await self.load_tasks()
 
     @rx.var
@@ -237,7 +254,7 @@ class KanbanState(rx.State):
         :return: BoardDataDTO with columns structure for the Kanban board
         :rtype: BoardDataDTO
         """
-        return build_kanban_board_data(self.tasks, self._task_to_card)
+        return build_kanban_board_data(self.tasks, self._task_to_card, include_backlog=self.show_backlog)
 
     def _task_to_card(self, task: TaskDTO) -> CardDTO:
         """Convert a TaskDTO to a Kanban card format."""

@@ -15,6 +15,11 @@ def get_status_color(status: TaskStatus) -> dict:
     :rtype: dict
     """
     status_colors = {
+        TaskStatus.BACKLOG: {
+            "backgroundColor": "var(--accent-4)",
+            "progressColor": "var(--accent-9)",
+            "progressSelectedColor": "var(--accent-9)",
+        },
         TaskStatus.TODO: {
             "backgroundColor": "var(--accent-4)",
             "progressColor": "var(--accent-9)",

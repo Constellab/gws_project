@@ -141,7 +141,7 @@ class TaskListState(rx.State):
     def handle_status_filter_change(self, value: str):
         """Handle status filter change.
 
-        :param value: The selected status ('TODO', 'DOING', 'DONE', or '' for all)
+        :param value: The selected status ('BACKLOG', 'TODO', 'DOING', 'DONE', or '' for all)
         :type value: str
         """
         self.selected_status_filter = value

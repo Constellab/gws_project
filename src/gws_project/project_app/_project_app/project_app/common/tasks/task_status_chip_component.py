@@ -18,7 +18,13 @@ def _get_status_color(status: TaskStatus):
     :return: The color scheme name
     :rtype: str
     """
-    return rx.match(status, (TaskStatus.DOING, StatusColors.ONGOING), (TaskStatus.DONE, StatusColors.DONE), StatusColors.TODO)
+    return rx.match(
+        status,
+        (TaskStatus.BACKLOG, StatusColors.BACKLOG),
+        (TaskStatus.DOING, StatusColors.ONGOING),
+        (TaskStatus.DONE, StatusColors.DONE),
+        StatusColors.TODO,
+    )
 
 
 def _get_status_icon(status: TaskStatus) -> rx.Component:
@@ -40,7 +46,7 @@ def task_status_chip(
 ) -> rx.Component:
     """Create a status chip component with color-coded badge and status selector.
 
-    :param status: The task status (TODO, DOING, DONE)
+    :param status: The task status (BACKLOG, TODO, DOING, DONE)
     :type status: TaskStatus
     :param size: The badge size (optional)
     :type size: str

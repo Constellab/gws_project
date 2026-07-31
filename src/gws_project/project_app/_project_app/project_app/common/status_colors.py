@@ -2,11 +2,12 @@
 
 
 class StatusColors:
-    """Centralized color mapping for TODO/ONGOING/DONE statuses.
+    """Centralized color mapping for BACKLOG/TODO/ONGOING/DONE statuses.
 
     Used across progress and status chip components to ensure consistent coloring.
     """
 
+    BACKLOG = "indigo"
     TODO = "gray"
     ONGOING = "secondary"
     DONE = "tertiary"
