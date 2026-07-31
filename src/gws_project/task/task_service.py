@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from gws_core import (
     BadRequestException,
@@ -880,12 +880,22 @@ class TaskService:
             task_template.assign_to_role, role_mapping
         )
 
+        # Tasks that aren't due to start yet are created in the Backlog rather than TODO,
+        # since a batch of template-generated tasks hasn't been individually reviewed yet.
+        # Tasks starting today or earlier are actionable right away, so they stay in TODO.
+        # project_start_date may be a date or a datetime depending on the caller, and
+        # datetime disallows direct comparison with a plain date, so normalize first.
+        task_start_date_only = (
+            task_start_date.date() if isinstance(task_start_date, datetime) else task_start_date
+        )
+        initial_status = TaskStatus.BACKLOG if task_start_date_only > date.today() else TaskStatus.TODO
+
         # Create task DTO
         task_dto = CreateTaskDTO(
             title=task_template.title,
             start_date=task_start_date,
             end_date=task_end_date,
-            status=TaskStatus.TODO,
+            status=initial_status,
             priority=task_template.priority,
             allow_subtasks=task_template.allow_subtasks,
             assign_to_id=assign_to_user_id,

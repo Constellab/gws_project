@@ -12,6 +12,7 @@ from gws_project.project.project_dto import ProjectUserRole, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
 from gws_project.task.task_dto import CreateTaskDTO, TaskPriority, TaskStatus, UpdateTaskDTO
+from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.task.task_service import TaskService
 from gws_project.user.project_user_sync_service import ProjectUserSyncService
 from gws_project.user.user import User
@@ -703,6 +704,110 @@ class TestTaskService(BaseTestCase):
         refreshed_project = Project.get_by_id(project.id)
         self.assertEqual(refreshed_project.progress, 33)
 
+    def test_parent_status_update_all_subtasks_backlog(self):
+        """Test parent status updates to BACKLOG when all subtasks are BACKLOG"""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # Create parent task
+        parent_dto = CreateTaskDTO(
+            title="Parent Task",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 31),
+            status=TaskStatus.TODO,
+            allow_subtasks=True,
+            assign_to_id=current_user.id,
+        )
+        parent_task = task_service.create_root_task(project.id, parent_dto)
+
+        # Create two subtasks, both BACKLOG
+        subtask1_dto = CreateTaskDTO(
+            title="Subtask 1",
+            start_date=date(2025, 3, 5),
+            end_date=date(2025, 3, 10),
+            status=TaskStatus.BACKLOG,
+            assign_to_id=current_user.id,
+        )
+        subtask1 = task_service.create_sub_task(parent_task.id, subtask1_dto)
+
+        subtask2_dto = CreateTaskDTO(
+            title="Subtask 2",
+            start_date=date(2025, 3, 11),
+            end_date=date(2025, 3, 15),
+            status=TaskStatus.BACKLOG,
+            assign_to_id=current_user.id,
+        )
+        task_service.create_sub_task(parent_task.id, subtask2_dto)
+
+        # Parent should be BACKLOG since all subtasks are still BACKLOG
+        refreshed_parent = Task.get_by_id(parent_task.id)
+        self.assertEqual(refreshed_parent.status, TaskStatus.BACKLOG)
+
+        # Promoting one subtask out of BACKLOG should promote the parent to TODO
+        task_service.update_status(subtask1.id, TaskStatus.TODO)
+
+        refreshed_parent = Task.get_by_id(parent_task.id)
+        self.assertEqual(refreshed_parent.status, TaskStatus.TODO)
+
+    def test_parent_status_update_backlog_does_not_override_doing_or_done(self):
+        """Test that a BACKLOG subtask never masks a DOING or all-DONE parent status"""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # Create parent task
+        parent_dto = CreateTaskDTO(
+            title="Parent Task",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 31),
+            status=TaskStatus.TODO,
+            allow_subtasks=True,
+            assign_to_id=current_user.id,
+        )
+        parent_task = task_service.create_root_task(project.id, parent_dto)
+
+        # One subtask left in BACKLOG, one promoted to DOING
+        backlog_subtask_dto = CreateTaskDTO(
+            title="Backlog Subtask",
+            start_date=date(2025, 3, 5),
+            end_date=date(2025, 3, 8),
+            status=TaskStatus.BACKLOG,
+            assign_to_id=current_user.id,
+        )
+        backlog_subtask = task_service.create_sub_task(parent_task.id, backlog_subtask_dto)
+
+        doing_subtask_dto = CreateTaskDTO(
+            title="Doing Subtask",
+            start_date=date(2025, 3, 9),
+            end_date=date(2025, 3, 12),
+            status=TaskStatus.TODO,
+            assign_to_id=current_user.id,
+        )
+        doing_subtask = task_service.create_sub_task(parent_task.id, doing_subtask_dto)
+        task_service.update_status(doing_subtask.id, TaskStatus.DOING)
+
+        # Parent should be DOING even though one subtask is still BACKLOG
+        refreshed_parent = Task.get_by_id(parent_task.id)
+        self.assertEqual(refreshed_parent.status, TaskStatus.DOING)
+
+        # Mark the DOING subtask as DONE - since one subtask is still BACKLOG (not all
+        # DONE, not all BACKLOG), the parent falls back to TODO
+        task_service.update_status(doing_subtask.id, TaskStatus.DONE)
+
+        refreshed_parent = Task.get_by_id(parent_task.id)
+        self.assertEqual(refreshed_parent.status, TaskStatus.TODO)
+
+        # Once the remaining subtask is also DONE, the parent becomes DONE
+        task_service.update_status(backlog_subtask.id, TaskStatus.DONE)
+
+        refreshed_parent = Task.get_by_id(parent_task.id)
+        self.assertEqual(refreshed_parent.status, TaskStatus.DONE)
+
     def test_parent_status_update_priority_rules(self):
         """Test the priority rules: DOING > DONE > TODO"""
         task_service = self._get_task_service()
@@ -1231,3 +1336,95 @@ class TestTaskService(BaseTestCase):
         refreshed_grandparent = Task.get_by_id(grandparent.id)
         self.assertEqual(refreshed_grandparent.progress, 100)
         self.assertEqual(refreshed_grandparent.status, TaskStatus.DONE)
+
+
+# test_task_search_builder
+class TestTaskSearchBuilder(BaseTestCase):
+    """Test suite for TaskSearchBuilder, focused on the BACKLOG-exclusion filter used to
+    hide Backlog tasks from the Kanban board by default."""
+
+    @classmethod
+    def init_before_test(cls):
+        super().init_before_test()
+
+        user = User(
+            email="testuser@example.com",
+            first_name="Test",
+            last_name="User",
+            group=UserGroup.USER,
+        )
+        cls.test_user = user.save()
+        sync_service = ProjectUserSyncService()
+        sync_service.sync_all_users()
+
+    def _get_task_service(self) -> TaskService:
+        return TaskService()
+
+    def _get_project_service(self) -> ProjectService:
+        return ProjectService(TestMockSpaceService())
+
+    def _create_test_project(self, project_service: ProjectService) -> Project:
+        project_dto = SaveProjectDTO(
+            name="Test Project",
+            start_date=datetime(2025, 1, 1),
+            end_date=datetime(2025, 12, 31),
+        )
+        return project_service.create_project(project_dto)
+
+    def test_add_exclude_status_filter_excludes_only_that_status(self):
+        """add_exclude_status_filter excludes tasks with the given status and keeps the rest"""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        backlog_dto = CreateTaskDTO(
+            title="Backlog Task",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 5),
+            status=TaskStatus.BACKLOG,
+            assign_to_id=current_user.id,
+        )
+        task_service.create_root_task(project.id, backlog_dto)
+
+        todo_dto = CreateTaskDTO(
+            title="Todo Task",
+            start_date=date(2025, 3, 6),
+            end_date=date(2025, 3, 10),
+            status=TaskStatus.TODO,
+            assign_to_id=current_user.id,
+        )
+        task_service.create_root_task(project.id, todo_dto)
+
+        search_builder = TaskSearchBuilder()
+        search_builder.add_project_filter(project.id)
+        search_builder.add_exclude_status_filter(TaskStatus.BACKLOG)
+        results = search_builder.search_all()
+
+        titles = {task.title for task in results}
+        self.assertEqual(titles, {"Todo Task"})
+
+    def test_without_exclude_status_filter_all_statuses_included(self):
+        """Without the filter, tasks of every status (including BACKLOG) are returned"""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        backlog_dto = CreateTaskDTO(
+            title="Backlog Task",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 5),
+            status=TaskStatus.BACKLOG,
+            assign_to_id=current_user.id,
+        )
+        task_service.create_root_task(project.id, backlog_dto)
+
+        search_builder = TaskSearchBuilder()
+        search_builder.add_project_filter(project.id)
+        results = search_builder.search_all()
+
+        titles = {task.title for task in results}
+        self.assertEqual(titles, {"Backlog Task"})

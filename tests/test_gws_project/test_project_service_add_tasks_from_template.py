@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from gws_core import (
     BadRequestException,
@@ -12,6 +12,7 @@ from gws_project.project.project import Project
 from gws_project.project.project_dto import AddTasksFromTemplateDTO, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
+from gws_project.task.task_dto import TaskStatus
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.project_template_dto import SaveProjectTemplateDTO
 from gws_project.template.project_template_service import ProjectTemplateService
@@ -237,6 +238,48 @@ class TestProjectServiceAddTasksFromTemplate(BaseTestCase):
 
         with self.assertRaises(NotFoundException):
             project_service.add_tasks_from_template(project.id, add_dto)
+
+    def test_add_tasks_from_template_future_start_date_is_backlog(self):
+        """A task whose calculated start date is in the future starts in BACKLOG, not TODO"""
+        project_service = self._get_project_service()
+        today = date.today()
+        project = self._create_project(
+            "Add From Template Future Backlog",
+            start_date=today,
+            end_date=today + timedelta(days=120),
+        )
+        template = self._create_project_template("Future Backlog Template")
+        self._create_task_template(template, "Future Task", start_date_offset=30, duration_days=5)
+
+        add_dto = AddTasksFromTemplateDTO(
+            project_template_id=template.id,
+            start_date=datetime.combine(today, datetime.min.time()),
+        )
+        created = project_service.add_tasks_from_template(project.id, add_dto)
+
+        self.assertEqual(created[0].start_date, today + timedelta(days=30))
+        self.assertEqual(created[0].status, TaskStatus.BACKLOG)
+
+    def test_add_tasks_from_template_today_start_date_is_todo(self):
+        """A task whose calculated start date is today (not in the future) starts in TODO"""
+        project_service = self._get_project_service()
+        today = date.today()
+        project = self._create_project(
+            "Add From Template Today Todo",
+            start_date=today,
+            end_date=today + timedelta(days=60),
+        )
+        template = self._create_project_template("Today Todo Template")
+        self._create_task_template(template, "Today Task", start_date_offset=0, duration_days=5)
+
+        add_dto = AddTasksFromTemplateDTO(
+            project_template_id=template.id,
+            start_date=datetime.combine(today, datetime.min.time()),
+        )
+        created = project_service.add_tasks_from_template(project.id, add_dto)
+
+        self.assertEqual(created[0].start_date, today)
+        self.assertEqual(created[0].status, TaskStatus.TODO)
 
     def test_add_tasks_from_template_does_not_change_project_dates(self):
         """Adding tasks from a template never changes the existing project's own dates"""
