@@ -75,6 +75,10 @@ class KanbanQuickAddState(rx.State):
     async def open_quick_add(self, column_id: str):
         """Expand the quick-add row for a given column.
 
+        If the Kanban board is currently filtered to a single project, that project is
+        pre-selected as the destination, so the user only has to pick a subfolder when
+        they actually want one.
+
         :param column_id: The status column id ("BACKLOG", "TODO", "DOING", "DONE")
         :type column_id: str
         """
@@ -84,6 +88,15 @@ class KanbanQuickAddState(rx.State):
         self.current_project = None
         self.breadcrumb_tasks = []
         await self._load_projects()
+
+        kanban_state = await self.get_state(KanbanState)
+        if kanban_state.selected_project_id:
+            project = next(
+                (p for p in self.projects if p.id == kanban_state.selected_project_id), None
+            )
+            if project:
+                self.current_project = project
+                await self._load_tasks()
 
     @rx.event
     def cancel_quick_add(self):
