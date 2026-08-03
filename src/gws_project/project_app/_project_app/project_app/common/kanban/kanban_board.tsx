@@ -25,7 +25,33 @@ import {
 import { Column } from './kanban_column';
 import type { Card, Column as ColumnType, KanbanBoardProps } from './kanban_types';
 
-export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, onCardClick, disableColumnDrag = true, statusColorMap, priorityColorMap, userColorMap }: KanbanBoardProps) {
+export function KanbanBoard({
+  boardData,
+  superTest,
+  cardRenderer,
+  onCardMove,
+  onCardClick,
+  disableColumnDrag = true,
+  statusColorMap,
+  priorityColorMap,
+  userColorMap,
+  quickAddColumnId,
+  quickAddTitle,
+  quickAddCanSubmit,
+  quickAddIsCreating,
+  quickAddBrowseOpen,
+  quickAddCurrentProjectTitle,
+  quickAddBreadcrumbTasks,
+  quickAddProjects,
+  quickAddTasks,
+  onQuickAddOpen,
+  onQuickAddCancel,
+  onQuickAddTitleChange,
+  onQuickAddToggleBrowse,
+  onQuickAddNavigate,
+  onQuickAddSelectHere,
+  onQuickAddSubmit,
+}: KanbanBoardProps) {
   const [columns, setColumns] = useState<ColumnType[]>(boardData?.columns || []);
   const [activeId, setActiveId] = useState<string | null>(null);
   // Lightweight state: just the target column id during a cross-column drag
@@ -271,6 +297,22 @@ export function KanbanBoard({ boardData, superTest, cardRenderer, onCardMove, on
               statusColorMap={statusColorMap}
               priorityColorMap={priorityColorMap}
               userColorMap={userColorMap}
+              quickAddColumnId={quickAddColumnId}
+              quickAddTitle={quickAddTitle}
+              quickAddCanSubmit={quickAddCanSubmit}
+              quickAddIsCreating={quickAddIsCreating}
+              quickAddBrowseOpen={quickAddBrowseOpen}
+              quickAddCurrentProjectTitle={quickAddCurrentProjectTitle}
+              quickAddBreadcrumbTasks={quickAddBreadcrumbTasks}
+              quickAddProjects={quickAddProjects}
+              quickAddTasks={quickAddTasks}
+              onQuickAddOpen={onQuickAddOpen}
+              onQuickAddCancel={onQuickAddCancel}
+              onQuickAddTitleChange={onQuickAddTitleChange}
+              onQuickAddToggleBrowse={onQuickAddToggleBrowse}
+              onQuickAddNavigate={onQuickAddNavigate}
+              onQuickAddSelectHere={onQuickAddSelectHere}
+              onQuickAddSubmit={onQuickAddSubmit}
             />
           ))}
         </div>

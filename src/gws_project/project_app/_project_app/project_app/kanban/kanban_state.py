@@ -336,6 +336,14 @@ class KanbanState(rx.State):
                 self.tasks[i] = task.to_dto()
                 break
 
+    async def add_task(self, task: Task):
+        """Add a newly created task to the board (used by the quick-add row).
+
+        :param task: The newly created Task entity
+        :type task: Task
+        """
+        self.tasks = self.tasks + [task.to_dto()]
+
     async def handle_card_click(self, card_id: str):
         """Handle card click in the Kanban board.
 

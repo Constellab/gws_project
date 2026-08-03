@@ -1,19 +1,58 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { SortableCard } from './sortable_card';
+import { AddCardRow } from './add_card_row';
 import type { ColumnProps } from './kanban_types';
 
-export const Column = React.memo(function Column({ column, cards, cardRenderer, onCardClick, statusColorMap, priorityColorMap, userColorMap }: ColumnProps) {
+export const Column = React.memo(function Column({
+  column,
+  cards,
+  cardRenderer,
+  onCardClick,
+  statusColorMap,
+  priorityColorMap,
+  userColorMap,
+  quickAddColumnId,
+  quickAddTitle,
+  quickAddCanSubmit,
+  quickAddIsCreating,
+  quickAddBrowseOpen,
+  quickAddCurrentProjectTitle,
+  quickAddBreadcrumbTasks,
+  quickAddProjects,
+  quickAddTasks,
+  onQuickAddOpen,
+  onQuickAddCancel,
+  onQuickAddTitleChange,
+  onQuickAddToggleBrowse,
+  onQuickAddNavigate,
+  onQuickAddSelectHere,
+  onQuickAddSubmit,
+}: ColumnProps) {
   const cardIds = cards.map((card) => card.id);
   const { setNodeRef } = useDroppable({
     id: column.id,
   });
 
   const colorPrefix = statusColorMap?.[column.id] || 'gray';
+
+  // Stable reference so per-card "+" buttons don't defeat SortableCard's memoization
+  const handleAddClick = useCallback(() => {
+    onQuickAddOpen?.(column.id);
+  }, [onQuickAddOpen, column.id]);
+
+  // Scroll the add-task row into view whenever it opens for this column, so it's
+  // reachable in one click even when the column already has many cards
+  const addRowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (quickAddColumnId === column.id) {
+      addRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [quickAddColumnId, column.id]);
 
   return (
     <div
@@ -60,6 +99,27 @@ export const Column = React.memo(function Column({ column, cards, cardRenderer, 
             {cards.length}
           </span>
         </div>
+        <button
+          onClick={handleAddClick}
+          title="Add task"
+          style={{
+            width: '24px',
+            height: '24px',
+            flexShrink: 0,
+            borderRadius: '6px',
+            border: 'none',
+            background: `var(--${colorPrefix}-3)`,
+            color: `var(--${colorPrefix}-11)`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '16px',
+            lineHeight: 1,
+            cursor: 'pointer',
+          }}
+        >
+          +
+        </button>
       </div>
       {/* Cards container */}
       <div style={{
@@ -72,8 +132,8 @@ export const Column = React.memo(function Column({ column, cards, cardRenderer, 
         borderColor: `var(--${colorPrefix}-4)`,
         padding: '12px',
       }}>
-        <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
-          <div style={{ minHeight: '100px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ minHeight: '100px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
             {cards.map((card) => (
               <SortableCard
                 key={card.id}
@@ -86,8 +146,29 @@ export const Column = React.memo(function Column({ column, cards, cardRenderer, 
                 columnColorPrefix={colorPrefix}
               />
             ))}
+          </SortableContext>
+          <div ref={addRowRef}>
+            <AddCardRow
+              columnId={column.id}
+              quickAddColumnId={quickAddColumnId}
+              quickAddTitle={quickAddTitle}
+              quickAddCanSubmit={quickAddCanSubmit}
+              quickAddIsCreating={quickAddIsCreating}
+              quickAddBrowseOpen={quickAddBrowseOpen}
+              quickAddCurrentProjectTitle={quickAddCurrentProjectTitle}
+              quickAddBreadcrumbTasks={quickAddBreadcrumbTasks}
+              quickAddProjects={quickAddProjects}
+              quickAddTasks={quickAddTasks}
+              onQuickAddOpen={onQuickAddOpen}
+              onQuickAddCancel={onQuickAddCancel}
+              onQuickAddTitleChange={onQuickAddTitleChange}
+              onQuickAddToggleBrowse={onQuickAddToggleBrowse}
+              onQuickAddNavigate={onQuickAddNavigate}
+              onQuickAddSelectHere={onQuickAddSelectHere}
+              onQuickAddSubmit={onQuickAddSubmit}
+            />
           </div>
-        </SortableContext>
+        </div>
       </div>
     </div>
   );
@@ -99,5 +180,14 @@ export const Column = React.memo(function Column({ column, cards, cardRenderer, 
     && prev.priorityColorMap === next.priorityColorMap
     && prev.userColorMap === next.userColorMap
     && prev.cardRenderer === next.cardRenderer
-    && prev.onCardClick === next.onCardClick;
+    && prev.onCardClick === next.onCardClick
+    && prev.quickAddColumnId === next.quickAddColumnId
+    && prev.quickAddTitle === next.quickAddTitle
+    && prev.quickAddCanSubmit === next.quickAddCanSubmit
+    && prev.quickAddIsCreating === next.quickAddIsCreating
+    && prev.quickAddBrowseOpen === next.quickAddBrowseOpen
+    && prev.quickAddCurrentProjectTitle === next.quickAddCurrentProjectTitle
+    && prev.quickAddBreadcrumbTasks === next.quickAddBreadcrumbTasks
+    && prev.quickAddProjects === next.quickAddProjects
+    && prev.quickAddTasks === next.quickAddTasks;
 });

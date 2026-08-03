@@ -9,6 +9,7 @@ from ..common.kanban.kanban import (
     kanban_board,
 )
 from ..common.page_layout import page_layout
+from .kanban_quick_add_state import KanbanQuickAddState
 from .kanban_state import KanbanState
 
 
@@ -119,6 +120,22 @@ def kanban_page() -> rx.Component:
                     disable_column_drag=True,
                     on_card_move=KanbanState.handle_card_move,
                     on_card_click=KanbanState.handle_card_click,
+                    quick_add_column_id=KanbanQuickAddState.active_column_id,
+                    quick_add_title=KanbanQuickAddState.title,
+                    quick_add_can_submit=KanbanQuickAddState.can_submit,
+                    quick_add_is_creating=KanbanQuickAddState.is_creating,
+                    quick_add_browse_open=KanbanQuickAddState.browse_open,
+                    quick_add_current_project_title=KanbanQuickAddState.current_project_title,
+                    quick_add_breadcrumb_tasks=KanbanQuickAddState.breadcrumb_tasks,
+                    quick_add_projects=KanbanQuickAddState.projects,
+                    quick_add_tasks=KanbanQuickAddState.tasks,
+                    on_quick_add_open=KanbanQuickAddState.open_quick_add,
+                    on_quick_add_cancel=KanbanQuickAddState.cancel_quick_add,
+                    on_quick_add_title_change=KanbanQuickAddState.set_title,
+                    on_quick_add_toggle_browse=KanbanQuickAddState.toggle_browse,
+                    on_quick_add_navigate=KanbanQuickAddState.navigate,
+                    on_quick_add_select_here=KanbanQuickAddState.select_here,
+                    on_quick_add_submit=KanbanQuickAddState.submit,
                     width="100%",
                     flex="1",
                     class_name="kanban-board",

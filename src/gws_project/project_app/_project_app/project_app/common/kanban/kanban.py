@@ -7,6 +7,7 @@ from gws_core import BaseModelDTO
 from gws_core.apps.reflex._gws_reflex.gws_reflex_main.components.reflex_user_components import (
     get_user_color_mapping,
 )
+from gws_project.project.project_dto import ProjectDTO
 from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from reflex.vars import Var
 
@@ -21,6 +22,7 @@ rx.asset("kanban_utils.ts", shared=True)
 rx.asset("priority_icon.tsx", shared=True)
 rx.asset("sortable_card.tsx", shared=True)
 rx.asset("kanban_column.tsx", shared=True)
+rx.asset("add_card_row.tsx", shared=True)
 public_kanban_path = "$/public/" + kanban_path
 
 
@@ -158,6 +160,38 @@ class KanbanBoard(rx.Component):
 
     # Event handler for card click
     on_card_click: rx.EventHandler[rx.event.passthrough_event_spec(str)]
+
+    # ----- Inline "quick add task" row (no dialog), one column active at a time -----
+
+    # Id of the column whose quick-add row is expanded ("" means none)
+    quick_add_column_id: Var[str]
+    quick_add_title: Var[str]
+    quick_add_can_submit: Var[bool]
+    quick_add_is_creating: Var[bool]
+
+    # Destination browser panel: same folder-style browsing model as the Move Task
+    # dialog (Projects -> a project's root tasks -> subtasks -> ...)
+    quick_add_browse_open: Var[bool]
+    quick_add_current_project_title: Var[str]
+    quick_add_breadcrumb_tasks: Var[list[TaskDTO]]
+    quick_add_projects: Var[list[ProjectDTO]]
+    quick_add_tasks: Var[list[TaskDTO]]
+
+    # Fired when the "+ Add task" trigger is clicked, with the column id
+    on_quick_add_open: rx.EventHandler[rx.event.passthrough_event_spec(str)]
+    # Fired when the quick-add row is cancelled (X button or Escape)
+    on_quick_add_cancel: rx.EventHandler[rx.event.passthrough_event_spec()]
+    # Fired on every keystroke in the title input
+    on_quick_add_title_change: rx.EventHandler[rx.event.passthrough_event_spec(str)]
+    # Fired when the "Choose project" chip is clicked
+    on_quick_add_toggle_browse: rx.EventHandler[rx.event.passthrough_event_spec()]
+    # Fired when navigating the destination browser: (kind, target_id). kind is one of
+    # "projects_root", "project_root", "project", "task", "breadcrumb_task"
+    on_quick_add_navigate: rx.EventHandler[rx.event.passthrough_event_spec(str, str)]
+    # Fired when confirming the currently browsed level as the destination
+    on_quick_add_select_here: rx.EventHandler[rx.event.passthrough_event_spec()]
+    # Fired when submitting the new task (Add button or Enter key)
+    on_quick_add_submit: rx.EventHandler[rx.event.passthrough_event_spec()]
 
 
 STATUS_COLOR_MAP: dict[str, str] = {

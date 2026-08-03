@@ -18,6 +18,32 @@ export interface Column {
   cards: Card[];
 }
 
+// A "folder" entry (project or task-with-subtasks) in the quick-add destination browser
+export interface QuickAddFolderItem {
+  id: string;
+  title: string;
+}
+
+// Props shared by both KanbanBoard and Column for the inline "quick add task" row
+export interface QuickAddProps {
+  quickAddColumnId?: string;
+  quickAddTitle?: string;
+  quickAddCanSubmit?: boolean;
+  quickAddIsCreating?: boolean;
+  quickAddBrowseOpen?: boolean;
+  quickAddCurrentProjectTitle?: string;
+  quickAddBreadcrumbTasks?: QuickAddFolderItem[];
+  quickAddProjects?: QuickAddFolderItem[];
+  quickAddTasks?: QuickAddFolderItem[];
+  onQuickAddOpen?: (columnId: string) => void;
+  onQuickAddCancel?: () => void;
+  onQuickAddTitleChange?: (value: string) => void;
+  onQuickAddToggleBrowse?: () => void;
+  onQuickAddNavigate?: (kind: string, targetId: string) => void;
+  onQuickAddSelectHere?: () => void;
+  onQuickAddSubmit?: () => void;
+}
+
 export interface BoardData {
   columns: Column[];
 }
@@ -38,7 +64,7 @@ export interface SortableCardProps {
   columnColorPrefix?: string;
 }
 
-export interface ColumnProps {
+export interface ColumnProps extends QuickAddProps {
   column: Column;
   cards: Card[];
   cardRenderer?: (card: Card) => React.ReactNode;
@@ -48,7 +74,7 @@ export interface ColumnProps {
   userColorMap?: Record<string, string>;
 }
 
-export interface KanbanBoardProps {
+export interface KanbanBoardProps extends QuickAddProps {
   boardData: BoardData;
   onCardMove?: (event: CardMoveEvent) => void;
   onCardClick?: (cardId: string) => void;
