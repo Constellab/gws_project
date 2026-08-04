@@ -428,8 +428,8 @@ def details_sidebar() -> rx.Component:
             rx.hstack(
                 rx.text(
                     rx.cond(
-                        TaskDetailState.task.start_date,
-                        rx.moment(TaskDetailState.task.start_date, format="MMM D, YYYY"),
+                        TaskDetailState.task.start_date_text,
+                        TaskDetailState.task.start_date_text,
                         "—",
                     ),
                     size="2",
@@ -439,8 +439,8 @@ def details_sidebar() -> rx.Component:
                 rx.text("→", size="2", color="gray"),
                 rx.text(
                     rx.cond(
-                        TaskDetailState.task.end_date,
-                        rx.moment(TaskDetailState.task.end_date, format="MMM D, YYYY"),
+                        TaskDetailState.task.end_date_text,
+                        TaskDetailState.task.end_date_text,
                         "—",
                     ),
                     size="2",

@@ -49,6 +49,10 @@ class TaskDTO(ModelDTO):
     description: RichTextDTO | None
     start_date: date | None
     end_date: date | None
+    # Pre-formatted server-side so the frontend never parses/reformats these dates
+    # itself. Empty string when the corresponding date is None.
+    start_date_text: str
+    end_date_text: str
     status: TaskStatus
     priority: TaskPriority
     allow_subtasks: bool

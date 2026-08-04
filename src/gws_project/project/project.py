@@ -58,6 +58,8 @@ class Project(ModelWithUser):
             description=self.description,
             start_date=self.start_date,
             end_date=self.end_date,
+            start_date_text=self.start_date.strftime("%b %d, %Y"),
+            end_date_text=self.end_date.strftime("%b %d, %Y"),
             project_manager=self.project_manager.to_dto(),
             progress=self.progress,
             status=self.get_status(),

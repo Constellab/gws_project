@@ -84,6 +84,9 @@ class ProjectDTO(ModelDTO):
     description: RichTextDTO | None
     start_date: datetime
     end_date: datetime
+    # Pre-formatted server-side so the frontend never parses/reformats these dates itself.
+    start_date_text: str
+    end_date_text: str
     project_manager: UserDTO
     progress: int
     status: ProjectStatus

@@ -338,20 +338,14 @@ def details_sidebar() -> rx.Component:
             _sidebar_section_label("Dates"),
             rx.hstack(
                 rx.text(
-                    rx.moment(
-                        ProjectDetailState.project.start_date.to(str).replace(" ", "T"),
-                        format="MMM D, YYYY",
-                    ),
+                    ProjectDetailState.project.start_date_text,
                     size="2",
                     weight="bold",
                     color="var(--accent-9)",
                 ),
                 rx.text("→", size="2", color="gray"),
                 rx.text(
-                    rx.moment(
-                        ProjectDetailState.project.end_date.to(str).replace(" ", "T"),
-                        format="MMM D, YYYY",
-                    ),
+                    ProjectDetailState.project.end_date_text,
                     size="2",
                     weight="bold",
                     color="var(--accent-9)",

@@ -365,6 +365,8 @@ class Task(ModelWithUser):
             description=self.description,
             start_date=self.start_date,
             end_date=self.end_date,
+            start_date_text=self.start_date.strftime("%b %d, %Y") if self.start_date else "",
+            end_date_text=self.end_date.strftime("%b %d, %Y") if self.end_date else "",
             status=self.status,
             priority=self.priority,
             allow_subtasks=self.allow_subtasks,

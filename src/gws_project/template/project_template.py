@@ -29,6 +29,7 @@ class ProjectTemplate(ModelWithUser):
             name=self.name,
             description=self.description,
             created_at=self.created_at,
+            created_at_text=self.created_at.strftime("%b %d, %Y"),
             last_modified_at=self.last_modified_at,
             created_by=self.created_by.to_dto(),
             last_modified_by=self.last_modified_by.to_dto(),

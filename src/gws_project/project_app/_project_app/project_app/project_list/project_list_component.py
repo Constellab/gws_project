@@ -139,17 +139,13 @@ def _row(project: ProjectDTO) -> rx.Component:
         rx.table.cell(
             rx.vstack(
                 rx.text(
-                    rx.moment(
-                        project.start_date.to(str).replace(" ", "T"), format="MMM D, YYYY"
-                    ),
+                    project.start_date_text,
                     size="2",
                 ),
                 rx.hstack(
                     rx.text("→", size="2", color="var(--gray-9)"),
                     rx.text(
-                        rx.moment(
-                            project.end_date.to(str).replace(" ", "T"), format="MMM D, YYYY"
-                        ),
+                        project.end_date_text,
                         size="2",
                         color="var(--gray-9)",
                     ),
