@@ -47,8 +47,8 @@ class TaskDTO(ModelDTO):
     """DTO for displaying task information in the frontend."""
     title: str
     description: RichTextDTO | None
-    start_date: date
-    end_date: date
+    start_date: date | None
+    end_date: date | None
     status: TaskStatus
     priority: TaskPriority
     allow_subtasks: bool

@@ -130,11 +130,10 @@ def _single_task_fields() -> rx.Component:
                 # Date fields
                 rx.hstack(
                     rx.vstack(
-                        rx.text("Start Date*", size="2", weight="bold"),
+                        rx.text("Start Date", size="2", weight="bold"),
                         rx.input(
                             type="date",
                             name="start_date",
-                            required=True,
                             width="100%",
                             default_value=TaskFormDialogState.form_start_date,
                             min=TaskFormDialogState.get_min_start_date,
@@ -145,11 +144,10 @@ def _single_task_fields() -> rx.Component:
                     ),
 
                     rx.vstack(
-                        rx.text("End Date*", size="2", weight="bold"),
+                        rx.text("End Date", size="2", weight="bold"),
                         rx.input(
                             type="date",
                             name="end_date",
-                            required=True,
                             width="100%",
                             default_value=TaskFormDialogState.form_end_date,
                             min=TaskFormDialogState.get_min_start_date,

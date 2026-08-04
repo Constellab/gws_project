@@ -76,8 +76,12 @@ def _task_template_row(row: TaskTemplateRowDTO) -> rx.Component:
                 align="center",
             )
         ),
-        rx.table.cell(rx.text(task_template.start_date_offset, size="2")),
-        rx.table.cell(rx.text(task_template.duration_days, size="2")),
+        rx.table.cell(
+            rx.text(rx.cond(task_template.start_date_offset.is_not_none(), task_template.start_date_offset, "—"), size="2")
+        ),
+        rx.table.cell(
+            rx.text(rx.cond(task_template.duration_days.is_not_none(), task_template.duration_days, "—"), size="2")
+        ),
         rx.table.cell(task_priority_chip(task_template.priority)),
         rx.table.cell(
             rx.cond(

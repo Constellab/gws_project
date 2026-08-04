@@ -112,9 +112,7 @@ class TaskService:
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
         # Validate task dates are within project dates
-        start_date = task_dto.start_date or project.start_date
-        end_date = task_dto.end_date or project.end_date
-        self._validate_task_dates_within_project(project, start_date, end_date)
+        self._validate_task_dates_within_project(project, task_dto.start_date, task_dto.end_date)
 
         # Create the task model from DTO using common method
         task = self._build_task_from_dto(task_dto, project, parent_task=None)
@@ -196,11 +194,10 @@ class TaskService:
                 task.project, task_dto.start_date, task_dto.end_date
             )
 
-            # Update the task fields from DTO
-            if task_dto.start_date:
-                task.start_date = task_dto.start_date
-            if task_dto.end_date:
-                task.end_date = task_dto.end_date
+            # Update the task fields from DTO (the form always resends the full desired
+            # state, so a missing date here means the user cleared it)
+            task.start_date = task_dto.start_date
+            task.end_date = task_dto.end_date
             if task_dto.status:
                 task.set_status(task_dto.status)
             if task_dto.priority:
@@ -629,27 +626,33 @@ class TaskService:
         self._recalculate_parent_info(task)
 
     def _validate_task_dates_within_project(
-        self, project: Project, task_start_date: date, task_end_date: date
+        self, project: Project, task_start_date: date | None, task_end_date: date | None
     ) -> None:
         """Validate that task dates are within project dates.
 
+        Task dates are optional: any check involving a missing date is skipped.
+
         :param project: The project
         :type project: Project
-        :param task_start_date: Task start date
-        :type task_start_date: date
-        :param task_end_date: Task end date
-        :type task_end_date: date
+        :param task_start_date: Task start date, if set
+        :type task_start_date: Optional[date]
+        :param task_end_date: Task end date, if set
+        :type task_end_date: Optional[date]
         :raises BadRequestException: If dates are outside project bounds
         """
-        if task_start_date < project.start_date:
+        if task_start_date is not None and task_start_date < project.start_date:
             raise BadRequestException(
                 f"Task start date ({task_start_date}) cannot be before project start date ({project.start_date})."
             )
-        if task_end_date > project.end_date:
+        if task_end_date is not None and task_end_date > project.end_date:
             raise BadRequestException(
                 f"Task end date ({task_end_date}) cannot be after project end date ({project.end_date})."
             )
-        if task_start_date > task_end_date:
+        if (
+            task_start_date is not None
+            and task_end_date is not None
+            and task_start_date > task_end_date
+        ):
             raise BadRequestException(
                 f"Task start date ({task_start_date}) cannot be after its end date ({task_end_date})."
             )
@@ -704,9 +707,9 @@ class TaskService:
         # (e.g. created from a template with the same date offset) keep their order
         task.order_index = self._get_next_order_index()
 
-        # Set dates with defaults from project
-        task.start_date = task_dto.start_date or project.start_date
-        task.end_date = task_dto.end_date or project.end_date
+        # Set dates (optional - a task may have no dates, only a start, only an end, or both)
+        task.start_date = task_dto.start_date
+        task.end_date = task_dto.end_date
 
         # Set status and priority with defaults
         task.set_status(task_dto.status or TaskStatus.TODO)
@@ -870,10 +873,19 @@ class TaskService:
         :return: The created task
         :rtype: Task
         """
-        # Calculate task dates based on template offsets
-        task_start_date = project_start_date + timedelta(days=task_template.start_date_offset)
+        # Calculate task dates based on template offsets. No offset means no dates at
+        # all (duration alone can't anchor an end date without a start).
+        task_start_date = (
+            project_start_date + timedelta(days=task_template.start_date_offset)
+            if task_template.start_date_offset is not None
+            else None
+        )
         # Subtract 1 because duration includes the start day
-        task_end_date = task_start_date + timedelta(days=max(task_template.duration_days - 1, 0))
+        task_end_date = (
+            task_start_date + timedelta(days=max(task_template.duration_days - 1, 0))
+            if task_start_date is not None and task_template.duration_days is not None
+            else None
+        )
 
         # Determine the user to assign the task to using role mapping
         assign_to_user_id = self._get_assign_to_user_id_from_role(
@@ -883,12 +895,19 @@ class TaskService:
         # Tasks that aren't due to start yet are created in the Backlog rather than TODO,
         # since a batch of template-generated tasks hasn't been individually reviewed yet.
         # Tasks starting today or earlier are actionable right away, so they stay in TODO.
+        # A task with no start date has nothing to be "not due yet" against, so it also
+        # stays in TODO.
         # project_start_date may be a date or a datetime depending on the caller, and
         # datetime disallows direct comparison with a plain date, so normalize first.
-        task_start_date_only = (
-            task_start_date.date() if isinstance(task_start_date, datetime) else task_start_date
-        )
-        initial_status = TaskStatus.BACKLOG if task_start_date_only > date.today() else TaskStatus.TODO
+        if task_start_date is None:
+            initial_status = TaskStatus.TODO
+        else:
+            task_start_date_only = (
+                task_start_date.date() if isinstance(task_start_date, datetime) else task_start_date
+            )
+            initial_status = (
+                TaskStatus.BACKLOG if task_start_date_only > date.today() else TaskStatus.TODO
+            )
 
         # Create task DTO
         task_dto = CreateTaskDTO(

@@ -64,13 +64,12 @@ def _form_content() -> rx.Component:
                 # Date offset and duration fields
                 rx.hstack(
                     rx.vstack(
-                        rx.text("Start Date Offset (days)*", size="2", weight="bold"),
+                        rx.text("Start Date Offset (days)", size="2", weight="bold"),
                         rx.input(
                             type="number",
                             name="start_date_offset",
-                            required=True,
                             width="100%",
-                            default_value=TaskTemplateFormDialogState.form_start_date_offset.to_string(),
+                            default_value=TaskTemplateFormDialogState.form_start_date_offset,
                             min="0",
                             placeholder="Days from project start"
                         ),
@@ -79,13 +78,12 @@ def _form_content() -> rx.Component:
                     ),
 
                     rx.vstack(
-                        rx.text("Duration (days)*", size="2", weight="bold"),
+                        rx.text("Duration (days)", size="2", weight="bold"),
                         rx.input(
                             type="number",
                             name="duration_days",
-                            required=True,
                             width="100%",
-                            default_value=TaskTemplateFormDialogState.form_duration_days.to_string(),
+                            default_value=TaskTemplateFormDialogState.form_duration_days,
                             min="1",
                             placeholder="Task duration"
                         ),

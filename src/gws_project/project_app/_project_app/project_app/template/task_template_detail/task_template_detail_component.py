@@ -342,7 +342,14 @@ def details_sidebar() -> rx.Component:
         # Start date offset
         rx.vstack(
             _sidebar_section_label("Start date offset (days)"),
-            rx.text(TaskTemplateDetailState.task_template.start_date_offset, size="2"),
+            rx.text(
+                rx.cond(
+                    TaskTemplateDetailState.task_template.start_date_offset.is_not_none(),
+                    TaskTemplateDetailState.task_template.start_date_offset,
+                    "—",
+                ),
+                size="2",
+            ),
             spacing="2",
             align_items="start",
             width="100%",
@@ -350,7 +357,14 @@ def details_sidebar() -> rx.Component:
         # Duration
         rx.vstack(
             _sidebar_section_label("Duration (days)"),
-            rx.text(TaskTemplateDetailState.task_template.duration_days, size="2"),
+            rx.text(
+                rx.cond(
+                    TaskTemplateDetailState.task_template.duration_days.is_not_none(),
+                    TaskTemplateDetailState.task_template.duration_days,
+                    "—",
+                ),
+                size="2",
+            ),
             spacing="2",
             align_items="start",
             width="100%",

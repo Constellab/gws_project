@@ -1,9 +1,9 @@
 from gws_core import (
     NullableCharField,
+    NullableDateField,
     NullableForeignKeyField,
     TypedBooleanField,
     TypedCharField,
-    TypedDateField,
     TypedEnumField,
     TypedForeignKeyField,
     TypedIntegerField,
@@ -35,8 +35,8 @@ class Task(ModelWithUser):
     parent_task = NullableForeignKeyField["Task"]("self", on_delete="CASCADE", backref="subtasks")
     title = TypedCharField(max_length=255)
     description = TypedRichTextDbField()
-    start_date = TypedDateField()
-    end_date = TypedDateField()
+    start_date = NullableDateField()
+    end_date = NullableDateField()
     status = TypedEnumField(choices=TaskStatus, max_length=20, default=TaskStatus.TODO)
     priority = TypedEnumField(choices=TaskPriority, max_length=10, default=TaskPriority.MEDIUM)
     allow_subtasks = TypedBooleanField(default=False)
@@ -246,7 +246,7 @@ class Task(ModelWithUser):
         return list(
             cls.select()
             .where((cls.project == project_id) & (cls.parent_task.is_null()))
-            .order_by(cls.start_date, cls.order_index)
+            .order_by(cls.start_date.is_null(), cls.start_date, cls.order_index)
         )
 
     @classmethod
@@ -265,7 +265,7 @@ class Task(ModelWithUser):
         return list(
             cls.select()
             .where(cls.parent_task == parent_task_id)
-            .order_by(cls.start_date, cls.order_index)
+            .order_by(cls.start_date.is_null(), cls.start_date, cls.order_index)
         )
 
     @classmethod
@@ -277,7 +277,11 @@ class Task(ModelWithUser):
         :return: List of tasks
         :rtype: List[Task]
         """
-        return list(cls.select().where(cls.assign_to == user_id).order_by(cls.start_date))
+        return list(
+            cls.select()
+            .where(cls.assign_to == user_id)
+            .order_by(cls.start_date.is_null(), cls.start_date)
+        )
 
     @classmethod
     def count_tasks_of_user_in_project(cls, user_id: str, project_id: str) -> int:

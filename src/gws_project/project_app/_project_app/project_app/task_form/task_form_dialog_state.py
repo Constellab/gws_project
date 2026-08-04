@@ -119,8 +119,8 @@ class TaskFormDialogState(FormDialogState, rx.State):
         if task:
             # Update mode - populate from task
             self.form_title = task.title
-            self.form_start_date = task.start_date.strftime('%Y-%m-%d')
-            self.form_end_date = task.end_date.strftime('%Y-%m-%d')
+            self.form_start_date = task.start_date.strftime('%Y-%m-%d') if task.start_date else ""
+            self.form_end_date = task.end_date.strftime('%Y-%m-%d') if task.end_date else ""
             self.form_status = task.status.value if hasattr(task.status, 'value') else task.status
             self.form_priority = task.priority.value if hasattr(task.priority, 'value') else task.priority
             self.form_allow_subtasks = task.allow_subtasks
@@ -171,19 +171,16 @@ class TaskFormDialogState(FormDialogState, rx.State):
         # if there is no child, the dates, priority and status are required
         if self.selected_task_type == "without_children":
 
-            # Only process dates if required
+            # Dates are optional - parse to None when the field was left empty
             start_date_str = form_data.get('start_date', '').strip()
             end_date_str = form_data.get('end_date', '').strip()
 
-            if not start_date_str:
-                raise Exception("Start date is required")
-
-            if not end_date_str:
-                raise Exception("End date is required")
-
-            # Parse dates from string to date
-            result['start_date'] = datetime.fromisoformat(start_date_str).date()
-            result['end_date'] = datetime.fromisoformat(end_date_str).date()
+            result['start_date'] = (
+                datetime.fromisoformat(start_date_str).date() if start_date_str else None
+            )
+            result['end_date'] = (
+                datetime.fromisoformat(end_date_str).date() if end_date_str else None
+            )
 
             priority_str = form_data.get('priority', TaskPriority.MEDIUM.value)
             result['priority'] = TaskPriority(priority_str)

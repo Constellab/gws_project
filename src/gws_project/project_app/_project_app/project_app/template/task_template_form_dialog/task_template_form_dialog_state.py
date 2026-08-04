@@ -37,8 +37,8 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
 
     # Form field default values
     form_title: str = ""
-    form_start_date_offset: int = 0
-    form_duration_days: int = 1
+    form_start_date_offset: str = ""
+    form_duration_days: str = ""
     form_priority: str = TaskPriority.MEDIUM.value
     form_assign_to_role: str = ""
 
@@ -101,8 +101,14 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
         if task_template:
             # Update mode - populate from task template
             self.form_title = task_template.title
-            self.form_start_date_offset = task_template.start_date_offset
-            self.form_duration_days = task_template.duration_days
+            self.form_start_date_offset = (
+                str(task_template.start_date_offset)
+                if task_template.start_date_offset is not None else ""
+            )
+            self.form_duration_days = (
+                str(task_template.duration_days)
+                if task_template.duration_days is not None else ""
+            )
             self.form_priority = str(
                 task_template.priority.value
                 if hasattr(task_template.priority, "value")
@@ -115,8 +121,8 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
         else:
             # Create mode - clear/default values
             self.form_title = ""
-            self.form_start_date_offset = 0
-            self.form_duration_days = 1
+            self.form_start_date_offset = ""
+            self.form_duration_days = ""
             self.form_priority = TaskPriority.MEDIUM.value
             self.form_assign_to_role = ""
             self.selected_task_type = "without_children"
@@ -143,27 +149,33 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
 
         result = {"title": title, "assign_to_role": assign_to_role}
 
-        # If there are no children, the dates and priority are required
+        # If there are no children, priority is required but the offset/duration are optional
         if self.selected_task_type == "without_children":
-            # Get and validate start_date_offset
-            start_date_offset_str = form_data.get("start_date_offset", "0").strip()
-            try:
-                start_date_offset = int(start_date_offset_str)
+            # Get and validate start_date_offset (optional - empty means "not specified")
+            start_date_offset_str = form_data.get("start_date_offset", "").strip()
+            if start_date_offset_str:
+                try:
+                    start_date_offset = int(start_date_offset_str)
+                except ValueError as err:
+                    raise Exception("Start date offset must be a valid number") from err
                 if start_date_offset < 0:
                     raise Exception("Start date offset cannot be negative")
                 result["start_date_offset"] = start_date_offset
-            except ValueError:
-                raise Exception("Start date offset must be a valid number")
+            else:
+                result["start_date_offset"] = None
 
-            # Get and validate duration_days
-            duration_days_str = form_data.get("duration_days", "1").strip()
-            try:
-                duration_days = int(duration_days_str)
+            # Get and validate duration_days (optional - empty means "not specified")
+            duration_days_str = form_data.get("duration_days", "").strip()
+            if duration_days_str:
+                try:
+                    duration_days = int(duration_days_str)
+                except ValueError as err:
+                    raise Exception("Duration must be a valid number") from err
                 if duration_days <= 0:
                     raise Exception("Duration must be at least 1 day")
                 result["duration_days"] = duration_days
-            except ValueError:
-                raise Exception("Duration must be a valid number")
+            else:
+                result["duration_days"] = None
 
             priority_str = form_data.get("priority", TaskPriority.MEDIUM.value)
             result["priority"] = TaskPriority(priority_str)
@@ -269,8 +281,8 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
         # Create and return CreateTaskTemplateDTO
         return SaveTaskTemplateDTO(
             title=common_fields["title"],
-            start_date_offset=common_fields.get("start_date_offset", 0),
-            duration_days=common_fields.get("duration_days", 1),
+            start_date_offset=common_fields.get("start_date_offset"),
+            duration_days=common_fields.get("duration_days"),
             priority=common_fields.get("priority", TaskPriority.MEDIUM),
             allow_subtasks=allow_subtasks,
             assign_to_role=common_fields.get("assign_to_role"),
@@ -293,8 +305,8 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
         # Create and return UpdateTaskTemplateDTO
         return UpdateTaskTemplateDTO(
             title=common_fields["title"],
-            start_date_offset=common_fields.get("start_date_offset", 0),
-            duration_days=common_fields.get("duration_days", 1),
+            start_date_offset=common_fields.get("start_date_offset"),
+            duration_days=common_fields.get("duration_days"),
             priority=common_fields.get("priority", TaskPriority.MEDIUM),
             assign_to_role=common_fields.get("assign_to_role"),
         )
@@ -386,8 +398,8 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
         self._parent_task_template_id = ""
         self._form_mode = TaskTemplateFormMode.CREATE_ROOT.value
         self.form_title = ""
-        self.form_start_date_offset = 0
-        self.form_duration_days = 1
+        self.form_start_date_offset = ""
+        self.form_duration_days = ""
         self.form_priority = TaskPriority.MEDIUM.value
         self.form_assign_to_role = ""
         self.selected_task_type = "without_children"

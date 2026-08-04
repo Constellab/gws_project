@@ -145,13 +145,13 @@ class TaskTemplateService:
                     "Parent task template does not allow subtasks."
                 )
 
-        # Validate dates
-        if task_template_dto.start_date_offset < 0:
+        # Validate dates (both are optional - checks are skipped when unset)
+        if task_template_dto.start_date_offset is not None and task_template_dto.start_date_offset < 0:
             raise BadRequestException(
                 "Start date offset cannot be negative."
             )
 
-        if task_template_dto.duration_days <= 0:
+        if task_template_dto.duration_days is not None and task_template_dto.duration_days <= 0:
             raise BadRequestException(
                 "Task duration must be at least 1 day."
             )
@@ -207,13 +207,13 @@ class TaskTemplateService:
         # Get the task template
         task_template = TaskTemplate.get_by_id_and_check(task_template_id)
 
-        # Validate dates
-        if task_template_dto.start_date_offset < 0:
+        # Validate dates (both are optional - checks are skipped when unset)
+        if task_template_dto.start_date_offset is not None and task_template_dto.start_date_offset < 0:
             raise BadRequestException(
                 "Start date offset cannot be negative."
             )
 
-        if task_template_dto.duration_days <= 0:
+        if task_template_dto.duration_days is not None and task_template_dto.duration_days <= 0:
             raise BadRequestException(
                 "Task duration must be at least 1 day."
             )

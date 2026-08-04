@@ -618,9 +618,11 @@ class ProjectService:
         def process_task_template(task_template: TaskTemplate):
             nonlocal max_end_offset
 
-            # Calculate this task's end offset
-            task_end_offset = task_template.start_date_offset + task_template.duration_days
-            max_end_offset = max(max_end_offset, task_end_offset)
+            # Calculate this task's end offset, skipping templates with no offset/duration
+            # (they produce a task with no dates, so they don't extend the project)
+            if task_template.start_date_offset is not None and task_template.duration_days is not None:
+                task_end_offset = task_template.start_date_offset + task_template.duration_days
+                max_end_offset = max(max_end_offset, task_end_offset)
 
             # Process subtasks recursively
             subtasks = TaskTemplate.get_subtasks_of_template_task(task_template.id)

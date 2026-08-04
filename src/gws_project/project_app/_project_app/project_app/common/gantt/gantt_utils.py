@@ -75,8 +75,13 @@ def build_gantt_data_from_projects(projects_with_tasks: list[ProjectWithRootTask
         gantt_tasks.append(project_task)
         display_order += 1
 
-        # Add task rows for this project
+        # Add task rows for this project. A task needs both dates to be plotted as a
+        # bar, so tasks with a missing start or end date are skipped here (they still
+        # show up in the regular task list and kanban board).
         for task in root_tasks:
+            if task.start_date is None or task.end_date is None:
+                continue
+
             task_styles = get_status_color(task.status)
 
             task_item = GanttTaskDTO(

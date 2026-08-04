@@ -141,6 +141,91 @@ class TestTaskService(BaseTestCase):
             task_service.create_root_task(project.id, invalid_dto)
         self.assertIn("start date", str(context.exception))
 
+    def test_create_root_task_optional_dates(self):
+        """Test that a task's start_date/end_date are genuinely optional: no dates,
+        only a start date, or only an end date, all with no fallback to the project's
+        dates."""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # No dates at all
+        no_dates_dto = CreateTaskDTO(
+            title="No Dates Task",
+            start_date=None,
+            end_date=None,
+            assign_to_id=current_user.id,
+        )
+        no_dates_task = task_service.create_root_task(project.id, no_dates_dto)
+        self.assertIsNone(no_dates_task.start_date)
+        self.assertIsNone(no_dates_task.end_date)
+
+        # Only a start date
+        start_only_dto = CreateTaskDTO(
+            title="Start Only Task",
+            start_date=date(2025, 2, 1),
+            end_date=None,
+            assign_to_id=current_user.id,
+        )
+        start_only_task = task_service.create_root_task(project.id, start_only_dto)
+        self.assertEqual(start_only_task.start_date, date(2025, 2, 1))
+        self.assertIsNone(start_only_task.end_date)
+
+        # Only an end date
+        end_only_dto = CreateTaskDTO(
+            title="End Only Task",
+            start_date=None,
+            end_date=date(2025, 2, 28),
+            assign_to_id=current_user.id,
+        )
+        end_only_task = task_service.create_root_task(project.id, end_only_dto)
+        self.assertIsNone(end_only_task.start_date)
+        self.assertEqual(end_only_task.end_date, date(2025, 2, 28))
+
+    def test_create_root_task_partial_dates_still_validated(self):
+        """Test that when only one date is set, it is still validated against the
+        project's bounds, while the missing side raises no error."""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # Start date before project start, no end date: should still raise
+        invalid_dto = CreateTaskDTO(
+            title="Invalid Start Only",
+            start_date=date(2024, 12, 31),
+            end_date=None,
+            assign_to_id=current_user.id,
+        )
+        with self.assertRaises(BadRequestException) as context:
+            task_service.create_root_task(project.id, invalid_dto)
+        self.assertIn("start date", str(context.exception))
+
+        # End date after project end, no start date: should still raise
+        invalid_dto2 = CreateTaskDTO(
+            title="Invalid End Only",
+            start_date=None,
+            end_date=date(2026, 1, 1),
+            assign_to_id=current_user.id,
+        )
+        with self.assertRaises(BadRequestException) as context:
+            task_service.create_root_task(project.id, invalid_dto2)
+        self.assertIn("end date", str(context.exception))
+
+        # A single valid date within bounds and no other date: should succeed
+        valid_dto = CreateTaskDTO(
+            title="Valid Start Only",
+            start_date=date(2025, 2, 1),
+            end_date=None,
+            assign_to_id=current_user.id,
+        )
+        valid_task = task_service.create_root_task(project.id, valid_dto)
+        self.assertEqual(valid_task.start_date, date(2025, 2, 1))
+        self.assertIsNone(valid_task.end_date)
+
     def test_create_root_task_user_not_in_project(self):
         """Test create_root_task with user not in project"""
         task_service = self._get_task_service()
@@ -303,6 +388,35 @@ class TestTaskService(BaseTestCase):
         self.assertEqual(updated_task.end_date, date(2025, 2, 25))
         self.assertEqual(updated_task.priority, TaskPriority.HIGH)
 
+    def test_update_task_can_clear_dates(self):
+        """Test that update_task can clear a task's existing dates to None (the form
+        always resends the full desired state, so a missing date means "cleared")."""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        root_task_dto = CreateTaskDTO(
+            title="Task With Dates",
+            start_date=date(2025, 2, 1),
+            end_date=date(2025, 2, 28),
+            assign_to_id=current_user.id,
+        )
+        created_task = task_service.create_root_task(project.id, root_task_dto)
+
+        clear_dto = UpdateTaskDTO(
+            title="Task With Dates",
+            start_date=None,
+            end_date=None,
+            status=TaskStatus.TODO,
+            priority=TaskPriority.MEDIUM,
+        )
+        updated_task = task_service.update_task(created_task.id, clear_dto)
+
+        self.assertIsNone(updated_task.start_date)
+        self.assertIsNone(updated_task.end_date)
+
     def test_update_assign_to(self):
         """Test update_assign_to method"""
         second_user = self._create_test_user("second@example.com")
@@ -329,7 +443,7 @@ class TestTaskService(BaseTestCase):
 
         # Test assignment to user not in project
         external_user = self._create_test_user("external2@example.com")
-        with self.assertRaises(BadRequestException) as context:
+        with self.assertRaises(BadRequestException):
             task_service.update_assign_to(created_task.id, external_user.id)
 
     def test_update_status(self):
@@ -493,7 +607,7 @@ class TestTaskService(BaseTestCase):
             status=TaskStatus.TODO,
             priority=TaskPriority.MEDIUM,
         )
-        updated_root = task_service.update_task(root_task.id, update_dto)
+        task_service.update_task(root_task.id, update_dto)
 
         # 4. Update subtask status
         task_service.update_status(subtask1.id, TaskStatus.DONE)
@@ -674,7 +788,7 @@ class TestTaskService(BaseTestCase):
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
-        subtask3 = task_service.create_sub_task(parent_task.id, subtask3_dto)
+        task_service.create_sub_task(parent_task.id, subtask3_dto)
 
         # Set one subtask to DONE, one to DOING, one remains TODO
         task_service.update_status(subtask1.id, TaskStatus.DONE)

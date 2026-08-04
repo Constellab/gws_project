@@ -427,14 +427,22 @@ def details_sidebar() -> rx.Component:
             _sidebar_section_label("Dates"),
             rx.hstack(
                 rx.text(
-                    rx.moment(TaskDetailState.task.start_date, format="MMM D, YYYY"),
+                    rx.cond(
+                        TaskDetailState.task.start_date,
+                        rx.moment(TaskDetailState.task.start_date, format="MMM D, YYYY"),
+                        "—",
+                    ),
                     size="2",
                     weight="bold",
                     color="var(--accent-9)",
                 ),
                 rx.text("→", size="2", color="gray"),
                 rx.text(
-                    rx.moment(TaskDetailState.task.end_date, format="MMM D, YYYY"),
+                    rx.cond(
+                        TaskDetailState.task.end_date,
+                        rx.moment(TaskDetailState.task.end_date, format="MMM D, YYYY"),
+                        "—",
+                    ),
                     size="2",
                     weight="bold",
                     color="var(--accent-9)",

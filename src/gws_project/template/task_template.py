@@ -4,6 +4,7 @@
 from gws_core import (
     NullableCharField,
     NullableForeignKeyField,
+    NullableIntegerField,
     TypedBooleanField,
     TypedCharField,
     TypedEnumField,
@@ -41,9 +42,10 @@ class TaskTemplate(ModelWithUser):
     title = TypedCharField(max_length=255)
     description = TypedRichTextDbField()
 
-    # Relative timing (days offset from project start)
-    start_date_offset = TypedIntegerField(default=0)  # Days from project start
-    duration_days = TypedIntegerField(default=1)  # Task duration in days
+    # Relative timing (days offset from project start) - optional: no offset means
+    # tasks created from this template get no dates at all
+    start_date_offset = NullableIntegerField()  # Days from project start
+    duration_days = NullableIntegerField()  # Task duration in days
 
     # Creation order, used to list sibling templates in the order they were defined,
     # and copied onto the tasks created from them so they keep this order too.
@@ -145,7 +147,7 @@ class TaskTemplate(ModelWithUser):
         """
         return list(cls.select().where(
             (cls.project_template == template_id) & (cls.parent_task.is_null())
-        ).order_by(cls.start_date_offset, cls.order_index))
+        ).order_by(cls.start_date_offset.is_null(), cls.start_date_offset, cls.order_index))
 
     @classmethod
     def get_subtasks_of_template_task(cls, parent_task_id: str) -> list['TaskTemplate']:
@@ -162,7 +164,7 @@ class TaskTemplate(ModelWithUser):
         """
         return list(cls.select().where(
             cls.parent_task == parent_task_id
-        ).order_by(cls.start_date_offset, cls.order_index))
+        ).order_by(cls.start_date_offset.is_null(), cls.start_date_offset, cls.order_index))
 
     def to_dto(self) -> TaskTemplateDTO:
         """Convert the TaskTemplate model to a TaskTemplateDTO for display in the frontend.

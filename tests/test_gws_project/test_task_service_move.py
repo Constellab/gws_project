@@ -78,8 +78,8 @@ class TestTaskServiceMove(BaseTestCase):
         title: str,
         parent_task_id: str | None = None,
         allow_subtasks: bool = False,
-        start_date: date = date(2025, 2, 1),
-        end_date: date = date(2025, 2, 10),
+        start_date: date | None = date(2025, 2, 1),
+        end_date: date | None = date(2025, 2, 10),
         assign_to_id: str | None = None,
     ) -> Task:
         """Create a task. A task must be created with allow_subtasks=True to be
@@ -316,6 +316,21 @@ class TestTaskServiceMove(BaseTestCase):
 
         moved = task_service.move_task(task.id, project_b.id, None)
         self.assertEqual(moved.project.id, project_b.id)
+
+    def test_move_leaf_root_task_with_no_dates_skips_date_bounds_check(self):
+        """A leaf task with no dates at all has nothing to check against the
+        destination project's bounds, so the move succeeds regardless."""
+        task_service = self._get_task_service()
+        project_a = self._create_project("No Dates Bounds A")
+        project_b = self._create_project(
+            "No Dates Bounds B", start_date=date(2025, 6, 1), end_date=date(2025, 6, 30)
+        )
+        task = self._create_task(project_a, "Task", start_date=None, end_date=None)
+
+        moved = task_service.move_task(task.id, project_b.id, None)
+        self.assertEqual(moved.project.id, project_b.id)
+        self.assertIsNone(moved.start_date)
+        self.assertIsNone(moved.end_date)
 
     def test_move_parent_task_to_root_skips_date_bounds_check(self):
         """A task with subtasks moved to become a root task is NOT date-checked against the

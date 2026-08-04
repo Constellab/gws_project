@@ -162,6 +162,19 @@ class TestTaskTemplateService(BaseTestCase):
         with self.assertRaises(BadRequestException):
             service.create_task_template(template.id, SaveTaskTemplateDTO(title="Task", duration_days=-5))
 
+    def test_create_task_template_no_offset_or_duration(self):
+        """Test that start_date_offset and duration_days are optional: omitting them
+        skips validation entirely and stores None on the template"""
+        service = self._get_service()
+        template = self._create_template("Create Task Template No Offset")
+
+        task_template = service.create_task_template(
+            template.id, SaveTaskTemplateDTO(title="No Offset Task")
+        )
+
+        self.assertIsNone(task_template.start_date_offset)
+        self.assertIsNone(task_template.duration_days)
+
     def test_get_task_template(self):
         """Test get_task_template returns the task template, and raises when it does not exist"""
         service = self._get_service()

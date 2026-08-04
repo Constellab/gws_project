@@ -5,7 +5,7 @@ from gws_project.project.project import Project
 from gws_project.project.project_dto import CreateProjectFromTemplateDTO, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
-from gws_project.task.task_dto import CreateTaskDTO
+from gws_project.task.task_dto import CreateTaskDTO, TaskStatus
 from gws_project.task.task_service import TaskService
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.project_template_dto import SaveProjectTemplateDTO
@@ -57,8 +57,8 @@ class TestTaskOrdering(BaseTestCase):
         title: str,
         parent_task_id: str | None = None,
         allow_subtasks: bool = False,
-        start_date: date = date(2025, 2, 1),
-        end_date: date = date(2025, 2, 10),
+        start_date: date | None = date(2025, 2, 1),
+        end_date: date | None = date(2025, 2, 10),
     ) -> Task:
         task_dto = CreateTaskDTO(
             title=title, start_date=start_date, end_date=end_date, allow_subtasks=allow_subtasks
@@ -79,8 +79,8 @@ class TestTaskOrdering(BaseTestCase):
         title: str,
         parent_task_id: str | None = None,
         allow_subtasks: bool = False,
-        start_date_offset: int = 0,
-        duration_days: int = 5,
+        start_date_offset: int | None = 0,
+        duration_days: int | None = 5,
     ) -> TaskTemplate:
         return self._get_task_template_service().create_task_template(
             template.id,
@@ -134,6 +134,19 @@ class TestTaskOrdering(BaseTestCase):
         tasks = Task.get_root_tasks_of_project(project.id)
 
         self.assertEqual([task.id for task in tasks], [earlier.id, later.id])
+
+    def test_undated_tasks_are_sorted_last(self):
+        """Tasks with no start_date are pushed to the end of the list, after every
+        dated task, regardless of creation order"""
+        project = self._create_project("Ordering Undated Last")
+        undated = self._create_task(project, "Undated", start_date=None, end_date=None)
+        dated = self._create_task(
+            project, "Dated", start_date=date(2025, 6, 1), end_date=date(2025, 6, 5)
+        )
+
+        tasks = Task.get_root_tasks_of_project(project.id)
+
+        self.assertEqual([task.id for task in tasks], [dated.id, undated.id])
 
     # ------------------------------------------------------------------
     # Task template ordering with tied created_at
@@ -207,3 +220,36 @@ class TestTaskOrdering(BaseTestCase):
         self.assertEqual(len(root_tasks), 1)
         subtasks = Task.get_subtasks_of_task(root_tasks[0].id)
         self.assertEqual([task.title for task in subtasks], ["Sub First", "Sub Second"])
+
+    def test_task_templates_with_no_offset_are_sorted_last(self):
+        """Task templates with no start_date_offset are pushed to the end of the list,
+        after every template that has an offset"""
+        template = self._create_project_template("Ordering Templates No Offset")
+        no_offset = self._create_task_template(
+            template, "No Offset", start_date_offset=None, duration_days=None
+        )
+        with_offset = self._create_task_template(template, "With Offset", start_date_offset=5)
+
+        root_templates = TaskTemplate.get_root_tasks_of_template(template.id)
+
+        self.assertEqual([t.id for t in root_templates], [with_offset.id, no_offset.id])
+
+    def test_create_project_from_template_with_no_offset_produces_undated_task(self):
+        """A task template with no start_date_offset produces a task with no dates at
+        all, defaulting to TODO status (there's no date to be "not due yet" against)"""
+        template = self._create_project_template("Ordering E2E No Offset")
+        self._create_task_template(
+            template, "No Offset Task", start_date_offset=None, duration_days=None
+        )
+
+        project = self._get_project_service().create_project_from_template(
+            template.id,
+            CreateProjectFromTemplateDTO(name="From Template No Offset", start_date=datetime(2025, 1, 1)),
+        )
+
+        root_tasks = Task.get_root_tasks_of_project(project.id)
+        self.assertEqual(len(root_tasks), 1)
+        task = root_tasks[0]
+        self.assertIsNone(task.start_date)
+        self.assertIsNone(task.end_date)
+        self.assertEqual(task.status, TaskStatus.TODO)

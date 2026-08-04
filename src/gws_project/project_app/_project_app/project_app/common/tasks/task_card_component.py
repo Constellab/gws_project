@@ -74,13 +74,21 @@ def _task_card(task: TaskDTO) -> rx.Component:
                         ),
                         rx.hstack(
                             rx.text(
-                                rx.moment(task.start_date, format="MMM D, YYYY"),
+                                rx.cond(
+                                    task.start_date,
+                                    rx.moment(task.start_date, format="MMM D, YYYY"),
+                                    "—",
+                                ),
                                 size="1",
                                 color="var(--gray-9)",
                             ),
                             rx.text("→", size="1", color="var(--gray-7)"),
                             rx.text(
-                                rx.moment(task.end_date, format="MMM D, YYYY"),
+                                rx.cond(
+                                    task.end_date,
+                                    rx.moment(task.end_date, format="MMM D, YYYY"),
+                                    "—",
+                                ),
                                 size="1",
                                 color="var(--gray-9)",
                             ),
