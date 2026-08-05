@@ -165,7 +165,7 @@ class TestProjectServiceGaps(BaseTestCase):
         project_service = self._get_project_service()
         project = self._create_project("Update Role Project")
         member = self._create_user("member-role@example.com")
-        ProjectUser.create_or_update(project=project, user=member, role=ProjectUserRole.VIEWER)
+        ProjectUser.create_or_update(project=project, user=member, role=ProjectUserRole.OWNER)
 
         updated = project_service.update_user_role(project.id, member.id, ProjectUserRole.USER)
 

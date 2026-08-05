@@ -28,14 +28,13 @@ def user_action_menu(project_user: ProjectUserDTO) -> rx.Component:
         ),
         rx.menu.content(
             rx.menu.item(
-                "Update Role",
-                on_click=ProjectUserFormDialogState.open_update_dialog(project_user)
+                "Update Role", on_click=ProjectUserFormDialogState.open_update_dialog(project_user)
             ),
             rx.menu.separator(),
             rx.menu.item(
                 "Remove from Project",
                 color_scheme="red",
-                on_click=lambda: ManageUsersDialogState.open_remove_user_dialog(project_user)
+                on_click=lambda: ManageUsersDialogState.open_remove_user_dialog(project_user),
             ),
         ),
     )
@@ -52,30 +51,15 @@ def user_table_row(project_user: ProjectUserDTO) -> rx.Component:
     :rtype: rx.Component
     """
     return rx.table.row(
-        rx.table.cell(
-            user_inline_component(project_user.user),
-            vertical_align="middle"
-        ),
+        rx.table.cell(user_inline_component(project_user.user), vertical_align="middle"),
         rx.table.cell(
             rx.badge(
                 project_user.role,
-                color_scheme=rx.cond(
-                    project_user.role == "OWNER",
-                    "blue",
-                    rx.cond(
-                        project_user.role == "USER",
-                        "green",
-                        "gray"
-                    )
-                )
+                color_scheme=rx.cond(project_user.role == "OWNER", "blue", "green"),
             ),
-            vertical_align="middle"
+            vertical_align="middle",
         ),
-        rx.table.cell(
-            user_action_menu(project_user),
-            align="right",
-            vertical_align="middle"
-        ),
+        rx.table.cell(user_action_menu(project_user), align="right", vertical_align="middle"),
     )
 
 
@@ -95,12 +79,7 @@ def users_table() -> rx.Component:
                 rx.table.column_header_cell("Actions", align="right"),
             )
         ),
-        rx.table.body(
-            rx.foreach(
-                ProjectDetailState.project_users,
-                user_table_row
-            )
-        ),
+        rx.table.body(rx.foreach(ProjectDetailState.project_users, user_table_row)),
         width="100%",
         variant="surface",
     )
@@ -147,8 +126,8 @@ def manage_users_dialog() -> rx.Component:
                         size="2",
                         color="gray",
                         align="center",
-                        padding="2rem"
-                    )
+                        padding="2rem",
+                    ),
                 ),
                 # Close button
                 rx.flex(

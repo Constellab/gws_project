@@ -19,7 +19,6 @@ class ProjectUserRole(Enum):
 
     OWNER = "OWNER"
     USER = "USER"
-    VIEWER = "VIEWER"
 
     def get_access_level(self) -> int:
         """Get the access level corresponding to the role.
@@ -28,11 +27,9 @@ class ProjectUserRole(Enum):
         :rtype: int
         """
         if self == ProjectUserRole.OWNER:
-            return 3  # Full access
+            return 2  # Full access
         elif self == ProjectUserRole.USER:
-            return 2  # Edit access
-        elif self == ProjectUserRole.VIEWER:
-            return 1  # Read-only access
+            return 1  # Edit access
         else:
             return 0  # No access
 

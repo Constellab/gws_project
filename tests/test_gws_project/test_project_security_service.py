@@ -97,7 +97,7 @@ class TestProjectSecurityService(BaseTestCase):
         service = self._get_service()
         project = self._create_project("Owner Project")
 
-        for role in [ProjectUserRole.VIEWER, ProjectUserRole.USER, ProjectUserRole.OWNER]:
+        for role in [ProjectUserRole.USER, ProjectUserRole.OWNER]:
             checked = service.get_and_check_role_for_project(project.id, role)
             self.assertEqual(checked.id, project.id)
 
@@ -108,23 +108,21 @@ class TestProjectSecurityService(BaseTestCase):
         outsider, _ = self._create_user("outsider-project@example.com")
 
         with self._authenticate_as(outsider), self.assertRaises(UnauthorizedException):
-            service.get_and_check_role_for_project(project.id, ProjectUserRole.VIEWER)
+            service.get_and_check_role_for_project(project.id, ProjectUserRole.USER)
 
     def test_get_and_check_role_for_project_insufficient_role(self):
         """A member is refused a role above the one they hold, and granted the ones below"""
         service = self._get_service()
         project = self._create_project("Insufficient Role Project")
-        viewer, project_viewer = self._create_user("viewer-project@example.com")
-        ProjectUser.create_or_update(project=project, user=project_viewer, role=ProjectUserRole.VIEWER)
+        member, project_member = self._create_user("member-project@example.com")
+        ProjectUser.create_or_update(project=project, user=project_member, role=ProjectUserRole.USER)
 
-        with self._authenticate_as(viewer):
-            # VIEWER is enough for a VIEWER check
-            checked = service.get_and_check_role_for_project(project.id, ProjectUserRole.VIEWER)
+        with self._authenticate_as(member):
+            # USER is enough for a USER check
+            checked = service.get_and_check_role_for_project(project.id, ProjectUserRole.USER)
             self.assertEqual(checked.id, project.id)
 
-            # but not for USER nor OWNER
-            with self.assertRaises(UnauthorizedException):
-                service.get_and_check_role_for_project(project.id, ProjectUserRole.USER)
+            # but not for OWNER
             with self.assertRaises(UnauthorizedException):
                 service.get_and_check_role_for_project(project.id, ProjectUserRole.OWNER)
 
@@ -155,10 +153,10 @@ class TestProjectSecurityService(BaseTestCase):
 
         # The outsider does not: the role is checked on the task's project
         with self._authenticate_as(outsider), self.assertRaises(UnauthorizedException):
-            service.get_and_check_role_for_task(task.id, ProjectUserRole.VIEWER)
+            service.get_and_check_role_for_task(task.id, ProjectUserRole.USER)
 
     def test_get_and_check_role_for_task_insufficient_role(self):
-        """A viewer of the project is refused a USER-level check on its tasks"""
+        """A USER member of the project is refused an OWNER-level check on its tasks"""
         service = self._get_service()
         project = self._create_project("Task Role Project")
         task = TaskService().create_root_task(
@@ -169,15 +167,15 @@ class TestProjectSecurityService(BaseTestCase):
                 end_date=datetime(2025, 2, 10),
             ),
         )
-        viewer, project_viewer = self._create_user("viewer-task@example.com")
-        ProjectUser.create_or_update(project=project, user=project_viewer, role=ProjectUserRole.VIEWER)
+        member, project_member = self._create_user("member-task@example.com")
+        ProjectUser.create_or_update(project=project, user=project_member, role=ProjectUserRole.USER)
 
-        with self._authenticate_as(viewer):
-            checked = service.get_and_check_role_for_task(task.id, ProjectUserRole.VIEWER)
+        with self._authenticate_as(member):
+            checked = service.get_and_check_role_for_task(task.id, ProjectUserRole.USER)
             self.assertEqual(checked.id, task.id)
 
             with self.assertRaises(UnauthorizedException):
-                service.get_and_check_role_for_task(task.id, ProjectUserRole.USER)
+                service.get_and_check_role_for_task(task.id, ProjectUserRole.OWNER)
 
     def test_services_refuse_non_member(self):
         """The services that wrap the security check refuse a non-member.

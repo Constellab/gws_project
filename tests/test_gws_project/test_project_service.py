@@ -195,7 +195,7 @@ class TestProjectService(BaseTestCase):
         )
 
         project_users = project_service.add_group_to_project(
-            project.id, "team-group-id", ProjectUserRole.VIEWER
+            project.id, "team-group-id", ProjectUserRole.OWNER
         )
 
         # Both group members are added with the requested role
@@ -204,7 +204,7 @@ class TestProjectService(BaseTestCase):
         self.assertTrue(ProjectUser.is_user_in_project(project.id, member_2.id))
         self.assertEqual(
             ProjectUser.get_by_project_and_user(project.id, member_1.id).role,
-            ProjectUserRole.VIEWER,
+            ProjectUserRole.OWNER,
         )
 
         # Re-adding the group with another role updates the local role (the lab
