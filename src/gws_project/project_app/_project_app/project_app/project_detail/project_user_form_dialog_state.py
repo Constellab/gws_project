@@ -1,5 +1,5 @@
 import reflex as rx
-from gws_core import SpaceGroupDTO, SpaceService
+from gws_core import SpaceGroupDTO, SpaceGroupType, SpaceService
 from gws_project.project.project_dto import ProjectUserDTO, ProjectUserRole
 from gws_project.project.project_service import ProjectService
 from gws_reflex_main import FormDialogState, ReflexMainState
@@ -108,16 +108,22 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
 
         project_id = await self._get_project_id()
 
-        # Add group to project
+        # A SINGLE_USER "group" is not an actual team in Space, so it can't be
+        # resolved via get_group_users. Add the underlying user directly instead.
+        selected_group = next((group for group in self.groups if group.id == group_id), None)
+
         with await main_state.authenticate_user():
             project_service = ProjectService()
-            project_service.add_group_to_project(project_id, group_id, role)
+            if selected_group is not None and selected_group.type == SpaceGroupType.SINGLE_USER:
+                project_service.add_user_to_project(project_id, selected_group.user.id, role)
+            else:
+                project_service.add_group_to_project(project_id, group_id, role)
 
         # Reload project detail to refresh the user list
         await self._reload_project_detail()
 
         # Show success message
-        yield rx.toast.success("Group added to project successfully")
+        yield rx.toast.success("Added to project successfully")
 
     async def _update(self, form_data: dict):
         """Update an existing project group's role.
