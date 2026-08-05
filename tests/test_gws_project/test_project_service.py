@@ -207,17 +207,62 @@ class TestProjectService(BaseTestCase):
             ProjectUserRole.OWNER,
         )
 
-        # Re-adding the group with another role updates the local role (the lab
-        # is the authority on project roles)
+        # Re-adding the group with another role does NOT change the role of
+        # members who are already in the project: "adding" must never demote
+        # an existing member (e.g. strip the last owner of their role).
         project_service.add_group_to_project(project.id, "team-group-id", ProjectUserRole.USER)
         self.assertEqual(
             ProjectUser.get_by_project_and_user(project.id, member_1.id).role,
-            ProjectUserRole.USER,
+            ProjectUserRole.OWNER,
         )
 
         # The owner is untouched
         owner = ProjectUser.get_by_project_and_user(project.id, current_user.id)
         self.assertEqual(owner.role, ProjectUserRole.OWNER)
+
+    def test_add_group_to_project_does_not_remove_last_owner(self):
+        """Regression test: adding a team the sole project owner belongs to
+        (with role USER) must not strip them of their OWNER role and leave
+        the project without any owner."""
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        member = User(
+            email="teammember@example.com",
+            first_name="Team",
+            last_name="Member",
+            group=UserGroup.USER,
+        )
+        member.save()
+
+        project_service = self._get_project_service(
+            group_users={"team-group-id": [current_user, member]}
+        )
+
+        project = project_service.create_project(
+            SaveProjectDTO(
+                name="Solo Owner Project",
+                start_date=datetime(2025, 1, 1),
+                end_date=datetime(2025, 12, 31),
+            )
+        )
+
+        # The creator is the sole owner of the project
+        owner = ProjectUser.get_by_project_and_user(project.id, current_user.id)
+        self.assertEqual(owner.role, ProjectUserRole.OWNER)
+
+        # Add a team the owner belongs to, with the default USER role
+        project_service.add_group_to_project(project.id, "team-group-id", ProjectUserRole.USER)
+
+        # The owner keeps their OWNER role
+        owner = ProjectUser.get_by_project_and_user(project.id, current_user.id)
+        self.assertEqual(owner.role, ProjectUserRole.OWNER)
+        self.assertEqual(ProjectUser.count_owner_by_project(project.id), 1)
+
+        # The new team member is added with the requested role
+        self.assertEqual(
+            ProjectUser.get_by_project_and_user(project.id, member.id).role,
+            ProjectUserRole.USER,
+        )
 
     def test_create_project_with_invalid_dates(self):
         """Test create_project with invalid date range"""

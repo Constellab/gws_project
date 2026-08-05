@@ -319,6 +319,11 @@ class ProjectService:
         with the requested role. Membership is enforced locally only: nothing
         is shared in Space.
 
+        Only group members who are not already members of the project are
+        added with the requested role. Members already in the project keep
+        their current role unchanged (e.g. adding a team you belong to as
+        OWNER must not downgrade you to USER).
+
         :param project_id: The ID of the project
         :type project_id: str
         :param group_id: The ID of the Space group to add
@@ -384,9 +389,15 @@ class ProjectService:
         if not user:
             raise BadRequestException(f"Error importing user '{user_id}' in lab.")
 
-        # Create the ProjectUser entity with the requested role. The lab is
-        # the authority on project roles: an existing member keeps/receives
-        # the requested role.
+        # If the user is already a member of the project, leave their role
+        # untouched: "adding" a user/team must never silently change an
+        # existing member's role (e.g. it must not strip the last owner of
+        # their OWNER role). Deliberate role changes go through
+        # update_user_role, which enforces the last-owner protection.
+        existing_project_user = ProjectUser.get_by_project_and_user(project.id, user.id)
+        if existing_project_user:
+            return existing_project_user
+
         return ProjectUser.create_or_update(project=project, user=user, role=role)
 
     @ProjectDbManager.transaction()
