@@ -4,7 +4,7 @@ from typing import Literal
 
 import reflex as rx
 
-ViewMode = Literal["list", "description", "documents"]
+ViewMode = Literal["list", "description", "documents", "activity"]
 
 
 class ViewModeState(rx.State):
@@ -19,7 +19,7 @@ class ViewModeState(rx.State):
     def set_view_mode(self, value: str | list[str]):
         """Set the view mode from the segmented control.
 
-        :param value: The view mode value ("list", "description", or "documents")
+        :param value: The view mode value ("list", "description", "documents", or "activity")
         :type value: Union[str, List[str]]
         """
         # Handle both single value and list of values (though we only expect single)

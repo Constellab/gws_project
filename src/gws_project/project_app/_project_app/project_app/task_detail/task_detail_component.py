@@ -18,6 +18,8 @@ from ..common.tasks.task_components import task_icon_component
 from ..common.tasks.task_priority_chip_component import task_priority_chip
 from ..common.tasks.task_status_chip_component import task_status_chip
 from ..move_task_dialog.move_task_dialog_component import move_task_dialog
+from ..task_activity.task_activity_component import task_activity_content
+from ..task_activity.task_activity_state import TaskActivityState
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_list.task_list_component import task_list_content
 from .task_detail_state import TaskDetailState
@@ -238,6 +240,18 @@ def main_content_area() -> rx.Component:
                     ),
                     value="documents",
                 ),
+                rx.tabs.trigger(
+                    rx.hstack(
+                        rx.text("Activity"),
+                        rx.cond(
+                            TaskActivityState.activity_items.length() > 0,
+                            _tab_count_badge(TaskActivityState.activity_items.length()),
+                        ),
+                        align="center",
+                        spacing="2",
+                    ),
+                    value="activity",
+                ),
             ),
             rx.spacer(),
             _tab_action_button(),
@@ -262,6 +276,11 @@ def main_content_area() -> rx.Component:
         rx.tabs.content(
             documents_list_content(),
             value="documents",
+            padding_top="1rem",
+        ),
+        rx.tabs.content(
+            task_activity_content(),
+            value="activity",
             padding_top="1rem",
         ),
         value=TaskDetailState.view_mode,

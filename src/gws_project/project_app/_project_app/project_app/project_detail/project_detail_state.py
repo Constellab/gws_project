@@ -26,15 +26,29 @@ class ProjectDetailState(rx.State):
     _project_id: str | None = None
     _project_users: list[ProjectUserDTO] = []
 
+    # The project detail page only has these tabs. "activity" is only valid on the
+    # task detail page, but ViewModeState is shared: navigating here after leaving a
+    # task's Activity tab would otherwise carry that value over, matching none of
+    # this page's tabs and rendering nothing.
+    _valid_view_modes = ("list", "description", "documents")
+
     @rx.var
     async def view_mode(self) -> str:
         """Get the current view mode from ViewModeState.
+
+        Falls back to "list" if the shared view mode isn't one of this page's tabs
+        (e.g. "activity", carried over from a task detail page).
 
         :return: The current view mode
         :rtype: str
         """
         view_mode_state = await self.get_state(ViewModeState)
-        return view_mode_state.view_mode
+        mode = view_mode_state.view_mode
+
+        if mode not in self._valid_view_modes:
+            return "list"
+
+        return mode
 
     @rx.var
     async def project(self) -> ProjectDTO | None:

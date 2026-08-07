@@ -12,6 +12,7 @@ from ..common.projects.project_page_state import ProjectPageState
 from ..common.timestamp_text_component import format_timestamp
 from ..common.view_mode_state import ViewModeState
 from ..move_task_dialog.move_task_dialog_state import MoveTaskDialogState
+from ..task_activity.task_activity_state import TaskActivityState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 from ..task_list.task_list_state import TaskListState
 
@@ -195,6 +196,9 @@ class TaskDetailState(rx.State):
         project_page_state = await self.get_state(ProjectPageState)
         await project_page_state.refresh_object()
 
+        activity_state = await self.get_state(TaskActivityState)
+        await activity_state.refresh_activity()
+
     @rx.event
     async def open_move_task_dialog(self):
         """Open the move task dialog for the currently viewed task."""
@@ -220,6 +224,9 @@ class TaskDetailState(rx.State):
         """
         project_page_state = await self.get_state(ProjectPageState)
         await project_page_state.refresh_object()
+
+        activity_state = await self.get_state(TaskActivityState)
+        await activity_state.refresh_activity()
 
     def toggle_description_edit_mode(self):
         """Toggle the description edit mode."""
@@ -249,6 +256,9 @@ class TaskDetailState(rx.State):
         # Reload the task to reflect changes
         project_page_state = await self.get_state(ProjectPageState)
         await project_page_state.refresh_object()
+
+        activity_state = await self.get_state(TaskActivityState)
+        await activity_state.refresh_activity()
 
     @rx.event
     async def open_delete_task_dialog(self):
@@ -354,6 +364,9 @@ class TaskDetailState(rx.State):
         project_page_state = await self.get_state(ProjectPageState)
         await project_page_state.refresh_object()
 
+        activity_state = await self.get_state(TaskActivityState)
+        await activity_state.refresh_activity()
+
         # Refresh the task list
         task_list_state = await self.get_state(TaskListState)
         task_list_state.clear_state()  # Clear task list state to force reload of tasks when navigating back to list
@@ -381,6 +394,9 @@ class TaskDetailState(rx.State):
         project_page_state = await self.get_state(ProjectPageState)
         await project_page_state.refresh_object()
 
+        activity_state = await self.get_state(TaskActivityState)
+        await activity_state.refresh_activity()
+
     async def update_priority(self, new_priority: str):
         """Handle priority change for the task.
 
@@ -403,3 +419,6 @@ class TaskDetailState(rx.State):
         # Refresh the current task
         project_page_state = await self.get_state(ProjectPageState)
         await project_page_state.refresh_object()
+
+        activity_state = await self.get_state(TaskActivityState)
+        await activity_state.refresh_activity()

@@ -17,6 +17,8 @@ from gws_project.project.project_security_service import ProjectSecurityService,
 from gws_project.project.project_user import ProjectUser
 from gws_project.task.task import Task
 from gws_project.task.task_dto import CreateTaskDTO, TaskPriority, TaskStatus, UpdateTaskDTO
+from gws_project.task_history.task_history_event_type import TaskHistoryEventType
+from gws_project.task_history.task_history_service import TaskHistoryService
 from gws_project.template.task_template import TaskTemplate
 from gws_project.user.user import User
 
@@ -120,6 +122,8 @@ class TaskService:
         # Save the task to the database
         task.save()
 
+        TaskHistoryService().log(task, TaskHistoryEventType.CREATED)
+
         return task
 
     @ProjectDbManager.transaction()
@@ -157,6 +161,8 @@ class TaskService:
         # Save the subtask to the database
         subtask.save()
 
+        TaskHistoryService().log(subtask, TaskHistoryEventType.CREATED)
+
         # Update parent task information based on all subtasks (including the new one)
         # This will recursively update all ancestors up to the root task
         self._recalculate_parent_info(subtask)
@@ -187,6 +193,14 @@ class TaskService:
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
+        # Snapshot current values to know exactly what changed once the task is saved
+        old_title = task.title
+        old_start_date = task.start_date
+        old_end_date = task.end_date
+        old_status = task.status
+        old_priority = task.priority
+        old_assign_to = task.assign_to
+
         # Check if this task has subtasks (is a parent task)
         if task.is_leaf_task():
             # For root tasks, validate against project dates
@@ -212,6 +226,16 @@ class TaskService:
         # Save the task to the database
         task.save()
 
+        self._log_task_update(
+            task,
+            old_title=old_title,
+            old_start_date=old_start_date,
+            old_end_date=old_end_date,
+            old_status=old_status,
+            old_priority=old_priority,
+            old_assign_to=old_assign_to,
+        )
+
         # If this is not a root task, update all ancestor tasks in the hierarchy
         self._recalculate_parent_info(task)
 
@@ -233,11 +257,21 @@ class TaskService:
         security_service = ProjectSecurityService()
         task = security_service.get_and_check_role_for_task(task_id, ProjectUserRole.USER)
 
+        old_assign_to = task.assign_to
+
         # Update the task assignment
         task.assign_to = self._validate_assign_to_in_project(task.project.id, user_id)
 
         # Save the task to the database
         task.save()
+
+        if task.assign_to.id != old_assign_to.id:
+            TaskHistoryService().log(
+                task,
+                TaskHistoryEventType.ASSIGNEE_CHANGED,
+                self._format_user(old_assign_to),
+                self._format_user(task.assign_to),
+            )
 
         return task
 
@@ -272,11 +306,20 @@ class TaskService:
         if task.status == status:
             return task  # No change needed
 
+        old_status = task.status
+
         # Update the task status
         task.set_status(status)
 
         # Save the task to the database
         task.save()
+
+        TaskHistoryService().log(
+            task,
+            TaskHistoryEventType.STATUS_CHANGED,
+            self._format_status(old_status),
+            self._format_status(task.status),
+        )
 
         # Update all ancestor tasks in the hierarchy (parent, grandparent, etc.)
         # This updates not just status, but also dates and priority based on all subtasks
@@ -315,11 +358,20 @@ class TaskService:
         if task.priority == priority:
             return task  # No change needed
 
+        old_priority = task.priority
+
         # Update the task priority
         task.priority = priority
 
         # Save the task to the database
         task.save()
+
+        TaskHistoryService().log(
+            task,
+            TaskHistoryEventType.PRIORITY_CHANGED,
+            self._format_priority(old_priority),
+            self._format_priority(task.priority),
+        )
 
         # Update all ancestor tasks in the hierarchy (parent, grandparent, etc.)
         # This updates not just priority, but also dates and status based on all subtasks
@@ -380,6 +432,13 @@ class TaskService:
 
         # Save the task to the database
         task.save()
+
+        TaskHistoryService().log(
+            task,
+            TaskHistoryEventType.TYPE_CHANGED,
+            "a normal task" if allow_subtasks else "a task with subtasks",
+            "a task with subtasks" if allow_subtasks else "a normal task",
+        )
 
         # Propagate changes up the ancestor chain
         self._recalculate_parent_info(task)
@@ -517,6 +576,13 @@ class TaskService:
         task.project = new_project
         task.parent_task = new_parent_task
         task.save()
+
+        TaskHistoryService().log(
+            task,
+            TaskHistoryEventType.MOVED,
+            self._format_task_location(old_project, old_parent_task),
+            self._format_task_location(new_project, new_parent_task),
+        )
 
         # The whole subtree moves along with the task when the project changes
         if not same_project:
@@ -678,6 +744,186 @@ class TaskService:
 
         return User.get_by_id_and_check(user_id)
 
+    def _format_status(self, status: TaskStatus) -> str:
+        """Format a task status for display in a history event.
+
+        :param status: The status to format
+        :type status: TaskStatus
+        :return: The formatted status
+        :rtype: str
+        """
+        return status.value.title()
+
+    def _format_priority(self, priority: TaskPriority) -> str:
+        """Format a task priority for display in a history event.
+
+        :param priority: The priority to format
+        :type priority: TaskPriority
+        :return: The formatted priority
+        :rtype: str
+        """
+        return priority.value.title()
+
+    def _format_date_range(self, start_date: date | None, end_date: date | None) -> str:
+        """Format a start/end date pair for display in a history event.
+
+        :param start_date: The start date, if any
+        :type start_date: Optional[date]
+        :param end_date: The end date, if any
+        :type end_date: Optional[date]
+        :return: The formatted date range
+        :rtype: str
+        """
+        start_text = start_date.strftime("%b %d, %Y") if start_date else "—"
+        end_text = end_date.strftime("%b %d, %Y") if end_date else "—"
+        return f"{start_text} → {end_text}"
+
+    def _format_user(self, user: User) -> str:
+        """Format a user for display in a history event.
+
+        :param user: The user to format
+        :type user: User
+        :return: The user's full name, or their email if they have no name
+        :rtype: str
+        """
+        full_name = f"{user.first_name} {user.last_name}".strip()
+        return full_name or user.email
+
+    def _format_task_location(self, project: Project, parent_task: Task | None) -> str:
+        """Format a project/parent task pair for display in a "moved" history event.
+
+        :param project: The project the task belongs to
+        :type project: Project
+        :param parent_task: The parent task, if the task is a subtask
+        :type parent_task: Optional[Task]
+        :return: The formatted location, e.g. "My project" or "My project / Parent task"
+        :rtype: str
+        """
+        if parent_task:
+            return f"{project.title} / {parent_task.title}"
+        return project.title
+
+    def _log_task_update(
+        self,
+        task: Task,
+        old_title: str,
+        old_start_date: date | None,
+        old_end_date: date | None,
+        old_status: TaskStatus,
+        old_priority: TaskPriority,
+        old_assign_to: User,
+    ) -> None:
+        """Log a history event for each field that changed during a task update.
+
+        Compares the given "before" snapshot against the current (already saved) state
+        of the task and logs one history event per field that actually changed.
+
+        :param task: The task, already saved with its new values
+        :type task: Task
+        :param old_title: The title before the update
+        :type old_title: str
+        :param old_start_date: The start date before the update
+        :type old_start_date: Optional[date]
+        :param old_end_date: The end date before the update
+        :type old_end_date: Optional[date]
+        :param old_status: The status before the update
+        :type old_status: TaskStatus
+        :param old_priority: The priority before the update
+        :type old_priority: TaskPriority
+        :param old_assign_to: The assignee before the update
+        :type old_assign_to: User
+        """
+        history_service = TaskHistoryService()
+
+        if task.title != old_title:
+            history_service.log(task, TaskHistoryEventType.TITLE_CHANGED, old_title, task.title)
+
+        if task.start_date != old_start_date or task.end_date != old_end_date:
+            history_service.log(
+                task,
+                TaskHistoryEventType.DATES_CHANGED,
+                self._format_date_range(old_start_date, old_end_date),
+                self._format_date_range(task.start_date, task.end_date),
+            )
+
+        if task.status != old_status:
+            history_service.log(
+                task,
+                TaskHistoryEventType.STATUS_CHANGED,
+                self._format_status(old_status),
+                self._format_status(task.status),
+            )
+
+        if task.priority != old_priority:
+            history_service.log(
+                task,
+                TaskHistoryEventType.PRIORITY_CHANGED,
+                self._format_priority(old_priority),
+                self._format_priority(task.priority),
+            )
+
+        if task.assign_to.id != old_assign_to.id:
+            history_service.log(
+                task,
+                TaskHistoryEventType.ASSIGNEE_CHANGED,
+                self._format_user(old_assign_to),
+                self._format_user(task.assign_to),
+            )
+
+    def _log_automatic_recalculation(
+        self,
+        task: Task,
+        old_status: TaskStatus,
+        old_priority: TaskPriority,
+        old_start_date: date | None,
+        old_end_date: date | None,
+    ) -> None:
+        """Log a history event for each field automatically recalculated on a parent task.
+
+        Called after a parent task's status/priority/dates were recalculated from its
+        subtasks (`Task.update_from_subtasks`). Each changed field is logged with
+        `is_automatic=True` so the timeline can distinguish it from a direct user action.
+
+        :param task: The parent task, already saved with its recalculated values
+        :type task: Task
+        :param old_status: The status before the recalculation
+        :type old_status: TaskStatus
+        :param old_priority: The priority before the recalculation
+        :type old_priority: TaskPriority
+        :param old_start_date: The start date before the recalculation
+        :type old_start_date: Optional[date]
+        :param old_end_date: The end date before the recalculation
+        :type old_end_date: Optional[date]
+        """
+        history_service = TaskHistoryService()
+
+        if task.status != old_status:
+            history_service.log(
+                task,
+                TaskHistoryEventType.STATUS_CHANGED,
+                self._format_status(old_status),
+                self._format_status(task.status),
+                is_automatic=True,
+            )
+
+        if task.priority != old_priority:
+            history_service.log(
+                task,
+                TaskHistoryEventType.PRIORITY_CHANGED,
+                self._format_priority(old_priority),
+                self._format_priority(task.priority),
+                is_automatic=True,
+            )
+
+        if task.start_date != old_start_date or task.end_date != old_end_date:
+            history_service.log(
+                task,
+                TaskHistoryEventType.DATES_CHANGED,
+                self._format_date_range(old_start_date, old_end_date),
+                self._format_date_range(task.start_date, task.end_date),
+                is_automatic=True,
+            )
+
     def _build_task_from_dto(
         self,
         task_dto: CreateTaskDTO,
@@ -760,6 +1006,11 @@ class TaskService:
 
         if task.parent_task:
             parent_task = task.parent_task
+            old_status = parent_task.status
+            old_priority = parent_task.priority
+            old_start_date = parent_task.start_date
+            old_end_date = parent_task.end_date
+
             # Update from subtasks (calculates dates, status, priority, and progress)
             has_changes = parent_task.update_from_subtasks()
 
@@ -767,6 +1018,10 @@ class TaskService:
             if has_changes:
                 # Save the updated parent task
                 parent_task.save()
+
+                self._log_automatic_recalculation(
+                    parent_task, old_status, old_priority, old_start_date, old_end_date
+                )
 
             # Recursively update the parent's parent (if it exists)
             # This ensures all ancestors in the hierarchy are updated
@@ -788,9 +1043,17 @@ class TaskService:
         :type task: Task
         """
         if task.allow_subtasks:
+            old_status = task.status
+            old_priority = task.priority
+            old_start_date = task.start_date
+            old_end_date = task.end_date
+
             has_changes = task.update_from_subtasks()
             if has_changes:
                 task.save()
+                self._log_automatic_recalculation(
+                    task, old_status, old_priority, old_start_date, old_end_date
+                )
 
         if task.parent_task:
             self._recalculate_task_chain(task.parent_task)
@@ -815,6 +1078,8 @@ class TaskService:
         # Update the description
         task.description = description
         task.save()
+
+        TaskHistoryService().log(task, TaskHistoryEventType.DESCRIPTION_UPDATED)
 
         return task
 
