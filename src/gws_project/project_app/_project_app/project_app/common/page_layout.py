@@ -22,6 +22,9 @@ def sidebar_content() -> rx.Component:
                 "folder", "Projects", "/", additional_active_route_prefixes=["/project"]
             ),
             menu_item_component("kanban", "Kanban", "/kanban"),
+            menu_item_component(
+                "building-2", "Companies", "/companies", additional_active_route_prefixes=["/company"]
+            ),
             menu_item_component("gantt_chart", "Gantt", "/gantt"),
             menu_item_component(
                 "layout_template",

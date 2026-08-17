@@ -3,6 +3,7 @@ from enum import Enum
 
 from gws_core import BaseModelDTO, ModelDTO, RichTextDTO, UserDTO
 
+from gws_project.company.company_dto import CompanyDTO
 from gws_project.task.task_dto import TaskDTO
 
 
@@ -47,6 +48,7 @@ class SaveProjectDTO(BaseModelDTO):
     end_date: datetime
     project_manager_id: str | None = None
     description: RichTextDTO | None = None
+    company_id: str | None = None
 
 
 class CreateProjectFromTemplateDTO(BaseModelDTO):
@@ -60,6 +62,7 @@ class CreateProjectFromTemplateDTO(BaseModelDTO):
     start_date: datetime
     project_manager_id: str | None = None
     role_mapping: dict[str, str] | None = None
+    company_id: str | None = None
 
 
 class AddTasksFromTemplateDTO(BaseModelDTO):
@@ -87,6 +90,7 @@ class ProjectDTO(ModelDTO):
     project_manager: UserDTO
     progress: int
     status: ProjectStatus
+    company: CompanyDTO | None
     created_by: UserDTO
     last_modified_by: UserDTO
 

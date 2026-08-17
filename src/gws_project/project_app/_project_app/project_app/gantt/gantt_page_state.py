@@ -1,5 +1,7 @@
 import reflex as rx
 from gws_core import UserDTO
+from gws_project.company.company_dto import CompanyDTO
+from gws_project.company.company_service import CompanyService
 from gws_project.project.project_dto import ProjectWithRootTasksDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.user.user import User
@@ -23,14 +25,23 @@ class GanttPageState(rx.State):
     # Filter state
     search_title: str = ""
     selected_manager_id: str = ""
+    selected_company_id: str = ""
 
-    # Data for manager filter
+    # Data for manager/company filters
     available_managers: list[UserDTO] = []
+    available_companies: list[CompanyDTO] = []
 
     async def load_managers(self):
         """Load the list of all users who can be project managers."""
         users = User.get_real_users()
         self.available_managers = [user.to_dto() for user in users]
+
+    async def load_companies(self):
+        """Load the list of all companies for the company filter."""
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            companies = CompanyService().search_companies()
+            self.available_companies = [company.to_dto() for company in companies]
 
     async def load_projects_with_tasks(self):
         """Load all projects with their root tasks for the current user, with filters."""
@@ -40,14 +51,16 @@ class GanttPageState(rx.State):
             self.projects_with_tasks = project_service.search_current_user_projects_with_root_tasks(
                 search_title=self.search_title,
                 manager_id=self.selected_manager_id,
+                company_id=self.selected_company_id,
             )
 
     async def on_load(self):
         """Event handler called when the page loads.
 
-        Loads managers and projects with tasks on page load.
+        Loads managers, companies, and projects with tasks on page load.
         """
         await self.load_managers()
+        await self.load_companies()
         await self.load_projects_with_tasks()
 
     @rx.event
@@ -63,11 +76,27 @@ class GanttPageState(rx.State):
         await self.load_projects_with_tasks()
 
     @rx.event
+    async def handle_company_change(self, value: str):
+        """Handle company filter change."""
+        self.selected_company_id = value
+        await self.load_projects_with_tasks()
+
+    @rx.event
     async def clear_filters(self):
         """Clear all filters and reload projects."""
         self.search_title = ""
         self.selected_manager_id = ""
+        self.selected_company_id = ""
         await self.load_projects_with_tasks()
+
+    @rx.var
+    def company_options(self) -> list[tuple[str, str]]:
+        """Get company options for select component (excluding the 'All Companies' option).
+
+        :return: List of (id, name) tuples
+        :rtype: List[tuple[str, str]]
+        """
+        return [(c.id, c.name) for c in self.available_companies]
 
     @rx.var
     def gantt_data(self) -> GanttDataDTO:

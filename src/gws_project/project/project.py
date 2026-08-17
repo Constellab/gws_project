@@ -2,6 +2,7 @@ from datetime import datetime
 
 from gws_core import (
     NullableCharField,
+    NullableForeignKeyField,
     TypedCharField,
     TypedDateField,
     TypedForeignKeyField,
@@ -9,6 +10,7 @@ from gws_core import (
     TypedRichTextDbField,
 )
 
+from gws_project.company.company import Company
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project_dto import ProjectDTO, ProjectStatus
 from gws_project.user.user import User
@@ -33,6 +35,9 @@ class Project(ModelWithUser):
     # MigrateProjectDataFromSpace task; dropped in a later release.
     space_folder_id = NullableCharField(max_length=36, unique=True)
     progress = TypedIntegerField(default=0)
+    # Optional link to the company this project is done for. Companies can never
+    # be deleted, so no on_delete behavior is needed here (same style as project_manager).
+    company = NullableForeignKeyField(Company, backref="projects")
 
     def get_status(self) -> ProjectStatus:
         """Determine the current status of the project based on dates and progress.
@@ -63,6 +68,7 @@ class Project(ModelWithUser):
             project_manager=self.project_manager.to_dto(),
             progress=self.progress,
             status=self.get_status(),
+            company=self.company.to_dto() if self.company else None,
         )
 
     class Meta:

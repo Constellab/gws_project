@@ -53,6 +53,24 @@ def _filter_bar() -> rx.Component:
             on_change=KanbanState.handle_user_change,
             width="200px",
         ),
+        # Company filter select
+        rx.select.root(
+            rx.select.trigger(
+                placeholder="All Companies",
+                width="200px",
+            ),
+            rx.select.content(
+                rx.foreach(
+                    KanbanState.company_options,
+                    lambda opt: rx.select.item(
+                        opt[1],
+                        value=opt[0],
+                    ),
+                )
+            ),
+            value=KanbanState.selected_company_id,
+            on_change=KanbanState.handle_company_change,
+        ),
         # Date filter select
         rx.select.root(
             rx.select.trigger(

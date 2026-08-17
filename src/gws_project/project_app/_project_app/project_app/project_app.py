@@ -1,6 +1,9 @@
 import reflex as rx
 from gws_reflex_main import register_gws_reflex_app
 
+from .company.company_detail_component import company_detail_page
+from .company.company_list_component import company_list_page
+from .company.company_list_state import CompanyListState
 from .gantt.gantt_page_component import gantt_page_component
 from .gantt.gantt_page_state import GanttPageState
 from .kanban.kanban_component import kanban_page
@@ -61,6 +64,27 @@ def project_detail():
     The project_id is extracted from the URL path.
     """
     return project_detail_page()
+
+
+# Declare the company list page
+@rx.page(route="/companies", on_load=[CompanyListState.on_load])
+def company_list():
+    """Company list page displaying all companies.
+
+    This page shows a list of all companies, with a form to create new ones.
+    """
+    return company_list_page()
+
+
+# Declare the company detail page with URL parameter
+@rx.page(route="/company/[company_id_param]")
+def company_detail():
+    """Company detail page displaying all information about a specific company,
+    along with the list of projects linked to it.
+
+    The company_id is extracted from the URL path.
+    """
+    return company_detail_page()
 
 
 # Declare the kanban board page

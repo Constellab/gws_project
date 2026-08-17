@@ -3,6 +3,7 @@ from datetime import date
 
 from gws_core import SearchBuilder
 
+from gws_project.project.project import Project
 from gws_project.task.task import Task
 from gws_project.task.task_dto import TaskStatus
 
@@ -28,6 +29,13 @@ class TaskSearchBuilder(SearchBuilder):
         """Filter the search query by a specific project ID
         """
         self.add_expression(Task.project == project_id)
+        return self
+
+    def add_company_filter(self, company_id: str) -> "TaskSearchBuilder":
+        """Filter the search query by tasks whose project belongs to a specific company
+        """
+        self.add_join(Project, on=(Task.project == Project.id))
+        self.add_expression(Project.company == company_id)
         return self
 
     def add_user_filter(self, user_id: str) -> "TaskSearchBuilder":

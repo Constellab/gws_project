@@ -25,6 +25,24 @@ def _filter_bar() -> rx.Component:
             on_change=GanttPageState.handle_manager_change,
             width="200px",
         ),
+        # Company filter select
+        rx.select.root(
+            rx.select.trigger(
+                placeholder="All Companies",
+                width="200px",
+            ),
+            rx.select.content(
+                rx.foreach(
+                    GanttPageState.company_options,
+                    lambda opt: rx.select.item(
+                        opt[1],
+                        value=opt[0],
+                    ),
+                )
+            ),
+            value=GanttPageState.selected_company_id,
+            on_change=GanttPageState.handle_company_change,
+        ),
         # Clear filters button
         rx.button(
             "Clear",

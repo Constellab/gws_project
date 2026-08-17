@@ -33,6 +33,24 @@ def _filter_bar() -> rx.Component:
             on_change=ProjectListState.handle_manager_change,
             width="200px",
         ),
+        # Company filter select
+        rx.select.root(
+            rx.select.trigger(
+                placeholder="All Companies",
+                width="200px",
+            ),
+            rx.select.content(
+                rx.foreach(
+                    ProjectListState.available_companies,
+                    lambda company: rx.select.item(
+                        company.name,
+                        value=company.id,
+                    ),
+                )
+            ),
+            value=ProjectListState.selected_company_id,
+            on_change=ProjectListState.handle_company_change,
+        ),
         # Clear filters button
         rx.button(
             "Clear",
@@ -88,6 +106,7 @@ def project_list_page() -> rx.Component:
                             rx.table.header(
                                 rx.table.row(
                                     rx.table.column_header_cell("Title"),
+                                    rx.table.column_header_cell("Company"),
                                     rx.table.column_header_cell("Dates"),
                                     rx.table.column_header_cell("Progress"),
                                     rx.table.column_header_cell("Manager"),
@@ -134,6 +153,13 @@ def _row(project: ProjectDTO) -> rx.Component:
                 rx.text(project.title),
                 align="center",
                 spacing="3",
+            ),
+        ),
+        rx.table.cell(
+            rx.cond(
+                project.company,
+                rx.text(project.company.name, size="2"),
+                rx.text("-", size="2", color="gray"),
             ),
         ),
         rx.table.cell(

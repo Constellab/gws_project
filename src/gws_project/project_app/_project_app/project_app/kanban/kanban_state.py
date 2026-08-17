@@ -3,6 +3,8 @@ from datetime import date, timedelta
 import reflex as rx
 from gws_core import UserDTO
 from gws_core.space.space_service import SpaceService
+from gws_project.company.company_dto import CompanyDTO
+from gws_project.company.company_service import CompanyService
 from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.project.project_service import ProjectService
@@ -31,6 +33,7 @@ class KanbanState(rx.State):
     search_text: str = ""
     selected_project_id: str = ""
     selected_user_id: str = ""
+    selected_company_id: str = ""
     selected_date_filter: str = "current_week"  # Default to current week
     # Backlog tasks are hidden by default to avoid cluttering the board with a column
     # most users don't need to see; the user can opt in via the "Show Backlog" toggle.
@@ -39,6 +42,7 @@ class KanbanState(rx.State):
     # Data for filters
     available_projects: list[ProjectDTO] = []
     available_users: list[UserDTO] = []
+    available_companies: list[CompanyDTO] = []
 
     async def load_projects(self):
         """Load the list of projects for the current user."""
@@ -46,6 +50,13 @@ class KanbanState(rx.State):
         with await main_state.authenticate_user():
             user_projects = ProjectService().get_current_user_projects()
             self.available_projects = [project.to_dto() for project in user_projects]
+
+    async def load_companies(self):
+        """Load the list of all companies for the company filter."""
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            companies = CompanyService().search_companies()
+            self.available_companies = [company.to_dto() for company in companies]
 
     async def load_users(self):
         """Load the list of all real users (excluding SYSUSER).
@@ -146,6 +157,10 @@ class KanbanState(rx.State):
         if self.selected_user_id:
             search_builder.add_user_filter(self.selected_user_id)
 
+        # Company filter
+        if self.selected_company_id:
+            search_builder.add_company_filter(self.selected_company_id)
+
         # Text search filter
         if self.search_text:
             search_builder.add_text_search(self.search_text)
@@ -169,10 +184,11 @@ class KanbanState(rx.State):
     async def on_load(self):
         """Event handler called when the page loads.
 
-        Loads projects, users, and tasks on page load.
+        Loads projects, users, companies, and tasks on page load.
         """
         await self.load_projects()
         await self.load_users()
+        await self.load_companies()
         await self.load_tasks()
 
     async def handle_search_change(self, value: str):
@@ -202,6 +218,15 @@ class KanbanState(rx.State):
         self.selected_user_id = value
         await self.load_tasks()
 
+    async def handle_company_change(self, value: str):
+        """Handle company filter change.
+
+        :param value: The selected company ID (empty string for "All Companies")
+        :type value: str
+        """
+        self.selected_company_id = value
+        await self.load_tasks()
+
     async def handle_date_filter_change(self, value: str):
         """Handle date filter change.
 
@@ -225,6 +250,7 @@ class KanbanState(rx.State):
         self.search_text = ""
         self.selected_project_id = ""
         self.selected_user_id = ""
+        self.selected_company_id = ""
         self.selected_date_filter = "current_week"
         self.show_backlog = False
         await self.load_tasks()
@@ -237,6 +263,15 @@ class KanbanState(rx.State):
         :rtype: List[tuple[str, str]]
         """
         return [(p.id, p.title) for p in self.available_projects]
+
+    @rx.var
+    def company_options(self) -> list[tuple[str, str]]:
+        """Get company options for select component (excluding the 'All Companies' option).
+
+        :return: List of (id, name) tuples
+        :rtype: List[tuple[str, str]]
+        """
+        return [(c.id, c.name) for c in self.available_companies]
 
     @rx.var
     def user_options(self) -> list[tuple[str, str]]:

@@ -8,6 +8,7 @@ from gws_core import (
     SpaceService,
 )
 
+from gws_project.company.company import Company
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.document.document_service import DocumentService
 from gws_project.document.project_document import ProjectDocument
@@ -154,6 +155,7 @@ class ProjectService:
         self,
         search_title: str | None = None,
         manager_id: str | None = None,
+        company_id: str | None = None,
     ) -> list[ProjectWithRootTasksDTO]:
         """Get all projects that the current user is a member of, along with their root tasks.
 
@@ -177,6 +179,10 @@ class ProjectService:
         # Project manager filter
         if manager_id:
             search_builder.add_project_manager_filter(manager_id)
+
+        # Company filter
+        if company_id:
+            search_builder.add_company_filter(company_id)
 
         projects = search_builder.search_all()
 
@@ -238,6 +244,9 @@ class ProjectService:
         project.start_date = project_dto.start_date
         project.end_date = project_dto.end_date
         project.project_manager = project_manager
+        project.company = (
+            Company.get_by_id_and_check(project_dto.company_id) if project_dto.company_id else None
+        )
 
         # Save the project model to the database
         project.save()
@@ -273,6 +282,9 @@ class ProjectService:
         project.title = project_dto.name
         project.start_date = project_dto.start_date
         project.end_date = project_dto.end_date
+        project.company = (
+            Company.get_by_id_and_check(project_dto.company_id) if project_dto.company_id else None
+        )
         if project_dto.project_manager_id:
             # Verify that the user is in the project
             project_user = ProjectUser.get_by_project_and_user(
@@ -543,6 +555,7 @@ class ProjectService:
             end_date=end_date,
             project_manager_id=project_dto.project_manager_id,
             description=project_template.description,
+            company_id=project_dto.company_id,
         )
         project = self.create_project(save_project_dto)
 

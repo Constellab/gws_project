@@ -1,5 +1,7 @@
 import reflex as rx
 from gws_core import UserDTO
+from gws_project.company.company_dto import CompanyDTO
+from gws_project.company.company_service import CompanyService
 from gws_project.project.project_count_dto import ProjectCountDTO
 from gws_project.project.project_dto import ProjectDTO, ProjectStatus
 from gws_project.project.project_search_builder import ProjectSearchBuilder
@@ -24,10 +26,12 @@ class ProjectListState(rx.State):
     # Filter state
     search_text: str = ""
     selected_manager_id: str = ""
+    selected_company_id: str = ""
     selected_status_filter: str = ""
 
     # Data for filters
     available_managers: list[UserDTO] = []
+    available_companies: list[CompanyDTO] = []
 
     # All projects matching the text/manager filters, before the status filter is applied.
     # Kept separate so the stat cards always reflect the full counts, regardless of which
@@ -75,6 +79,13 @@ class ProjectListState(rx.State):
         users = User.get_real_users()
         self.available_managers = [user.to_dto() for user in users]
 
+    async def load_companies(self):
+        """Load the list of all companies for the company filter."""
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            companies = CompanyService().search_companies()
+            self.available_companies = [company.to_dto() for company in companies]
+
     async def load_projects(self):
         """Load the list of projects for the current user with applied filters.
 
@@ -106,6 +117,10 @@ class ProjectListState(rx.State):
             if self.selected_manager_id:
                 search_builder.add_project_manager_filter(self.selected_manager_id)
 
+            # Company filter
+            if self.selected_company_id:
+                search_builder.add_company_filter(self.selected_company_id)
+
             projects = search_builder.search_all()
 
             # Convert projects to DTOs
@@ -126,6 +141,7 @@ class ProjectListState(rx.State):
         This method is automatically called by Reflex when the page is loaded.
         """
         await self.load_managers()
+        await self.load_companies()
         await self.load_projects()
 
     @rx.event
@@ -149,10 +165,21 @@ class ProjectListState(rx.State):
         await self.load_projects()
 
     @rx.event
+    async def handle_company_change(self, value: str):
+        """Handle company filter change.
+
+        :param value: The selected company ID (empty string for "All Companies")
+        :type value: str
+        """
+        self.selected_company_id = value
+        await self.load_projects()
+
+    @rx.event
     async def clear_filters(self):
         """Clear all filters and reload projects."""
         self.search_text = ""
         self.selected_manager_id = ""
+        self.selected_company_id = ""
         self.selected_status_filter = ""
         await self.load_projects()
 

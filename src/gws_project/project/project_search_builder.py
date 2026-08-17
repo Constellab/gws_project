@@ -22,6 +22,11 @@ class ProjectSearchBuilder(SearchBuilder):
 
         return self
 
+    def add_company_filter(self, company_id: str) -> "ProjectSearchBuilder":
+        """Filter the search query by projects belonging to a specific company"""
+        self.add_expression(Project.company == company_id)
+        return self
+
     def add_project_user_filter(self, user_id: str) -> "ProjectSearchBuilder":
         """Filter the search query by projects where a user is a member (via ProjectUser table)
 

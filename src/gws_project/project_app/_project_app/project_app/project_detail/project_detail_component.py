@@ -7,6 +7,7 @@ from gws_reflex_main import (
 
 from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
+from ..common.company_app_router import CompanyAppRouter
 from ..common.detail_page_layout import detail_page_layout
 from ..common.documents_list.documents_list_component import documents_list_content
 from ..common.documents_list.documents_list_state import DocumentsListState
@@ -332,6 +333,24 @@ def details_sidebar() -> rx.Component:
             spacing="2",
             align_items="start",
             width="100%",
+        ),
+        # Company section (only shown when the project is linked to a company)
+        rx.cond(
+            ProjectDetailState.project.company,
+            rx.vstack(
+                _sidebar_section_label("Company"),
+                rx.link(
+                    ProjectDetailState.project.company.name,
+                    href=CompanyAppRouter.get_company_detail_url(
+                        ProjectDetailState.project.company.id
+                    ),
+                    size="2",
+                    weight="medium",
+                ),
+                spacing="2",
+                align_items="start",
+                width="100%",
+            ),
         ),
         # Dates section
         rx.vstack(

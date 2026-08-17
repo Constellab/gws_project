@@ -1,6 +1,10 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component, user_select
 
+from ..company.company_form_dialog_component import (
+    quick_create_company_dialog,
+    quick_create_company_trigger_button,
+)
 from .project_form_dialog_state import ProjectFormDialogState
 
 
@@ -45,6 +49,45 @@ def _form_content() -> rx.Component:
                 required=True,
                 width="100%",
                 default_value=ProjectFormDialogState.form_name,
+            ),
+            width="100%",
+            spacing="1",
+        ),
+        # Company selection (optional). Only the trigger button is embedded here -
+        # the actual create-company dialog/form is rendered as a page-level sibling
+        # (see create_project_dialog/project_update_dialog below), never nested
+        # inside this <form>: React bubbles a form's submit event through the
+        # component tree even across a Dialog's portal, so a nested <form> here
+        # would also (incorrectly) submit this project form.
+        rx.vstack(
+            rx.text("Company (optional)", size="2", weight="bold"),
+            rx.hstack(
+                rx.box(
+                    rx.select.root(
+                        rx.select.trigger(
+                            placeholder="No company",
+                            width="100%",
+                        ),
+                        rx.select.content(
+                            rx.foreach(
+                                ProjectFormDialogState.available_companies,
+                                lambda company: rx.select.item(
+                                    company.name,
+                                    value=company.id,
+                                ),
+                            )
+                        ),
+                        value=ProjectFormDialogState.form_company_id,
+                        on_change=ProjectFormDialogState.set_form_company_id,
+                        width="100%",
+                    ),
+                    flex="1",
+                    min_width="0",
+                ),
+                quick_create_company_trigger_button(),
+                width="100%",
+                spacing="2",
+                align="center",
             ),
             width="100%",
             spacing="1",
@@ -173,6 +216,13 @@ def _dialog() -> rx.Component:
         ),
         form_content=_form_content(),
         max_width="500px",
+        # Opening the quick-create company dialog on top of this one moves focus
+        # to that nested dialog, which Radix's dismissable layer treats as an
+        # "outside interaction" on this dialog and would otherwise close it.
+        # Disabling outside-click/escape dismissal here means this dialog can
+        # only be closed via Cancel/Save/the close icon, which also avoids
+        # accidentally losing a partially-filled project form.
+        dismissable=False,
     )
 
 
@@ -181,6 +231,9 @@ def create_project_dialog() -> rx.Component:
 
     Displays a form for entering project details. Success and error messages
     are displayed as toast notifications.
+
+    Also renders the quick-create company dialog as a sibling (not nested inside
+    the project's own <form> - see the comment in _form_content for why).
 
     :return: The create project dialog component with trigger button
     :rtype: rx.Component
@@ -193,6 +246,7 @@ def create_project_dialog() -> rx.Component:
             on_click=ProjectFormDialogState.open_create_dialog,
         ),
         _dialog(),
+        quick_create_company_dialog(),
     )
 
 
@@ -202,7 +256,13 @@ def project_update_dialog() -> rx.Component:
     This component provides just the dialog (without a trigger button).
     The dialog is controlled by the ProjectFormDialogState.dialog_opened state.
 
+    Also renders the quick-create company dialog as a sibling (not nested inside
+    the project's own <form> - see the comment in _form_content for why).
+
     :return: The update project dialog component
     :rtype: rx.Component
     """
-    return _dialog()
+    return rx.fragment(
+        _dialog(),
+        quick_create_company_dialog(),
+    )

@@ -2,6 +2,8 @@ from datetime import datetime
 
 import reflex as rx
 from gws_core import UserDTO
+from gws_project.company.company_dto import CompanyDTO
+from gws_project.company.company_service import CompanyService
 from gws_project.project.project_dto import CreateProjectFromTemplateDTO, ProjectDTO, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.template.project_template_dto import ProjectTemplateDTO
@@ -24,6 +26,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
     form_start_date: str = ""
     form_end_date: str = ""
     form_project_manager_id: str = ""
+    form_company_id: str = ""
 
     # Template-related state
     available_templates: list[ProjectTemplateDTO] = []
@@ -34,6 +37,9 @@ class ProjectFormDialogState(FormDialogState, rx.State):
     # Available users for role assignment
     available_users: list[UserDTO] = []
     project_users: list[UserDTO] = []
+
+    # Available companies for the optional company selector
+    available_companies: list[CompanyDTO] = []
 
     @rx.event
     async def open_create_dialog(self):
@@ -55,8 +61,30 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             # the project member-add dialog.
             self.available_users = [user.to_dto() for user in User.get_real_users()]
 
+            # Load companies for the optional company selector
+            self.available_companies = [
+                company.to_dto() for company in CompanyService().search_companies()
+            ]
+
         # Open the dialog
         self.dialog_opened = True
+
+    @rx.event
+    def set_form_company_id(self, value: str):
+        """Handle company selection change.
+
+        Ignores empty-string calls: the company select has no explicit "no
+        company" item, so a real user pick is never empty. An empty value only
+        happens as a spurious on_change Radix Select fires when a new item is
+        added to the list and selected at the same time (e.g. right after the
+        quick-create dialog adds a company here via add_newly_created_company) -
+        without this guard, that spurious call clears the selection we just set.
+
+        Args:
+            value: The selected company ID
+        """
+        if value:
+            self.form_company_id = value
 
     @rx.event
     async def handle_template_change(self, template_id: str):
@@ -115,12 +143,18 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         # Set project manager
         self.form_project_manager_id = project.project_manager.id
 
-        # Load users for project manager selection
+        # Set company
+        self.form_company_id = project.company.id if project.company else ""
+
+        # Load users for project manager selection and companies for the selector
         main_state = await self.get_state(ReflexMainState)
         with await main_state.authenticate_user():
             project_service = ProjectService()
             self.project_users = [
                 pu.user.to_dto() for pu in project_service.get_project_users(project.id)
+            ]
+            self.available_companies = [
+                company.to_dto() for company in CompanyService().search_companies()
             ]
 
         # Mark as editing
@@ -164,6 +198,10 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             start_date=start_date,
             end_date=end_date,
             project_manager_id=project_manager_id,
+            # Read directly from state (kept in sync via on_change) rather than form_data:
+            # rx.select is not a native <select>, so its value isn't reliably part of the
+            # submitted HTML form data.
+            company_id=self.form_company_id or None,
         )
 
     async def _create(self, form_data: dict):
@@ -239,6 +277,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             start_date=start_date,
             project_manager_id=None,  # Using current user as project manager
             role_mapping=self.role_mapping,
+            company_id=self.form_company_id or None,
         )
 
         # Create the project from template
@@ -284,6 +323,17 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         # Show success toast
         yield rx.toast.success("Project updated successfully")
 
+    @rx.event
+    async def add_newly_created_company(self, company: CompanyDTO):
+        """Add a company just created via the quick-create dialog to the available
+        companies list and select it, without leaving the project form.
+
+        Args:
+            company: The newly created company
+        """
+        self.available_companies = self.available_companies + [company]
+        self.form_company_id = company.id
+
     async def _clear_form_state(self):
         """Clear all form state after successful operation."""
         self._editing_project = None
@@ -291,6 +341,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         self.form_start_date = ""
         self.form_end_date = ""
         self.form_project_manager_id = ""
+        self.form_company_id = ""
         self.is_update_mode = False
 
         # Clear template-related state
@@ -299,3 +350,4 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         self.role_mapping = {}
         self.available_templates = []
         self.available_users = []
+        self.available_companies = []
