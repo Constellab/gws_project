@@ -1,14 +1,15 @@
 import reflex as rx
 from gws_project.company.company_dto import CompanyStatus
-from gws_reflex_main import form_dialog_component
+from gws_reflex_main import form_dialog_component, translate
 
+from . import company_form_dialog_translations  # noqa: F401  (side effect: registers translations)
 from .company_form_dialog_state import CompanyFormDialogState
 
 
 def _status_select() -> rx.Component:
     """Status select field, bound directly to state (not to native form data)."""
     return rx.vstack(
-        rx.text("Status", size="2", weight="bold"),
+        rx.text(translate("company_form_dialog.status_label"), size="2", weight="bold"),
         rx.select.root(
             rx.select.trigger(width="100%"),
             rx.select.content(
@@ -30,7 +31,7 @@ def _logo_section() -> rx.Component:
     (see CompanyFormDialogState._pending_id); in update mode it's persisted
     immediately."""
     return rx.vstack(
-        rx.text("Logo", size="2", weight="bold"),
+        rx.text(translate("company_form_dialog.logo_label"), size="2", weight="bold"),
         rx.cond(
             CompanyFormDialogState.form_logo_url != "",
             rx.image(
@@ -43,7 +44,7 @@ def _logo_section() -> rx.Component:
             rx.button(
                 rx.spinner(loading=CompanyFormDialogState.is_uploading_logo),
                 rx.icon("upload", size=16),
-                "Upload logo",
+                translate("company_form_dialog.upload_logo"),
                 type="button",
                 variant="soft",
                 size="2",
@@ -64,9 +65,9 @@ def _form_content() -> rx.Component:
     """Form content for entering company details."""
     return rx.vstack(
         rx.vstack(
-            rx.text("Company Name*", size="2", weight="bold"),
+            rx.text(translate("company_form_dialog.name_label"), size="2", weight="bold"),
             rx.input(
-                placeholder="Enter company name",
+                placeholder=translate("company_form_dialog.name_placeholder"),
                 name="name",
                 required=True,
                 width="100%",
@@ -81,9 +82,9 @@ def _form_content() -> rx.Component:
             ~CompanyFormDialogState.is_quick_create,
             rx.fragment(
                 rx.vstack(
-                    rx.text("Address", size="2", weight="bold"),
+                    rx.text(translate("company_form_dialog.address_label"), size="2", weight="bold"),
                     rx.input(
-                        placeholder="Enter company address",
+                        placeholder=translate("company_form_dialog.address_placeholder"),
                         name="address",
                         width="100%",
                         default_value=CompanyFormDialogState.form_address,
@@ -93,9 +94,11 @@ def _form_content() -> rx.Component:
                 ),
                 rx.hstack(
                     rx.vstack(
-                        rx.text("Registration (SIREN)", size="2", weight="bold"),
+                        rx.text(
+                            translate("company_form_dialog.siren_label"), size="2", weight="bold"
+                        ),
                         rx.input(
-                            placeholder="9 digit SIREN",
+                            placeholder=translate("company_form_dialog.siren_placeholder"),
                             name="siren",
                             max_length=9,
                             width="100%",
@@ -105,9 +108,9 @@ def _form_content() -> rx.Component:
                         spacing="1",
                     ),
                     rx.vstack(
-                        rx.text("Phone", size="2", weight="bold"),
+                        rx.text(translate("company_form_dialog.phone_label"), size="2", weight="bold"),
                         rx.input(
-                            placeholder="Enter phone number",
+                            placeholder=translate("company_form_dialog.phone_placeholder"),
                             name="phone",
                             width="100%",
                             default_value=CompanyFormDialogState.form_phone,
@@ -139,11 +142,15 @@ def _dialog() -> rx.Component:
     """
     return form_dialog_component(
         state=CompanyFormDialogState,
-        title=rx.cond(CompanyFormDialogState.is_update_mode, "Update Company", "New Company"),
+        title=rx.cond(
+            CompanyFormDialogState.is_update_mode,
+            translate("company_form_dialog.update_company"),
+            translate("company_form_dialog.new_company"),
+        ),
         description=rx.cond(
             CompanyFormDialogState.is_update_mode,
-            "Update the company details below.",
-            "Fill in the details below to create a new company.",
+            translate("company_form_dialog.description_update"),
+            translate("company_form_dialog.description_create"),
         ),
         form_content=_form_content(),
         max_width="500px",
@@ -159,7 +166,7 @@ def create_company_dialog() -> rx.Component:
     return rx.fragment(
         rx.button(
             rx.icon("plus", size=18),
-            "New Company",
+            translate("company_form_dialog.new_company"),
             size="3",
             on_click=CompanyFormDialogState.open_create_dialog,
         ),

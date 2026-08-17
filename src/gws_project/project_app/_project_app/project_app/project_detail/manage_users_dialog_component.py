@@ -1,7 +1,8 @@
 import reflex as rx
 from gws_project.project.project_dto import ProjectUserDTO
-from gws_reflex_main import user_inline_component
+from gws_reflex_main import translate, user_inline_component
 
+from . import manage_users_dialog_translations  # noqa: F401  (side effect: registers translations)
 from .manage_users_dialog_state import ManageUsersDialogState
 from .project_detail_state import ProjectDetailState
 from .project_user_form_dialog_component import project_user_form_dialog
@@ -28,11 +29,12 @@ def user_action_menu(project_user: ProjectUserDTO) -> rx.Component:
         ),
         rx.menu.content(
             rx.menu.item(
-                "Update Role", on_click=ProjectUserFormDialogState.open_update_dialog(project_user)
+                translate("manage_users.update_role"),
+                on_click=ProjectUserFormDialogState.open_update_dialog(project_user),
             ),
             rx.menu.separator(),
             rx.menu.item(
-                "Remove from Project",
+                translate("manage_users.remove_from_project"),
                 color_scheme="red",
                 on_click=lambda: ManageUsersDialogState.open_remove_user_dialog(project_user),
             ),
@@ -74,9 +76,9 @@ def users_table() -> rx.Component:
     return rx.table.root(
         rx.table.header(
             rx.table.row(
-                rx.table.column_header_cell("User"),
-                rx.table.column_header_cell("Role"),
-                rx.table.column_header_cell("Actions", align="right"),
+                rx.table.column_header_cell(translate("manage_users.user_column")),
+                rx.table.column_header_cell(translate("manage_users.role_column")),
+                rx.table.column_header_cell(translate("manage_users.actions_column"), align="right"),
             )
         ),
         rx.table.body(rx.foreach(ProjectDetailState.project_users, user_table_row)),
@@ -103,17 +105,17 @@ def manage_users_dialog() -> rx.Component:
             rx.dialog.content(
                 rx.dialog.title(
                     rx.hstack(
-                        rx.text("Manage Project Members", flex=1),
+                        rx.text(translate("manage_users.title"), flex=1),
                         rx.button(
                             rx.icon("user-plus", size=18),
-                            "Add User",
+                            translate("manage_users.add_user"),
                             size="2",
                             on_click=ProjectUserFormDialogState.open_create_dialog,
                         ),
                     ),
                 ),
                 rx.dialog.description(
-                    "View and manage users for this project.",
+                    translate("manage_users.description"),
                     size="2",
                     margin_bottom="1rem",
                 ),
@@ -122,7 +124,7 @@ def manage_users_dialog() -> rx.Component:
                     ProjectDetailState.project_users.length() > 0,
                     users_table(),
                     rx.text(
-                        "No team members found.",
+                        translate("manage_users.no_members_found"),
                         size="2",
                         color="gray",
                         align="center",
@@ -133,7 +135,7 @@ def manage_users_dialog() -> rx.Component:
                 rx.flex(
                     rx.dialog.close(
                         rx.button(
-                            "Close",
+                            translate("manage_users.close"),
                             variant="soft",
                             on_click=ManageUsersDialogState.close_dialog,
                         ),

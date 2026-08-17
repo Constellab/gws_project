@@ -9,7 +9,17 @@ from gws_project.template.task_template_dto import (
     UpdateTaskTemplateDTO,
 )
 from gws_project.template.task_template_service import TaskTemplateService
-from gws_reflex_main import FormDialogState, ReflexDialogCloseEvent, ReflexMainState
+from gws_reflex_main import (
+    FormDialogState,
+    I18nState,
+    ReflexDialogCloseEvent,
+    ReflexMainState,
+    toast_tr,
+)
+
+from . import (
+    task_template_form_dialog_translations,  # noqa: F401  (side effect: registers translations)
+)
 
 
 class TaskTemplateFormMode(Enum):
@@ -127,7 +137,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
             self.form_assign_to_role = ""
             self.selected_task_type = "without_children"
 
-    def _validate_and_extract_common_fields(self, form_data: dict) -> dict:
+    async def _validate_and_extract_common_fields(self, form_data: dict) -> dict:
         """Validate and extract common fields from form data.
 
         Args:
@@ -139,13 +149,15 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
         Raises:
             Exception: If validation fails
         """
+        i18n = await self.get_state(I18nState)
+
         # Get values from form data
         title = form_data.get("title", "").strip()
         assign_to_role = form_data.get("assign_to_role", "").strip() or None
 
         # Validate required fields
         if not title:
-            raise Exception("Task template title is required")
+            raise Exception(i18n.tr("task_template_form_dialog.title_required"))
 
         result = {"title": title, "assign_to_role": assign_to_role}
 
@@ -157,9 +169,11 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
                 try:
                     start_date_offset = int(start_date_offset_str)
                 except ValueError as err:
-                    raise Exception("Start date offset must be a valid number") from err
+                    raise Exception(
+                        i18n.tr("task_template_form_dialog.start_offset_invalid")
+                    ) from err
                 if start_date_offset < 0:
-                    raise Exception("Start date offset cannot be negative")
+                    raise Exception(i18n.tr("task_template_form_dialog.start_offset_negative"))
                 result["start_date_offset"] = start_date_offset
             else:
                 result["start_date_offset"] = None
@@ -170,9 +184,9 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
                 try:
                     duration_days = int(duration_days_str)
                 except ValueError as err:
-                    raise Exception("Duration must be a valid number") from err
+                    raise Exception(i18n.tr("task_template_form_dialog.duration_invalid")) from err
                 if duration_days <= 0:
-                    raise Exception("Duration must be at least 1 day")
+                    raise Exception(i18n.tr("task_template_form_dialog.duration_too_short"))
                 result["duration_days"] = duration_days
             else:
                 result["duration_days"] = None
@@ -260,7 +274,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
         # Open the dialog
         await self.open_dialog()
 
-    def _validate_and_parse_create_task_template_form_data(
+    async def _validate_and_parse_create_task_template_form_data(
         self, form_data: dict
     ) -> SaveTaskTemplateDTO | None:
         """Validate and parse form data into a CreateTaskTemplateDTO for create operations.
@@ -272,7 +286,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
             CreateTaskTemplateDTO if validation succeeds, None otherwise (error toast is shown)
         """
         # Validate and extract common fields
-        common_fields = self._validate_and_extract_common_fields(form_data)
+        common_fields = await self._validate_and_extract_common_fields(form_data)
 
         # Handle radio button value: "with_children" or "without_children"
         allow_subtasks_value = form_data.get("allow_subtasks", "without_children")
@@ -288,7 +302,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
             assign_to_role=common_fields.get("assign_to_role"),
         )
 
-    def _validate_and_parse_update_task_template_form_data(
+    async def _validate_and_parse_update_task_template_form_data(
         self, form_data: dict
     ) -> UpdateTaskTemplateDTO | None:
         """Validate and parse form data into an UpdateTaskTemplateDTO for update operations.
@@ -300,7 +314,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
             UpdateTaskTemplateDTO if validation succeeds, None otherwise (error toast is shown)
         """
         # Validate and extract common fields
-        common_fields = self._validate_and_extract_common_fields(form_data)
+        common_fields = await self._validate_and_extract_common_fields(form_data)
 
         # Create and return UpdateTaskTemplateDTO
         return UpdateTaskTemplateDTO(
@@ -326,7 +340,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
             main_state = await self.get_state(ReflexMainState)
 
         # Validate and parse form data for create operations
-        task_template_dto = self._validate_and_parse_create_task_template_form_data(form_data)
+        task_template_dto = await self._validate_and_parse_create_task_template_form_data(form_data)
         if task_template_dto is None:
             return  # Validation error already shown
 
@@ -341,7 +355,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
                 )
 
             # Show success toast
-            yield rx.toast.success("Task template created successfully")
+            yield await toast_tr.success(self, "task_template_form_dialog.created_toast")
 
         elif self._form_mode == TaskTemplateFormMode.CREATE_SUB.value:
             # Create the subtask template
@@ -352,7 +366,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
                 )
 
             # Show success toast
-            yield rx.toast.success("Subtask template created successfully")
+            yield await toast_tr.success(self, "task_template_form_dialog.created_sub_toast")
 
         if self._callback_after_close:
             await self._callback_after_close(task_template)
@@ -372,7 +386,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
             main_state = await self.get_state(ReflexMainState)
 
         # Validate and parse form data for update operations
-        task_template_dto = self._validate_and_parse_update_task_template_form_data(form_data)
+        task_template_dto = await self._validate_and_parse_update_task_template_form_data(form_data)
         if task_template_dto is None:
             return  # Validation error already shown
 
@@ -385,7 +399,7 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
             )
 
         # Show success toast
-        yield rx.toast.success("Task template updated successfully")
+        yield await toast_tr.success(self, "task_template_form_dialog.updated_toast")
 
         # Invoke callback if provided
         if self._callback_after_close:

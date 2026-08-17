@@ -2,6 +2,7 @@ import reflex as rx
 from gws_reflex_main import (
     main_component,
     right_sidebar_close_button,
+    translate,
     user_inline_component,
 )
 
@@ -19,6 +20,7 @@ from ..project_form_dialog.project_form_dialog_component import project_update_d
 from ..project_form_dialog.project_form_dialog_state import ProjectFormDialogState
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_list.task_list_component import task_list_content
+from . import project_detail_translations  # noqa: F401  (side effect: registers translations)
 from .manage_users_dialog_component import ManageUsersDialogState, manage_users_dialog
 from .project_description_component import project_description_content
 from .project_detail_state import ProjectDetailState
@@ -40,7 +42,7 @@ def _tab_action_button() -> rx.Component:
             "list",
             rx.button(
                 rx.icon("plus", size=16),
-                "Create Task",
+                translate("project_detail.create_task"),
                 variant="solid",
                 size="2",
                 on_click=ProjectDetailState.open_create_task_dialog,
@@ -59,8 +61,8 @@ def _tab_action_button() -> rx.Component:
                 ),
                 rx.cond(
                     ProjectDetailState.description_edit_mode,
-                    "View",
-                    "Edit",
+                    translate("project_detail.view"),
+                    translate("project_detail.edit"),
                 ),
                 variant="solid",
                 size="2",
@@ -72,7 +74,7 @@ def _tab_action_button() -> rx.Component:
             rx.hstack(
                 rx.button(
                     rx.icon("file-plus", size=16),
-                    "Create Note",
+                    translate("project_detail.create_note"),
                     variant="soft",
                     size="2",
                     on_click=DocumentsListState.open_create_note_dialog,
@@ -81,7 +83,7 @@ def _tab_action_button() -> rx.Component:
                     rx.button(
                         rx.spinner(loading=DocumentsListState.is_uploading),
                         rx.icon("upload", size=16),
-                        "Upload File",
+                        translate("project_detail.upload_file"),
                         variant="solid",
                         size="2",
                     ),
@@ -114,20 +116,20 @@ def project_action_menu() -> rx.Component:
         rx.menu.content(
             rx.menu.item(
                 rx.icon("pencil", size=16),
-                "Update Project",
+                translate("project_detail.update_project"),
                 on_click=lambda: ProjectFormDialogState.open_update_dialog(
                     ProjectDetailState.project
                 ),
             ),
             rx.menu.item(
                 rx.icon("users", size=16),
-                "Manage Users",
+                translate("project_detail.manage_users"),
                 on_click=ManageUsersDialogState.open_dialog,
             ),
             rx.menu.separator(),
             rx.menu.item(
                 rx.icon("trash-2", size=16),
-                "Delete Project",
+                translate("project_detail.delete_project"),
                 color_scheme="red",
                 on_click=ProjectDetailState.open_delete_project_dialog,
             ),
@@ -193,7 +195,7 @@ def main_content_area() -> rx.Component:
             rx.tabs.list(
                 rx.tabs.trigger(
                     rx.hstack(
-                        rx.text("Tasks"),
+                        rx.text(translate("project_detail.tasks_tab")),
                         rx.cond(
                             ProjectDetailState.children_count,
                             _tab_count_badge(ProjectDetailState.children_count.subtask_count),
@@ -204,12 +206,12 @@ def main_content_area() -> rx.Component:
                     value="list",
                 ),
                 rx.tabs.trigger(
-                    rx.text("Description"),
+                    rx.text(translate("project_detail.description_tab")),
                     value="description",
                 ),
                 rx.tabs.trigger(
                     rx.hstack(
-                        rx.text("Documents"),
+                        rx.text(translate("project_detail.documents_tab")),
                         rx.cond(
                             ProjectDetailState.children_count,
                             _tab_count_badge(ProjectDetailState.children_count.document_count),
@@ -313,7 +315,7 @@ def details_sidebar() -> rx.Component:
     return rx.vstack(
         # Heading with close button
         rx.hstack(
-            _sidebar_section_label("Project details"),
+            _sidebar_section_label(translate("project_detail.details_label")),
             rx.spacer(),
             right_sidebar_close_button(),
             width="100%",
@@ -328,7 +330,7 @@ def details_sidebar() -> rx.Component:
         ),
         # Manager section
         rx.vstack(
-            _sidebar_section_label("Manager"),
+            _sidebar_section_label(translate("project_detail.manager")),
             user_inline_component(ProjectDetailState.project.project_manager),
             spacing="2",
             align_items="start",
@@ -338,7 +340,7 @@ def details_sidebar() -> rx.Component:
         rx.cond(
             ProjectDetailState.project.company,
             rx.vstack(
-                _sidebar_section_label("Company"),
+                _sidebar_section_label(translate("project_detail.company")),
                 rx.link(
                     ProjectDetailState.project.company.name,
                     href=CompanyAppRouter.get_company_detail_url(
@@ -354,7 +356,7 @@ def details_sidebar() -> rx.Component:
         ),
         # Dates section
         rx.vstack(
-            _sidebar_section_label("Dates"),
+            _sidebar_section_label(translate("project_detail.dates")),
             rx.hstack(
                 rx.text(
                     ProjectDetailState.project.start_date_text,
@@ -382,7 +384,7 @@ def details_sidebar() -> rx.Component:
         ),
         # Members section
         rx.vstack(
-            _sidebar_section_label("Members"),
+            _sidebar_section_label(translate("project_detail.members")),
             rx.cond(
                 ProjectDetailState.project_users.length() > 0,
                 rx.vstack(
@@ -394,7 +396,7 @@ def details_sidebar() -> rx.Component:
                     align_items="start",
                     width="100%",
                 ),
-                rx.text("No team members", size="2", color="gray"),
+                rx.text(translate("project_detail.no_team_members"), size="2", color="gray"),
             ),
             spacing="2",
             align_items="start",
@@ -404,19 +406,19 @@ def details_sidebar() -> rx.Component:
         rx.vstack(
             rx.divider(margin_bottom="0.5rem"),
             _sidebar_metadata_row(
-                "Created by",
+                translate("project_detail.created_by"),
                 user_inline_component(ProjectDetailState.project.created_by, size="small"),
             ),
             _sidebar_metadata_row(
-                "Created at",
+                translate("project_detail.created_at"),
                 rx.text(ProjectDetailState.created_at_text, size="1", weight="medium"),
             ),
             _sidebar_metadata_row(
-                "Last modified by",
+                translate("project_detail.last_modified_by"),
                 user_inline_component(ProjectDetailState.project.last_modified_by, size="small"),
             ),
             _sidebar_metadata_row(
-                "Last modified at",
+                translate("project_detail.last_modified_at"),
                 rx.text(ProjectDetailState.last_modified_at_text, size="1", weight="medium"),
             ),
             spacing="1",

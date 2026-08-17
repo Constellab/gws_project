@@ -1,11 +1,12 @@
 import reflex as rx
-from gws_reflex_main import main_component, user_inline_component
+from gws_reflex_main import main_component, translate, user_inline_component
 from gws_reflex_main.components.reflex_user_components import user_select
 
 from ..common.page_layout import page_layout
 from ..common.progress_ring import progress_ring
 from ..common.projects.project_status_chip_component import project_status_badge
 from ..project_form_dialog.project_form_dialog_component import create_project_dialog
+from . import project_list_translations  # noqa: F401  (side effect: registers translations)
 from .project_list_state import ProjectDTO, ProjectListState
 from .project_stats_header_component import project_stats_header
 
@@ -20,7 +21,7 @@ def _filter_bar() -> rx.Component:
         # Text search input
         rx.input(
             rx.input.slot(rx.icon("search", size=16)),
-            placeholder="Search projects...",
+            placeholder=translate("project_list.search_placeholder"),
             value=ProjectListState.search_text,
             on_change=ProjectListState.handle_search_change,
             min_width="300px",
@@ -28,7 +29,7 @@ def _filter_bar() -> rx.Component:
         # Manager filter select
         user_select(
             users=ProjectListState.available_managers,
-            placeholder="All Managers",
+            placeholder=translate("project_list.all_managers"),
             value=ProjectListState.selected_manager_id,
             on_change=ProjectListState.handle_manager_change,
             width="200px",
@@ -36,7 +37,7 @@ def _filter_bar() -> rx.Component:
         # Company filter select
         rx.select.root(
             rx.select.trigger(
-                placeholder="All Companies",
+                placeholder=translate("project_list.all_companies"),
                 width="200px",
             ),
             rx.select.content(
@@ -53,7 +54,7 @@ def _filter_bar() -> rx.Component:
         ),
         # Clear filters button
         rx.button(
-            "Clear",
+            translate("project_list.clear"),
             on_click=ProjectListState.clear_filters,
             variant="surface",
             size="2",
@@ -105,11 +106,21 @@ def project_list_page() -> rx.Component:
                         rx.table.root(
                             rx.table.header(
                                 rx.table.row(
-                                    rx.table.column_header_cell("Title"),
-                                    rx.table.column_header_cell("Company"),
-                                    rx.table.column_header_cell("Dates"),
-                                    rx.table.column_header_cell("Progress"),
-                                    rx.table.column_header_cell("Manager"),
+                                    rx.table.column_header_cell(
+                                        translate("project_list.column_title")
+                                    ),
+                                    rx.table.column_header_cell(
+                                        translate("project_list.column_company")
+                                    ),
+                                    rx.table.column_header_cell(
+                                        translate("project_list.column_dates")
+                                    ),
+                                    rx.table.column_header_cell(
+                                        translate("project_list.column_progress")
+                                    ),
+                                    rx.table.column_header_cell(
+                                        translate("project_list.column_manager")
+                                    ),
                                 ),
                             ),
                             rx.table.body(rx.foreach(ProjectListState.projects, _row)),
@@ -121,7 +132,10 @@ def project_list_page() -> rx.Component:
                             rx.vstack(
                                 rx.icon("folder_open", size=48, color="gray"),
                                 rx.text(
-                                    "No projects found", size="4", color="gray", margin_top="1rem"
+                                    translate("project_list.empty_state"),
+                                    size="4",
+                                    color="gray",
+                                    margin_top="1rem",
                                 ),
                                 spacing="2",
                                 align="center",
@@ -135,7 +149,7 @@ def project_list_page() -> rx.Component:
                 spacing="4",
             ),
             header_content=rx.hstack(
-                rx.heading("My projects", size="6"),
+                rx.heading(translate("project_list.title"), size="6"),
                 create_project_dialog(),
                 justify="between",
                 align="center",

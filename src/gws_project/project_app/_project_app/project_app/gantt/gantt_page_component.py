@@ -1,9 +1,10 @@
 import reflex as rx
-from gws_reflex_main import main_component
+from gws_reflex_main import main_component, translate
 
 from ..common.gantt.gantt_component import gantt_component
 from ..common.page_layout import page_layout
 from ..project_list.project_list_component import user_select
+from . import gantt_translations  # noqa: F401  (side effect: registers translations)
 from .gantt_page_state import GanttPageState
 
 
@@ -12,7 +13,7 @@ def _filter_bar() -> rx.Component:
     return rx.hstack(
         # Project title search input
         rx.input(
-            placeholder="Search project title...",
+            placeholder=translate("gantt.filter.search_placeholder"),
             value=GanttPageState.search_title,
             on_change=GanttPageState.handle_search_title_change,
             min_width="300px",
@@ -20,7 +21,7 @@ def _filter_bar() -> rx.Component:
         # Manager filter select
         user_select(
             users=GanttPageState.available_managers,
-            placeholder="All Managers",
+            placeholder=translate("gantt.filter.all_managers"),
             value=GanttPageState.selected_manager_id,
             on_change=GanttPageState.handle_manager_change,
             width="200px",
@@ -28,7 +29,7 @@ def _filter_bar() -> rx.Component:
         # Company filter select
         rx.select.root(
             rx.select.trigger(
-                placeholder="All Companies",
+                placeholder=translate("gantt.filter.all_companies"),
                 width="200px",
             ),
             rx.select.content(
@@ -45,7 +46,7 @@ def _filter_bar() -> rx.Component:
         ),
         # Clear filters button
         rx.button(
-            "Clear",
+            translate("gantt.filter.clear"),
             on_click=GanttPageState.clear_filters,
             variant="surface",
             size="2",
@@ -68,9 +69,9 @@ def empty_state() -> rx.Component:
     return rx.box(
         rx.vstack(
             rx.text("📊", font_size="48px"),
-            rx.heading("No Projects Available", size="5", font_weight="600"),
+            rx.heading(translate("gantt.empty_state.title"), size="5", font_weight="600"),
             rx.text(
-                "Create a project with tasks to see the Gantt chart.",
+                translate("gantt.empty_state.description"),
                 font_size="14px",
                 color="gray",
             ),
@@ -101,10 +102,10 @@ def gantt_page_component() -> rx.Component:
                     _filter_bar(),
                     rx.box(
                         rx.segmented_control.root(
-                            rx.segmented_control.item("Day", value="Day"),
-                            rx.segmented_control.item("Week", value="Week"),
-                            rx.segmented_control.item("Month", value="Month"),
-                            rx.segmented_control.item("Year", value="Year"),
+                            rx.segmented_control.item(translate("gantt.view_mode.day"), value="Day"),
+                            rx.segmented_control.item(translate("gantt.view_mode.week"), value="Week"),
+                            rx.segmented_control.item(translate("gantt.view_mode.month"), value="Month"),
+                            rx.segmented_control.item(translate("gantt.view_mode.year"), value="Year"),
                             on_change=GanttPageState.handle_view_mode_change,
                             value=GanttPageState.view_mode,
                         ),
@@ -127,7 +128,7 @@ def gantt_page_component() -> rx.Component:
                 class_name="gantt-container",
             ),
             header_content=rx.heading(
-                "Project Timeline",
+                translate("gantt.title"),
                 size="6",
             ),
             height="100vh",

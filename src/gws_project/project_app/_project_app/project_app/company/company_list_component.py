@@ -1,9 +1,10 @@
 import reflex as rx
 from gws_project.company.company_dto import CompanyDTO, CompanyStatus
-from gws_reflex_main import main_component
+from gws_reflex_main import main_component, translate
 
 from ..common.companies.company_status_chip_component import company_status_chip
 from ..common.page_layout import page_layout
+from . import company_list_translations  # noqa: F401  (side effect: registers translations)
 from .company_form_dialog_component import create_company_dialog
 from .company_list_state import CompanyListState
 
@@ -17,14 +18,14 @@ def _filter_bar() -> rx.Component:
     return rx.hstack(
         rx.input(
             rx.input.slot(rx.icon("search", size=16)),
-            placeholder="Search companies...",
+            placeholder=translate("company_list.search_placeholder"),
             value=CompanyListState.search_text,
             on_change=CompanyListState.handle_search_change,
             min_width="300px",
         ),
         rx.select.root(
             rx.select.trigger(
-                placeholder="All Statuses",
+                placeholder=translate("company_list.all_statuses"),
                 width="200px",
             ),
             rx.select.content(
@@ -34,7 +35,7 @@ def _filter_bar() -> rx.Component:
             on_change=CompanyListState.handle_status_filter_change,
         ),
         rx.button(
-            "Clear",
+            translate("company_list.clear"),
             on_click=CompanyListState.clear_filters,
             variant="surface",
             size="2",
@@ -84,9 +85,11 @@ def company_list_page() -> rx.Component:
                         rx.table.root(
                             rx.table.header(
                                 rx.table.row(
-                                    rx.table.column_header_cell("Name"),
-                                    rx.table.column_header_cell("Phone"),
-                                    rx.table.column_header_cell("Address"),
+                                    rx.table.column_header_cell(translate("company_list.column_name")),
+                                    rx.table.column_header_cell(translate("company_list.column_phone")),
+                                    rx.table.column_header_cell(
+                                        translate("company_list.column_address")
+                                    ),
                                 ),
                             ),
                             rx.table.body(rx.foreach(CompanyListState.companies, _row)),
@@ -97,7 +100,10 @@ def company_list_page() -> rx.Component:
                             rx.vstack(
                                 rx.icon("building-2", size=48, color="gray"),
                                 rx.text(
-                                    "No companies found", size="4", color="gray", margin_top="1rem"
+                                    translate("company_list.empty"),
+                                    size="4",
+                                    color="gray",
+                                    margin_top="1rem",
                                 ),
                                 spacing="2",
                                 align="center",
@@ -111,7 +117,7 @@ def company_list_page() -> rx.Component:
                 spacing="4",
             ),
             header_content=rx.hstack(
-                rx.heading("Companies", size="6"),
+                rx.heading(translate("company_list.title"), size="6"),
                 create_company_dialog(),
                 justify="between",
                 align="center",

@@ -1,8 +1,10 @@
 """Reflex wrapper for React Gantt chart component using gantt-task-react."""
 
 import reflex as rx
+from gws_reflex_main import translate
 from reflex.vars import Var
 
+from . import gantt_translations  # noqa: F401  (side effect: registers translations)
 from .gantt_type import GanttDataDTO
 
 # Path to the custom TSX component
@@ -74,8 +76,10 @@ def _empty_state() -> rx.Component:
     return rx.box(
         rx.vstack(
             rx.text("📊", font_size="48px"),
-            rx.heading("No Projects Available", size="5", font_weight="600"),
-            rx.text("Create a project with tasks to see the Gantt chart.", font_size="14px", color="gray"),
+            rx.heading(translate("gantt_chart.empty_state.title"), size="5", font_weight="600"),
+            rx.text(
+                translate("gantt_chart.empty_state.description"), font_size="14px", color="gray"
+            ),
             spacing="3",
             align="center",
         ),

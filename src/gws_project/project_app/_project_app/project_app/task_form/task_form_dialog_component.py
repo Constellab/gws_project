@@ -1,7 +1,8 @@
 import reflex as rx
 from gws_project.task.task_dto import TaskPriority, TaskStatus
-from gws_reflex_main import form_dialog_component, user_select
+from gws_reflex_main import form_dialog_component, translate, user_select
 
+from . import task_form_dialog_translations  # noqa: F401  (side effect: registers translations)
 from .task_form_dialog_state import TaskFormDialogState
 
 
@@ -17,7 +18,7 @@ def _role_assignment_row(role: str) -> rx.Component:
         rx.text(role, size="2", weight="medium", min_width="120px"),
         user_select(
             users=TaskFormDialogState.users,
-            placeholder="Select user (required)",
+            placeholder=translate("task_form.role_user_select_placeholder"),
             on_change=lambda user_id, r=role: TaskFormDialogState.handle_role_user_change(
                 r, user_id
             ),
@@ -33,10 +34,10 @@ def _template_picker() -> rx.Component:
     return rx.cond(
         TaskFormDialogState.is_create_root_mode,
         rx.vstack(
-            rx.text("Task Template (Optional)", size="2", weight="bold"),
+            rx.text(translate("task_form.template.label"), size="2", weight="bold"),
             rx.select.root(
                 rx.select.trigger(
-                    placeholder="Select a template (optional)",
+                    placeholder=translate("task_form.template.placeholder"),
                     width="100%",
                 ),
                 rx.select.content(
@@ -62,9 +63,9 @@ def _single_task_fields() -> rx.Component:
     return rx.fragment(
         # Title field
         rx.vstack(
-            rx.text("Task Title*", size="2", weight="bold"),
+            rx.text(translate("task_form.title_field.label"), size="2", weight="bold"),
             rx.input(
-                placeholder="Enter task title",
+                placeholder=translate("task_form.title_field.placeholder"),
                 name="title",
                 required=True,
                 width="100%",
@@ -76,10 +77,10 @@ def _single_task_fields() -> rx.Component:
 
         # Assign to field (shown in both create and update modes)
         rx.vstack(
-            rx.text("Assign To", size="2", weight="bold"),
+            rx.text(translate("task_form.assign_to.label"), size="2", weight="bold"),
             user_select(
                 users=TaskFormDialogState.users,
-                placeholder="Select a user (default to yourself)",
+                placeholder=translate("task_form.assign_to.placeholder"),
                 name="assign_to_id",
                 default_value=TaskFormDialogState.form_assign_to_id,
                 width="100%",
@@ -92,12 +93,12 @@ def _single_task_fields() -> rx.Component:
         rx.cond(
             ~TaskFormDialogState.is_update_mode,
             rx.vstack(
-                rx.text("Task Type*", size="2", weight="bold"),
+                rx.text(translate("task_form.task_type.label"), size="2", weight="bold"),
                 rx.radio.root(
                     rx.hstack(
                         rx.radio.item(
                             rx.hstack(
-                                rx.text("📋 Single task", size="2"),
+                                rx.text(translate("task_form.task_type.single"), size="2"),
                                 spacing="2",
                                 align="center"
                             ),
@@ -105,7 +106,7 @@ def _single_task_fields() -> rx.Component:
                         ),
                         rx.radio.item(
                             rx.hstack(
-                                rx.text("📁 Task with subtasks", size="2"),
+                                rx.text(translate("task_form.task_type.with_subtasks"), size="2"),
                                 spacing="2",
                                 align="center"
                             ),
@@ -130,7 +131,7 @@ def _single_task_fields() -> rx.Component:
                 # Date fields
                 rx.hstack(
                     rx.vstack(
-                        rx.text("Start Date", size="2", weight="bold"),
+                        rx.text(translate("task_form.start_date.label"), size="2", weight="bold"),
                         rx.input(
                             type="date",
                             name="start_date",
@@ -144,7 +145,7 @@ def _single_task_fields() -> rx.Component:
                     ),
 
                     rx.vstack(
-                        rx.text("End Date", size="2", weight="bold"),
+                        rx.text(translate("task_form.end_date.label"), size="2", weight="bold"),
                         rx.input(
                             type="date",
                             name="end_date",
@@ -164,7 +165,7 @@ def _single_task_fields() -> rx.Component:
                 # Create mode: show both status and priority
                 rx.hstack(
                     rx.vstack(
-                        rx.text("Status*", size="2", weight="bold"),
+                        rx.text(translate("task_form.status.label"), size="2", weight="bold"),
                         rx.select(
                             [status.value for status in TaskStatus],
                             name="status",
@@ -176,7 +177,7 @@ def _single_task_fields() -> rx.Component:
                     ),
 
                     rx.vstack(
-                        rx.text("Priority*", size="2", weight="bold"),
+                        rx.text(translate("task_form.priority.label"), size="2", weight="bold"),
                         rx.select(
                             [priority.value for priority in TaskPriority],
                             name="priority",
@@ -199,7 +200,7 @@ def _single_task_fields() -> rx.Component:
                         rx.icon(tag="info", size=16)
                     ),
                     rx.callout.text(
-                        "Dates, status, and priority are automatically calculated from all descendant tasks.",
+                        translate("task_form.auto_calc_message"),
                         size="2"
                     ),
                 ),
@@ -215,7 +216,7 @@ def _template_fields() -> rx.Component:
     if the template defines roles, a project-member picker for each one."""
     return rx.vstack(
         rx.vstack(
-            rx.text("Start Date*", size="2", weight="bold"),
+            rx.text(translate("task_form.template_start_date.label"), size="2", weight="bold"),
             rx.input(
                 type="date",
                 name="start_date",
@@ -231,10 +232,9 @@ def _template_fields() -> rx.Component:
         rx.cond(
             TaskFormDialogState.template_roles.length() > 0,
             rx.vstack(
-                rx.text("Role Assignments", size="2", weight="bold"),
+                rx.text(translate("task_form.role_assignments.label"), size="2", weight="bold"),
                 rx.text(
-                    "Assign a project member to each role. These users will be assigned "
-                    "to the corresponding tasks.",
+                    translate("task_form.role_assignments.description"),
                     size="1",
                     color="gray",
                 ),
@@ -285,8 +285,10 @@ def task_form_dialog() -> rx.Component:
     return form_dialog_component(
         state=TaskFormDialogState,
         title=rx.cond(
-            TaskFormDialogState.is_update_mode, "Update Task", rx.cond(
-                TaskFormDialogState.is_create_sub_mode, "Create New Subtask", "Create New Task")
+            TaskFormDialogState.is_update_mode, translate("task_form.title.update"), rx.cond(
+                TaskFormDialogState.is_create_sub_mode,
+                translate("task_form.title.create_sub"),
+                translate("task_form.title.create_root"))
         ),
         form_content=_form_content(),
         max_width="600px"

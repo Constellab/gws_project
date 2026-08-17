@@ -1,0 +1,78 @@
+"""Translations for the task template create/update dialog. Registered once at import time.
+
+See gws_reflex_main's I18nState/translate/register_translations for the
+underlying (session-local) i18n mechanism.
+"""
+
+from gws_reflex_main import register_translations
+
+register_translations(
+    {
+        "en": {
+            "task_template_form_dialog.title_label": "Task Template Title*",
+            "task_template_form_dialog.title_placeholder": "Enter task template title",
+            "task_template_form_dialog.type_label": "Task Type*",
+            "task_template_form_dialog.type_single": "📋 Single task",
+            "task_template_form_dialog.type_with_subtasks": "📁 Task with subtasks",
+            "task_template_form_dialog.start_offset_label": "Start Date Offset (days)",
+            "task_template_form_dialog.start_offset_placeholder": "Days from project start",
+            "task_template_form_dialog.duration_label": "Duration (days)",
+            "task_template_form_dialog.duration_placeholder": "Task duration",
+            "task_template_form_dialog.priority_label": "Priority*",
+            "task_template_form_dialog.info_create_sub": "Date offsets, duration, and priority will be managed by the parent task and automatically propagated up the hierarchy.",
+            "task_template_form_dialog.info_update_parent": "Date offsets, duration, and priority are automatically calculated from all descendant task templates.",
+            "task_template_form_dialog.info_create_parent": "Date offsets, duration, and priority will be automatically calculated from all descendant task templates once you add them.",
+            "task_template_form_dialog.role_label": "Assign to Role (optional)",
+            "task_template_form_dialog.role_description": "Specify a role name to assign this task to a specific role. When creating a project from this template, you'll be able to assign users to each role.",
+            "task_template_form_dialog.role_placeholder": "e.g., project_manager, team_member",
+            "task_template_form_dialog.title_update": "Update Task Template",
+            "task_template_form_dialog.title_create_sub": "Create New Subtask Template",
+            "task_template_form_dialog.title_create_root": "Create New Task Template",
+            "task_template_form_dialog.description_update_parent": "Update the task template details below. Date offsets, duration, and priority are automatically calculated from all descendant task templates.",
+            "task_template_form_dialog.description_update": "Update the task template details below.",
+            "task_template_form_dialog.description_create_sub": "Fill in the details below to create a new subtask template. Changes will propagate up the hierarchy.",
+            "task_template_form_dialog.description_create_root": "Fill in the details below to create a new task template for this project template.",
+            "task_template_form_dialog.title_required": "Task template title is required",
+            "task_template_form_dialog.start_offset_invalid": "Start date offset must be a valid number",
+            "task_template_form_dialog.start_offset_negative": "Start date offset cannot be negative",
+            "task_template_form_dialog.duration_invalid": "Duration must be a valid number",
+            "task_template_form_dialog.duration_too_short": "Duration must be at least 1 day",
+            "task_template_form_dialog.created_toast": "Task template created successfully",
+            "task_template_form_dialog.created_sub_toast": "Subtask template created successfully",
+            "task_template_form_dialog.updated_toast": "Task template updated successfully",
+        },
+        "fr": {
+            "task_template_form_dialog.title_label": "Titre du modèle de tâche*",
+            "task_template_form_dialog.title_placeholder": "Saisissez le titre du modèle de tâche",
+            "task_template_form_dialog.type_label": "Type de tâche*",
+            "task_template_form_dialog.type_single": "📋 Tâche unique",
+            "task_template_form_dialog.type_with_subtasks": "📁 Tâche avec sous-tâches",
+            "task_template_form_dialog.start_offset_label": "Décalage de date de début (jours)",
+            "task_template_form_dialog.start_offset_placeholder": "Jours depuis le début du projet",
+            "task_template_form_dialog.duration_label": "Durée (jours)",
+            "task_template_form_dialog.duration_placeholder": "Durée de la tâche",
+            "task_template_form_dialog.priority_label": "Priorité*",
+            "task_template_form_dialog.info_create_sub": "Les décalages de dates, la durée et la priorité seront gérés par la tâche parente et automatiquement propagés dans la hiérarchie.",
+            "task_template_form_dialog.info_update_parent": "Les décalages de dates, la durée et la priorité sont automatiquement calculés à partir de tous les modèles de tâches descendants.",
+            "task_template_form_dialog.info_create_parent": "Les décalages de dates, la durée et la priorité seront automatiquement calculés à partir de tous les modèles de tâches descendants une fois que vous les aurez ajoutés.",
+            "task_template_form_dialog.role_label": "Assigner à un rôle (facultatif)",
+            "task_template_form_dialog.role_description": "Indiquez un nom de rôle pour assigner cette tâche à un rôle spécifique. Lors de la création d'un projet à partir de ce modèle, vous pourrez assigner des utilisateurs à chaque rôle.",
+            "task_template_form_dialog.role_placeholder": "ex. : chef_de_projet, membre_equipe",
+            "task_template_form_dialog.title_update": "Modifier le modèle de tâche",
+            "task_template_form_dialog.title_create_sub": "Créer un nouveau modèle de sous-tâche",
+            "task_template_form_dialog.title_create_root": "Créer un nouveau modèle de tâche",
+            "task_template_form_dialog.description_update_parent": "Modifiez les informations du modèle de tâche ci-dessous. Les décalages de dates, la durée et la priorité sont automatiquement calculés à partir de tous les modèles de tâches descendants.",
+            "task_template_form_dialog.description_update": "Modifiez les informations du modèle de tâche ci-dessous.",
+            "task_template_form_dialog.description_create_sub": "Renseignez les informations ci-dessous pour créer un nouveau modèle de sous-tâche. Les modifications seront propagées dans la hiérarchie.",
+            "task_template_form_dialog.description_create_root": "Renseignez les informations ci-dessous pour créer un nouveau modèle de tâche pour ce modèle de projet.",
+            "task_template_form_dialog.title_required": "Le titre du modèle de tâche est requis",
+            "task_template_form_dialog.start_offset_invalid": "Le décalage de date de début doit être un nombre valide",
+            "task_template_form_dialog.start_offset_negative": "Le décalage de date de début ne peut pas être négatif",
+            "task_template_form_dialog.duration_invalid": "La durée doit être un nombre valide",
+            "task_template_form_dialog.duration_too_short": "La durée doit être d'au moins 1 jour",
+            "task_template_form_dialog.created_toast": "Modèle de tâche créé avec succès",
+            "task_template_form_dialog.created_sub_toast": "Modèle de sous-tâche créé avec succès",
+            "task_template_form_dialog.updated_toast": "Modèle de tâche mis à jour avec succès",
+        },
+    }
+)

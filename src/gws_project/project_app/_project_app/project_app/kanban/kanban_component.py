@@ -1,5 +1,5 @@
 import reflex as rx
-from gws_reflex_main import main_component
+from gws_reflex_main import main_component, translate
 from gws_reflex_main.components.reflex_user_components import user_select
 
 from ..common.kanban.kanban import (
@@ -9,6 +9,7 @@ from ..common.kanban.kanban import (
     kanban_board,
 )
 from ..common.page_layout import page_layout
+from . import kanban_translations  # noqa: F401  (side effect: registers translations)
 from .kanban_quick_add_state import KanbanQuickAddState
 from .kanban_state import KanbanState
 
@@ -22,7 +23,7 @@ def _filter_bar() -> rx.Component:
     return rx.hstack(
         # Text search input
         rx.input(
-            placeholder="Title",
+            placeholder=translate("kanban.filters.search_placeholder"),
             value=KanbanState.search_text,
             on_change=KanbanState.handle_search_change,
             min_width="300px",
@@ -30,7 +31,7 @@ def _filter_bar() -> rx.Component:
         # Project filter select
         rx.select.root(
             rx.select.trigger(
-                placeholder="All Projects",
+                placeholder=translate("kanban.filters.all_projects"),
                 width="200px",
             ),
             rx.select.content(
@@ -48,7 +49,7 @@ def _filter_bar() -> rx.Component:
         # User filter select
         user_select(
             users=KanbanState.available_users,
-            placeholder="All Users",
+            placeholder=translate("kanban.filters.all_users"),
             value=KanbanState.selected_user_id,
             on_change=KanbanState.handle_user_change,
             width="200px",
@@ -56,7 +57,7 @@ def _filter_bar() -> rx.Component:
         # Company filter select
         rx.select.root(
             rx.select.trigger(
-                placeholder="All Companies",
+                placeholder=translate("kanban.filters.all_companies"),
                 width="200px",
             ),
             rx.select.content(
@@ -77,11 +78,11 @@ def _filter_bar() -> rx.Component:
                 width="200px",
             ),
             rx.select.content(
-                rx.select.item("All", value="all"),
-                rx.select.item("Last Week", value="last_week"),
-                rx.select.item("Current Week", value="current_week"),
-                rx.select.item("Next Week", value="next_week"),
-                rx.select.item("Current Month", value="current_month"),
+                rx.select.item(translate("kanban.filters.date_all"), value="all"),
+                rx.select.item(translate("kanban.filters.date_last_week"), value="last_week"),
+                rx.select.item(translate("kanban.filters.date_current_week"), value="current_week"),
+                rx.select.item(translate("kanban.filters.date_next_week"), value="next_week"),
+                rx.select.item(translate("kanban.filters.date_current_month"), value="current_month"),
             ),
             value=KanbanState.selected_date_filter,
             on_change=KanbanState.handle_date_filter_change,
@@ -92,14 +93,14 @@ def _filter_bar() -> rx.Component:
                 checked=KanbanState.show_backlog,
                 on_change=KanbanState.handle_show_backlog_change,
             ),
-            "Show Backlog",
+            translate("kanban.filters.show_backlog"),
             as_="label",
             size="2",
             style={"display": "flex", "align-items": "center", "gap": "8px", "cursor": "pointer"},
         ),
         # Clear filters button
         rx.button(
-            "Clear",
+            translate("kanban.filters.clear"),
             on_click=KanbanState.clear_filters,
             variant="surface",
             size="2",
@@ -164,7 +165,7 @@ def kanban_page() -> rx.Component:
                 height="100%",
             ),
             header_content=rx.heading(
-                "Task Board",
+                translate("kanban.title"),
                 size="6",
             ),
             height="100vh",

@@ -13,6 +13,7 @@ from reflex.vars import Var
 
 from ..status_colors import StatusColors
 from ..tasks.task_priority_chip_component import PriorityColors
+from . import kanban_translations  # noqa: F401  (side effect: registers translations)
 
 # Path to the custom TSX components
 kanban_path = rx.asset("kanban_board.tsx", shared=True)
@@ -212,11 +213,21 @@ USER_COLOR_MAP: dict[str, str] = get_user_color_mapping()
 # Convenience function to create the component
 kanban_board = KanbanBoard.create
 
+# Default (English) column titles, used when the caller does not supply resolved
+# translations (e.g. a resolver bound to the current session's language via I18nState).
+DEFAULT_COLUMN_TITLES: dict[str, str] = {
+    TaskStatus.BACKLOG.value: "Backlog",
+    TaskStatus.TODO.value: "To Do",
+    TaskStatus.DOING.value: "In Progress",
+    TaskStatus.DONE.value: "Done",
+}
+
 
 def build_kanban_board_data(
     tasks: list[TaskDTO],
     task_to_card_converter: Callable[[TaskDTO], CardDTO],
     include_backlog: bool = False,
+    column_titles: dict[str, str] | None = None,
 ) -> BoardDataDTO:
     """Build kanban board data from a list of tasks.
 
@@ -229,9 +240,17 @@ def build_kanban_board_data(
     :param include_backlog: Whether to include the Backlog column. Off by default so the
         board isn't cluttered with a column most users don't need to see.
     :type include_backlog: bool
+    :param column_titles: Optional mapping of TaskStatus value to a (already translated)
+        column title. This function runs in plain Python (e.g. from a state's computed
+        var), outside the component tree, so it cannot use the reactive `translate()`
+        helper; callers resolve the titles themselves (e.g. via `I18nState.tr()`) and
+        pass them in. Falls back to :data:`DEFAULT_COLUMN_TITLES` (English) when omitted.
+    :type column_titles: dict[str, str] | None
     :return: BoardDataDTO with columns structure for the Kanban board
     :rtype: BoardDataDTO
     """
+    titles = column_titles or DEFAULT_COLUMN_TITLES
+
     # Group tasks by status
     todo_tasks = [task for task in tasks if task.status == TaskStatus.TODO]
     doing_tasks = [task for task in tasks if task.status == TaskStatus.DOING]
@@ -244,7 +263,7 @@ def build_kanban_board_data(
         columns.append(
             ColumnDTO(
                 id=TaskStatus.BACKLOG.value,
-                title="Backlog",
+                title=titles[TaskStatus.BACKLOG.value],
                 cards=[task_to_card_converter(task) for task in backlog_tasks]
             )
         )
@@ -252,17 +271,17 @@ def build_kanban_board_data(
     columns.extend([
         ColumnDTO(
             id=TaskStatus.TODO.value,
-            title="To Do",
+            title=titles[TaskStatus.TODO.value],
             cards=[task_to_card_converter(task) for task in todo_tasks]
         ),
         ColumnDTO(
             id=TaskStatus.DOING.value,
-            title="In Progress",
+            title=titles[TaskStatus.DOING.value],
             cards=[task_to_card_converter(task) for task in doing_tasks]
         ),
         ColumnDTO(
             id=TaskStatus.DONE.value,
-            title="Done",
+            title=titles[TaskStatus.DONE.value],
             cards=[task_to_card_converter(task) for task in done_tasks]
         )
     ])

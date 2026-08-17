@@ -1,9 +1,11 @@
 import reflex as rx
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.task_template import TaskTemplate
+from gws_reflex_main import I18nState
 
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbItem
 from ..common.project_app_router import ProjectAppRouter
+from . import template_breadcrumb_translations  # noqa: F401  (side effect: registers translations)
 from .template_page_state import TemplatePageState
 
 
@@ -33,8 +35,12 @@ class TemplateBreadcrumbState(rx.State):
             return []
 
         # Start with base breadcrumb
+        i18n = await self.get_state(I18nState)
         items = [
-            BreadcrumbItem(label="Templates", url=ProjectAppRouter.get_project_template_list_url())
+            BreadcrumbItem(
+                label=i18n.tr("template_breadcrumb.templates"),
+                url=ProjectAppRouter.get_project_template_list_url(),
+            )
         ]
 
         # Build breadcrumb based on object type

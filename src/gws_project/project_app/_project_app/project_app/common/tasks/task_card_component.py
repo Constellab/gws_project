@@ -2,11 +2,12 @@
 
 import reflex as rx
 from gws_project.task.task_dto import TaskDTO, TaskStatus
-from gws_reflex_main import user_profile_picture
+from gws_reflex_main import translate, user_profile_picture
 
 from ...task_list.task_list_state import TaskListState
 from ..progress_bar import progress_bar
 from ..project_app_router import ProjectAppRouter
+from . import task_card_translations  # noqa: F401  (side effect: registers translations)
 from .task_actions_menu import task_actions_menu
 from .task_components import task_icon_component
 from .task_priority_chip_component import task_priority_chip
@@ -141,7 +142,7 @@ def _task_card(task: TaskDTO) -> rx.Component:
 
 
 def task_card_list_component(
-    tasks: list[TaskDTO], empty_message: str = "No tasks found"
+    tasks: list[TaskDTO], empty_message: str | rx.Var[str] | None = None
 ) -> rx.Component:
     """Create a reusable task card list component.
 
@@ -150,11 +151,14 @@ def task_card_list_component(
 
     :param tasks: List of task DTOs to display
     :type tasks: list[TaskDTO]
-    :param empty_message: Message to display when no tasks are found
-    :type empty_message: str
+    :param empty_message: Message to display when no tasks are found. Defaults to a
+        translated generic message when not provided.
+    :type empty_message: str | rx.Var[str] | None
     :return: The task card list component
     :rtype: rx.Component
     """
+    if empty_message is None:
+        empty_message = translate("tasks.card.empty_message")
     return rx.cond(
         tasks.length() > 0,
         rx.vstack(

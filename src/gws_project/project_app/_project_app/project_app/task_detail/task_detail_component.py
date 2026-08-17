@@ -2,6 +2,7 @@ import reflex as rx
 from gws_reflex_main import (
     main_component,
     right_sidebar_close_button,
+    translate,
     user_inline_component,
 )
 from gws_reflex_main.gws_components import rich_text_component
@@ -22,6 +23,7 @@ from ..task_activity.task_activity_component import task_activity_content
 from ..task_activity.task_activity_state import TaskActivityState
 from ..task_form.task_form_dialog_component import task_form_dialog
 from ..task_list.task_list_component import task_list_content
+from . import task_detail_translations  # noqa: F401  (side effect: registers translations)
 from .task_detail_state import TaskDetailState
 
 
@@ -41,7 +43,7 @@ def _tab_action_button() -> rx.Component:
             "list",
             rx.button(
                 rx.icon("plus", size=16),
-                "Create Subtask",
+                translate("task_detail.tab_action.create_subtask"),
                 variant="solid",
                 size="2",
                 on_click=TaskDetailState.open_create_subtask_dialog,
@@ -60,8 +62,8 @@ def _tab_action_button() -> rx.Component:
                 ),
                 rx.cond(
                     TaskDetailState.description_edit_mode,
-                    "View",
-                    "Edit",
+                    translate("task_detail.tab_action.view"),
+                    translate("task_detail.tab_action.edit"),
                 ),
                 variant="solid",
                 size="2",
@@ -73,7 +75,7 @@ def _tab_action_button() -> rx.Component:
             rx.hstack(
                 rx.button(
                     rx.icon("file-plus", size=16),
-                    "Create Note",
+                    translate("task_detail.tab_action.create_note"),
                     variant="soft",
                     size="2",
                     on_click=DocumentsListState.open_create_note_dialog,
@@ -82,7 +84,7 @@ def _tab_action_button() -> rx.Component:
                     rx.button(
                         rx.spinner(loading=DocumentsListState.is_uploading),
                         rx.icon("upload", size=16),
-                        "Upload File",
+                        translate("task_detail.tab_action.upload_file"),
                         variant="solid",
                         size="2",
                     ),
@@ -213,7 +215,7 @@ def main_content_area() -> rx.Component:
                     TaskDetailState.task.allow_subtasks,
                     rx.tabs.trigger(
                         rx.hstack(
-                            rx.text("Subtasks"),
+                            rx.text(translate("task_detail.tab.subtasks")),
                             rx.cond(
                                 TaskDetailState.children_count,
                                 _tab_count_badge(TaskDetailState.children_count.subtask_count),
@@ -225,12 +227,12 @@ def main_content_area() -> rx.Component:
                     ),
                 ),
                 rx.tabs.trigger(
-                    rx.text("Description"),
+                    rx.text(translate("task_detail.tab.description")),
                     value="description",
                 ),
                 rx.tabs.trigger(
                     rx.hstack(
-                        rx.text("Documents"),
+                        rx.text(translate("task_detail.tab.documents")),
                         rx.cond(
                             TaskDetailState.children_count,
                             _tab_count_badge(TaskDetailState.children_count.document_count),
@@ -242,7 +244,7 @@ def main_content_area() -> rx.Component:
                 ),
                 rx.tabs.trigger(
                     rx.hstack(
-                        rx.text("Activity"),
+                        rx.text(translate("task_detail.tab.activity")),
                         rx.cond(
                             TaskActivityState.activity_items.length() > 0,
                             _tab_count_badge(TaskActivityState.activity_items.length()),
@@ -351,7 +353,7 @@ def details_sidebar() -> rx.Component:
     return rx.vstack(
         # Heading with close button
         rx.hstack(
-            _sidebar_section_label("Task details"),
+            _sidebar_section_label(translate("task_detail.sidebar.title")),
             rx.spacer(),
             right_sidebar_close_button(),
             width="100%",
@@ -369,7 +371,7 @@ def details_sidebar() -> rx.Component:
         ),
         # Assigned to section
         rx.vstack(
-            _sidebar_section_label("Assigned to"),
+            _sidebar_section_label(translate("task_detail.sidebar.assigned_to")),
             user_inline_component(TaskDetailState.task.assign_to),
             spacing="2",
             align_items="start",
@@ -379,7 +381,7 @@ def details_sidebar() -> rx.Component:
         rx.cond(
             TaskDetailState.parent_task,
             rx.vstack(
-                _sidebar_section_label("Parent task"),
+                _sidebar_section_label(translate("task_detail.sidebar.parent_task")),
                 rx.link(
                     TaskDetailState.parent_task.title,
                     href=f"/task/{TaskDetailState.parent_task.id}",
@@ -394,7 +396,7 @@ def details_sidebar() -> rx.Component:
         rx.cond(
             TaskDetailState.task.allow_subtasks,
             rx.vstack(
-                _sidebar_section_label("Subtask members"),
+                _sidebar_section_label(translate("task_detail.sidebar.subtask_members")),
                 rx.cond(
                     TaskDetailState.subtask_members.length() > 0,
                     rx.vstack(
@@ -406,7 +408,12 @@ def details_sidebar() -> rx.Component:
                         align_items="start",
                         width="100%",
                     ),
-                    rx.text("No members assigned", size="2", color="gray", font_style="italic"),
+                    rx.text(
+                        translate("task_detail.sidebar.no_members"),
+                        size="2",
+                        color="gray",
+                        font_style="italic",
+                    ),
                 ),
                 spacing="2",
                 align_items="start",
@@ -416,7 +423,7 @@ def details_sidebar() -> rx.Component:
         # Status and Priority section (side by side)
         rx.hstack(
             rx.vstack(
-                _sidebar_section_label("Status"),
+                _sidebar_section_label(translate("task_detail.sidebar.status")),
                 task_status_chip(
                     TaskDetailState.task.status,
                     on_status_change=TaskDetailState.update_status,
@@ -428,7 +435,7 @@ def details_sidebar() -> rx.Component:
             ),
             rx.spacer(),
             rx.vstack(
-                _sidebar_section_label("Priority"),
+                _sidebar_section_label(translate("task_detail.sidebar.priority")),
                 task_priority_chip(
                     TaskDetailState.task.priority,
                     on_priority_change=TaskDetailState.update_priority,
@@ -443,7 +450,7 @@ def details_sidebar() -> rx.Component:
         ),
         # Dates section
         rx.vstack(
-            _sidebar_section_label("Dates"),
+            _sidebar_section_label(translate("task_detail.sidebar.dates")),
             rx.hstack(
                 rx.text(
                     rx.cond(
@@ -481,19 +488,19 @@ def details_sidebar() -> rx.Component:
         rx.vstack(
             rx.divider(margin_bottom="0.5rem"),
             _sidebar_metadata_row(
-                "Created by",
+                translate("task_detail.sidebar.created_by"),
                 user_inline_component(TaskDetailState.task.created_by, size="small"),
             ),
             _sidebar_metadata_row(
-                "Created at",
+                translate("task_detail.sidebar.created_at"),
                 rx.text(TaskDetailState.created_at_text, size="1", weight="medium"),
             ),
             _sidebar_metadata_row(
-                "Last modified by",
+                translate("task_detail.sidebar.last_modified_by"),
                 user_inline_component(TaskDetailState.task.last_modified_by, size="small"),
             ),
             _sidebar_metadata_row(
-                "Last modified at",
+                translate("task_detail.sidebar.last_modified_at"),
                 rx.text(TaskDetailState.last_modified_at_text, size="1", weight="medium"),
             ),
             spacing="1",

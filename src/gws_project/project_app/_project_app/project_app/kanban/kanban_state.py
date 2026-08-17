@@ -12,7 +12,7 @@ from gws_project.task.task_dto import TaskDTO, TaskStatus
 from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.task.task_service import TaskService
 from gws_project.user.user import User
-from gws_reflex_main import ReflexMainState
+from gws_reflex_main import I18nState, ReflexMainState
 
 from ..common.breadcrumb.breadcrumb_state import Task
 from ..common.kanban.kanban import BoardDataDTO, CardDTO, CardMoveEvent, build_kanban_board_data
@@ -289,11 +289,27 @@ class KanbanState(rx.State):
         :return: BoardDataDTO with columns structure for the Kanban board
         :rtype: BoardDataDTO
         """
-        return build_kanban_board_data(self.tasks, self._task_to_card, include_backlog=self.show_backlog)
+        i18n = await self.get_state(I18nState)
+        column_titles = {
+            TaskStatus.BACKLOG.value: i18n.tr("kanban_board.column.backlog"),
+            TaskStatus.TODO.value: i18n.tr("kanban_board.column.todo"),
+            TaskStatus.DOING.value: i18n.tr("kanban_board.column.doing"),
+            TaskStatus.DONE.value: i18n.tr("kanban_board.column.done"),
+        }
+        return build_kanban_board_data(
+            self.tasks,
+            lambda task: self._task_to_card(task, i18n),
+            include_backlog=self.show_backlog,
+            column_titles=column_titles,
+        )
 
-    def _task_to_card(self, task: TaskDTO) -> CardDTO:
+    def _task_to_card(self, task: TaskDTO, i18n: I18nState) -> CardDTO:
         """Convert a TaskDTO to a Kanban card format."""
-        assignee = task.assign_to.first_name + " " + task.assign_to.last_name if task.assign_to else "Unassigned"
+        assignee = (
+            task.assign_to.first_name + " " + task.assign_to.last_name
+            if task.assign_to
+            else i18n.tr("kanban_board.card.unassigned")
+        )
 
         # Get assignee profile picture URL
         assignee_profile_picture_url = None

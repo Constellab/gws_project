@@ -1,10 +1,11 @@
 import reflex as rx
-from gws_reflex_main import form_dialog_component, user_select
+from gws_reflex_main import form_dialog_component, translate, user_select
 
 from ..company.company_form_dialog_component import (
     quick_create_company_dialog,
     quick_create_company_trigger_button,
 )
+from . import project_form_dialog_translations  # noqa: F401  (side effect: registers translations)
 from .project_form_dialog_state import ProjectFormDialogState
 
 
@@ -26,7 +27,7 @@ def _role_assignment_row(role: str) -> rx.Component:
         ),
         user_select(
             users=ProjectFormDialogState.available_users,
-            placeholder="Select user (required)",
+            placeholder=translate("project_form_dialog.select_user_placeholder"),
             on_change=lambda user_id, r=role: ProjectFormDialogState.handle_role_user_change(
                 r, user_id
             ),
@@ -42,9 +43,9 @@ def _form_content() -> rx.Component:
     return rx.vstack(
         # Project Name field
         rx.vstack(
-            rx.text("Project Name*", size="2", weight="bold"),
+            rx.text(translate("project_form_dialog.name_label"), size="2", weight="bold"),
             rx.input(
-                placeholder="Enter project name",
+                placeholder=translate("project_form_dialog.name_placeholder"),
                 name="name",
                 required=True,
                 width="100%",
@@ -60,12 +61,12 @@ def _form_content() -> rx.Component:
         # component tree even across a Dialog's portal, so a nested <form> here
         # would also (incorrectly) submit this project form.
         rx.vstack(
-            rx.text("Company (optional)", size="2", weight="bold"),
+            rx.text(translate("project_form_dialog.company_label"), size="2", weight="bold"),
             rx.hstack(
                 rx.box(
                     rx.select.root(
                         rx.select.trigger(
-                            placeholder="No company",
+                            placeholder=translate("project_form_dialog.no_company_placeholder"),
                             width="100%",
                         ),
                         rx.select.content(
@@ -96,10 +97,10 @@ def _form_content() -> rx.Component:
         rx.cond(
             ProjectFormDialogState.is_update_mode,
             rx.vstack(
-                rx.text("Manager", size="2", weight="bold"),
+                rx.text(translate("project_form_dialog.manager_label"), size="2", weight="bold"),
                 user_select(
                     users=ProjectFormDialogState.project_users,
-                    placeholder="Select project manager",
+                    placeholder=translate("project_form_dialog.select_manager_placeholder"),
                     default_value=ProjectFormDialogState.form_project_manager_id,
                     name="project_manager_id",
                     width="100%",
@@ -112,10 +113,10 @@ def _form_content() -> rx.Component:
         rx.cond(
             ~ProjectFormDialogState.is_update_mode,
             rx.vstack(
-                rx.text("Project Template (Optional)", size="2", weight="bold"),
+                rx.text(translate("project_form_dialog.template_label"), size="2", weight="bold"),
                 rx.select.root(
                     rx.select.trigger(
-                        placeholder="Select a template (optional)",
+                        placeholder=translate("project_form_dialog.template_placeholder"),
                         width="100%",
                     ),
                     rx.select.content(
@@ -137,7 +138,7 @@ def _form_content() -> rx.Component:
         # Date fields
         rx.hstack(
             rx.vstack(
-                rx.text("Start Date*", size="2", weight="bold"),
+                rx.text(translate("project_form_dialog.start_date_label"), size="2", weight="bold"),
                 rx.input(
                     type="date",
                     name="start_date",
@@ -152,7 +153,7 @@ def _form_content() -> rx.Component:
             rx.cond(
                 ProjectFormDialogState.selected_template_id == "",
                 rx.vstack(
-                    rx.text("End Date*", size="2", weight="bold"),
+                    rx.text(translate("project_form_dialog.end_date_label"), size="2", weight="bold"),
                     rx.input(
                         type="date",
                         name="end_date",
@@ -172,9 +173,13 @@ def _form_content() -> rx.Component:
             (ProjectFormDialogState.selected_template_id != "")
             & (ProjectFormDialogState.template_roles.length() > 0),
             rx.vstack(
-                rx.text("Role Assignments", size="2", weight="bold"),
                 rx.text(
-                    "Assign a user to each role. These users will be added to the project and assigned to the corresponding tasks.",
+                    translate("project_form_dialog.role_assignments_label"),
+                    size="2",
+                    weight="bold",
+                ),
+                rx.text(
+                    translate("project_form_dialog.role_assignments_description"),
                     size="1",
                     color="gray",
                 ),
@@ -208,11 +213,15 @@ def _dialog() -> rx.Component:
     """
     return form_dialog_component(
         state=ProjectFormDialogState,
-        title=rx.cond(ProjectFormDialogState.is_update_mode, "Update Project", "New Project"),
+        title=rx.cond(
+            ProjectFormDialogState.is_update_mode,
+            translate("project_form_dialog.update_title"),
+            translate("project_form_dialog.create_title"),
+        ),
         description=rx.cond(
             ProjectFormDialogState.is_update_mode,
-            "Update the project details below.",
-            "Fill in the details below to create a new project.",
+            translate("project_form_dialog.update_description"),
+            translate("project_form_dialog.create_description"),
         ),
         form_content=_form_content(),
         max_width="500px",
@@ -241,7 +250,7 @@ def create_project_dialog() -> rx.Component:
     return rx.fragment(
         rx.button(
             rx.icon("plus", size=18),
-            "New Project",
+            translate("project_form_dialog.create_button"),
             size="3",
             on_click=ProjectFormDialogState.open_create_dialog,
         ),

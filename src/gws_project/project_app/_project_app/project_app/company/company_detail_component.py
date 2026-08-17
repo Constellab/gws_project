@@ -1,6 +1,6 @@
 import reflex as rx
 from gws_project.project.project_dto import ProjectDTO
-from gws_reflex_main import main_component, user_inline_component
+from gws_reflex_main import main_component, translate, user_inline_component
 
 from ..common.companies.company_status_chip_component import company_status_chip
 from ..common.company_app_router import CompanyAppRouter
@@ -8,6 +8,7 @@ from ..common.page_layout import page_layout
 from ..common.progress_ring import progress_ring
 from ..common.project_app_router import ProjectAppRouter
 from ..common.projects.project_status_chip_component import project_status_badge
+from . import company_detail_translations  # noqa: F401  (side effect: registers translations)
 from .company_detail_state import CompanyDetailState
 from .company_form_dialog_component import company_update_dialog
 from .company_form_dialog_state import CompanyFormDialogState
@@ -26,7 +27,7 @@ def _action_menu() -> rx.Component:
         rx.menu.content(
             rx.menu.item(
                 rx.icon("pencil", size=16),
-                "Update Company",
+                translate("company_detail.update_company"),
                 on_click=lambda: CompanyFormDialogState.open_update_dialog(
                     CompanyDetailState.company
                 ),
@@ -80,20 +81,32 @@ def _info_card() -> rx.Component:
                 margin_bottom="0.5rem",
             ),
         ),
-        _info_row("Address", rx.text(CompanyDetailState.company.address, size="2")),
-        _info_row("SIREN", rx.text(CompanyDetailState.company.siren, size="2")),
-        _info_row("Phone", rx.text(CompanyDetailState.company.phone, size="2")),
+        _info_row(
+            translate("company_detail.address"), rx.text(CompanyDetailState.company.address, size="2")
+        ),
+        _info_row(
+            translate("company_detail.siren"), rx.text(CompanyDetailState.company.siren, size="2")
+        ),
+        _info_row(
+            translate("company_detail.phone"), rx.text(CompanyDetailState.company.phone, size="2")
+        ),
         rx.divider(margin_y="0.5rem"),
         _info_row(
-            "Created by",
+            translate("company_detail.created_by"),
             user_inline_component(CompanyDetailState.company.created_by, size="small"),
         ),
-        _info_row("Created at", rx.text(CompanyDetailState.created_at_text, size="1")),
         _info_row(
-            "Last modified by",
+            translate("company_detail.created_at"),
+            rx.text(CompanyDetailState.created_at_text, size="1"),
+        ),
+        _info_row(
+            translate("company_detail.last_modified_by"),
             user_inline_component(CompanyDetailState.company.last_modified_by, size="small"),
         ),
-        _info_row("Last modified at", rx.text(CompanyDetailState.last_modified_at_text, size="1")),
+        _info_row(
+            translate("company_detail.last_modified_at"),
+            rx.text(CompanyDetailState.last_modified_at_text, size="1"),
+        ),
         spacing="3",
         align_items="start",
         width="100%",
@@ -137,23 +150,23 @@ def _projects_section() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        rx.heading("Projects", size="4"),
+        rx.heading(translate("company_detail.projects_title"), size="4"),
         rx.cond(
             CompanyDetailState.company_projects.length() > 0,
             rx.table.root(
                 rx.table.header(
                     rx.table.row(
-                        rx.table.column_header_cell("Title"),
-                        rx.table.column_header_cell("Dates"),
-                        rx.table.column_header_cell("Progress"),
-                        rx.table.column_header_cell("Manager"),
+                        rx.table.column_header_cell(translate("company_detail.column_title")),
+                        rx.table.column_header_cell(translate("company_detail.column_dates")),
+                        rx.table.column_header_cell(translate("company_detail.column_progress")),
+                        rx.table.column_header_cell(translate("company_detail.column_manager")),
                     ),
                 ),
                 rx.table.body(rx.foreach(CompanyDetailState.company_projects, _project_row)),
                 width="100%",
                 variant="surface",
             ),
-            rx.text("No projects linked to this company yet.", size="2", color="gray"),
+            rx.text(translate("company_detail.no_projects"), size="2", color="gray"),
         ),
         width="100%",
         spacing="3",
@@ -191,7 +204,10 @@ def company_detail_page() -> rx.Component:
                     spacing="4",
                 ),
             ),
-            header_content=rx.link("← Companies", href=CompanyAppRouter.get_company_list_url()),
+            header_content=rx.link(
+                translate("company_detail.back_to_companies"),
+                href=CompanyAppRouter.get_company_list_url(),
+            ),
             max_content_width="900px",
         ),
         company_update_dialog(),

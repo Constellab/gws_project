@@ -3,9 +3,12 @@ import reflex as rx
 from gws_project.template.project_template import ProjectTemplate
 from gws_project.template.project_template_dto import ProjectTemplateDTO
 from gws_project.template.project_template_service import ProjectTemplateService
-from gws_reflex_main import ReflexMainState
+from gws_reflex_main import I18nState, ReflexMainState
 
 from ...common.project_app_router import ProjectAppRouter
+from . import (
+    project_template_list_translations,  # noqa: F401  (side effect: registers translations)
+)
 
 
 class ProjectTemplateListState(rx.State):
@@ -27,7 +30,8 @@ class ProjectTemplateListState(rx.State):
         # Check authentication before accessing data
         main_state = await self.get_state(ReflexMainState)
         if not await main_state.check_authentication():
-            self.error_message = "You must be authenticated to view templates"
+            i18n = await self.get_state(I18nState)
+            self.error_message = i18n.tr("project_template_list.error_unauthenticated")
             return
 
         self.is_loading = True
@@ -43,7 +47,8 @@ class ProjectTemplateListState(rx.State):
             self.project_templates = [template.to_dto() for template in templates]
 
         except Exception as e:
-            self.error_message = f"Error loading templates: {str(e)}"
+            i18n = await self.get_state(I18nState)
+            self.error_message = i18n.tr("project_template_list.error_loading", {"error": str(e)})
             self.project_templates = []
 
         finally:
@@ -82,4 +87,5 @@ class ProjectTemplateListState(rx.State):
             await self.load_project_templates()
 
         except Exception as e:
-            self.error_message = f"Error deleting template: {str(e)}"
+            i18n = await self.get_state(I18nState)
+            self.error_message = i18n.tr("project_template_list.error_deleting", {"error": str(e)})

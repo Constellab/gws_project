@@ -2,9 +2,12 @@
 import reflex as rx
 from gws_project.template.project_template_dto import ProjectTemplateDTO, SaveProjectTemplateDTO
 from gws_project.template.project_template_service import ProjectTemplateService
-from gws_reflex_main import FormDialogState, ReflexMainState
+from gws_reflex_main import FormDialogState, I18nState, ReflexMainState, toast_tr
 
 from ...common.project_app_router import ProjectAppRouter
+from . import (
+    project_template_form_dialog_translations,  # noqa: F401  (side effect: registers translations)
+)
 
 
 class ProjectTemplateFormDialogState(FormDialogState, rx.State):
@@ -35,7 +38,7 @@ class ProjectTemplateFormDialogState(FormDialogState, rx.State):
         # Open the dialog
         await self.open_dialog()
 
-    def _validate_and_parse_form_data(self, form_data: dict) -> SaveProjectTemplateDTO | None:
+    async def _validate_and_parse_form_data(self, form_data: dict) -> SaveProjectTemplateDTO | None:
         """Validate and parse form data into a template DTO.
 
         Args:
@@ -49,7 +52,8 @@ class ProjectTemplateFormDialogState(FormDialogState, rx.State):
 
         # Validate required fields
         if not name:
-            raise Exception("Template name is required")
+            i18n = await self.get_state(I18nState)
+            raise Exception(i18n.tr("project_template_form_dialog.name_required"))
 
         # Create and return the appropriate DTO
         return SaveProjectTemplateDTO(
@@ -70,17 +74,17 @@ class ProjectTemplateFormDialogState(FormDialogState, rx.State):
             main_state = await self.get_state(ReflexMainState)
 
         # Validate and parse form data
-        template_dto = self._validate_and_parse_form_data(form_data)
+        template_dto = await self._validate_and_parse_form_data(form_data)
         if template_dto is None:
             return  # Validation error already shown
 
         # Create the template
         with await main_state.authenticate_user():
             template_service = ProjectTemplateService()
-            created_template = template_service.create_project_template(template_dto)
+            template_service.create_project_template(template_dto)
 
         # Show success toast
-        yield rx.toast.success("Template created successfully")
+        yield await toast_tr.success(self, "project_template_form_dialog.created_toast")
 
         # Redirect to the template list page
         yield rx.redirect(ProjectAppRouter.get_project_template_list_url())
@@ -99,7 +103,7 @@ class ProjectTemplateFormDialogState(FormDialogState, rx.State):
             main_state = await self.get_state(ReflexMainState)
 
         # Validate and parse form data
-        template_dto = self._validate_and_parse_form_data(form_data)
+        template_dto = await self._validate_and_parse_form_data(form_data)
         if template_dto is None:
             return  # Validation error already shown
 
@@ -112,7 +116,7 @@ class ProjectTemplateFormDialogState(FormDialogState, rx.State):
             )
 
         # Show success toast
-        yield rx.toast.success("Template updated successfully")
+        yield await toast_tr.success(self, "project_template_form_dialog.updated_toast")
 
     async def _clear_form_state(self):
         """Clear all form state after successful operation."""

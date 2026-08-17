@@ -1,7 +1,8 @@
 import reflex as rx
-from gws_reflex_main import user_inline_component
+from gws_reflex_main import translate, user_inline_component
 from gws_reflex_main.gws_components import rich_text_component
 
+from . import task_activity_translations  # noqa: F401  (side effect: registers translations)
 from .task_activity_state import TaskActivityState
 
 
@@ -80,13 +81,15 @@ def _comment_edit_form() -> rx.Component:
         ),
         rx.hstack(
             rx.button(
-                "Cancel",
+                translate("task_activity.cancel"),
                 variant="soft",
                 color_scheme="gray",
                 size="2",
                 on_click=TaskActivityState.cancel_edit_comment,
             ),
-            rx.button("Save", size="2", on_click=TaskActivityState.save_edit_comment),
+            rx.button(
+                translate("task_activity.save"), size="2", on_click=TaskActivityState.save_edit_comment
+            ),
             spacing="2",
             justify="end",
             width="100%",
@@ -109,7 +112,7 @@ def _comment_card(item: rx.Var) -> rx.Component:
             user_inline_component(item.actor, size="small"),
             rx.cond(
                 item.is_edited,
-                rx.text("(edited)", size="1", color="gray", font_style="italic"),
+                rx.text(translate("task_activity.edited"), size="1", color="gray", font_style="italic"),
             ),
             rx.spacer(),
             rx.text(item.created_at_text, size="1", color="gray", white_space="nowrap"),
@@ -165,7 +168,7 @@ def _comment_composer() -> rx.Component:
             rx.spacer(),
             rx.button(
                 rx.cond(TaskActivityState.is_posting_comment, rx.spinner(size="2")),
-                "Comment",
+                translate("task_activity.comment_button"),
                 size="2",
                 on_click=TaskActivityState.submit_comment,
                 disabled=TaskActivityState.is_posting_comment,
@@ -196,7 +199,12 @@ def task_activity_content() -> rx.Component:
             rx.center(
                 rx.vstack(
                     rx.icon("history", size=48, color="gray"),
-                    rx.text("No activity yet", size="4", color="gray", margin_top="1rem"),
+                    rx.text(
+                        translate("task_activity.no_activity"),
+                        size="4",
+                        color="gray",
+                        margin_top="1rem",
+                    ),
                     spacing="2",
                     align="center",
                 ),

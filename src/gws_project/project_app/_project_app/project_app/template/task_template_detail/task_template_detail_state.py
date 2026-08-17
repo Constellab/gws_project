@@ -5,12 +5,13 @@ from gws_project.template.project_template_dto import ProjectTemplateDTO
 from gws_project.template.task_template import TaskTemplate
 from gws_project.template.task_template_dto import TaskPriority, TaskTemplateDTO
 from gws_project.template.task_template_service import TaskTemplateService
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
+from gws_reflex_main import ConfirmDialogState, I18nState, ReflexMainState, toast_tr
 
 from ...common.project_app_router import ProjectAppRouter
 from ...common.timestamp_text_component import format_timestamp
 from ..task_template_form_dialog.task_template_form_dialog_state import TaskTemplateFormDialogState
 from ..template_page_state import TemplatePageState
+from . import task_template_detail_translations  # noqa: F401  (side effect: registers translations)
 
 
 class TaskTemplateDetailState(rx.State):
@@ -116,7 +117,7 @@ class TaskTemplateDetailState(rx.State):
         task_template = await template_page_state.task_template()
 
         if not task_template:
-            yield rx.toast.error("Task template not found")
+            yield await toast_tr.error(self, "task_template_detail.task_template_not_found")
             return
 
         await form_state.open_update_dialog(
@@ -186,15 +187,16 @@ class TaskTemplateDetailState(rx.State):
             return
 
         delete_dialog_state = await self.get_state(ConfirmDialogState)
+        i18n = await self.get_state(I18nState)
 
         # Build confirmation message
         warning = ""
         if task_template.allow_subtasks:
-            warning = " This will also delete all its descendants (subtask templates, sub-subtask templates, etc.)."
+            warning = i18n.tr("task_template_detail.delete_dialog_warning")
 
         delete_dialog_state.open_dialog(
-            title="Delete Task Template",
-            content=f"Are you sure you want to delete this task template?{warning}",
+            title=i18n.tr("task_template_detail.delete_dialog_title"),
+            content=f"{i18n.tr('task_template_detail.delete_dialog_content')}{warning}",
             action=self._delete_task_template_action
         )
 
@@ -212,7 +214,7 @@ class TaskTemplateDetailState(rx.State):
             task_template_service.delete_task_template(task_template.id)
 
         # Show success toast
-        yield rx.toast.success("Task template deleted successfully")
+        yield await toast_tr.success(self, "task_template_detail.deleted_toast")
 
         # Navigate based on context
         template_page_state = await self.get_state(TemplatePageState)
@@ -234,7 +236,7 @@ class TaskTemplateDetailState(rx.State):
         """
         task_template = await self.task_template
         if not task_template:
-            yield rx.toast.error("Task template not found")
+            yield await toast_tr.error(self, "task_template_detail.task_template_not_found")
             return
 
         # create TaskPriority enum from string

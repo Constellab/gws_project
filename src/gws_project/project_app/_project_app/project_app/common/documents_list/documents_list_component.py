@@ -1,5 +1,7 @@
 import reflex as rx
+from gws_reflex_main import translate
 
+from . import documents_list_translations  # noqa: F401  (side effect: registers translations)
 from .document_card_component import document_card
 from .documents_list_state import DocumentsListState
 
@@ -13,11 +15,11 @@ def documents_list_view() -> rx.Component:
     return rx.vstack(
         # Documents header with action buttons
         rx.hstack(
-            rx.heading("Documents", size="4", weight="bold"),
+            rx.heading(translate("documents_list.title"), size="4", weight="bold"),
             rx.spacer(),
             rx.button(
                 rx.icon("file-plus", size=16),
-                "Create Note",
+                translate("documents_list.create_note"),
                 variant="soft",
                 size="2",
                 on_click=DocumentsListState.open_create_note_dialog,
@@ -26,7 +28,7 @@ def documents_list_view() -> rx.Component:
                 rx.button(
                     rx.spinner(loading=DocumentsListState.is_uploading),
                     rx.icon("upload", size=16),
-                    "Upload File",
+                    translate("documents_list.upload_file"),
                     variant="solid",
                     size="2",
                 ),
@@ -105,7 +107,9 @@ def _documents_content() -> rx.Component:
         rx.center(
             rx.vstack(
                 rx.spinner(size="3"),
-                rx.text("Loading documents...", size="3", color="gray", margin_top="1rem"),
+                rx.text(
+                    translate("documents_list.loading"), size="3", color="gray", margin_top="1rem"
+                ),
                 spacing="2",
                 align="center",
             ),
@@ -128,12 +132,12 @@ def _documents_content() -> rx.Component:
                                 DocumentsListState.pagination_state.is_loading,
                                 rx.hstack(
                                     rx.spinner(size="2"),
-                                    "Loading...",
+                                    translate("documents_list.loading_short"),
                                     spacing="2",
                                 ),
                                 rx.hstack(
                                     rx.icon("chevron-down", size=16),
-                                    "Load More",
+                                    translate("documents_list.load_more"),
                                     spacing="2",
                                 ),
                             ),
@@ -159,7 +163,12 @@ def _documents_content() -> rx.Component:
             rx.center(
                 rx.vstack(
                     rx.icon("folder-open", size=48, color="gray"),
-                    rx.text("No documents found", size="4", color="gray", margin_top="1rem"),
+                    rx.text(
+                        translate("documents_list.empty_state"),
+                        size="4",
+                        color="gray",
+                        margin_top="1rem",
+                    ),
                     spacing="2",
                     align="center",
                 ),
@@ -191,15 +200,15 @@ def _rename_document_dialog() -> rx.Component:
     """
     return rx.dialog.root(
         rx.dialog.content(
-            rx.dialog.title("Rename Document"),
+            rx.dialog.title(translate("documents_list.rename_dialog.title")),
             rx.dialog.description(
-                "Enter a new name for the document.",
+                translate("documents_list.rename_dialog.description"),
                 size="2",
                 margin_bottom="16px",
             ),
             rx.flex(
                 rx.text(
-                    "Document Name",
+                    translate("documents_list.rename_dialog.name_label"),
                     as_="div",
                     size="2",
                     margin_bottom="4px",
@@ -208,7 +217,7 @@ def _rename_document_dialog() -> rx.Component:
                 rx.input(
                     value=DocumentsListState.rename_document_name,
                     on_change=DocumentsListState.set_rename_document_name,
-                    placeholder="Enter document name",
+                    placeholder=translate("documents_list.rename_dialog.name_placeholder"),
                 ),
                 direction="column",
                 spacing="3",
@@ -216,7 +225,7 @@ def _rename_document_dialog() -> rx.Component:
             rx.flex(
                 rx.dialog.close(
                     rx.button(
-                        "Cancel",
+                        translate("documents_list.rename_dialog.cancel"),
                         variant="soft",
                         color_scheme="gray",
                         on_click=DocumentsListState.close_rename_dialog,
@@ -228,10 +237,10 @@ def _rename_document_dialog() -> rx.Component:
                         DocumentsListState.is_renaming,
                         rx.hstack(
                             rx.spinner(size="2"),
-                            "Renaming...",
+                            translate("documents_list.rename_dialog.renaming"),
                             spacing="2",
                         ),
-                        "Rename",
+                        translate("documents_list.rename_dialog.submit"),
                     ),
                     on_click=DocumentsListState.handle_rename_document,
                     disabled=DocumentsListState.is_renaming,
@@ -257,11 +266,11 @@ def _create_note_dialog() -> rx.Component:
     """
     return rx.dialog.root(
         rx.dialog.content(
-            rx.dialog.title("Create Note"),
+            rx.dialog.title(translate("documents_list.create_note_dialog.title")),
             rx.form(
                 rx.flex(
                     rx.text(
-                        "Note Name",
+                        translate("documents_list.create_note_dialog.name_label"),
                         as_="div",
                         size="2",
                         margin_bottom="4px",
@@ -270,7 +279,7 @@ def _create_note_dialog() -> rx.Component:
                     rx.input(
                         value=DocumentsListState.create_note_name,
                         on_change=DocumentsListState.set_create_note_name,
-                        placeholder="Enter note name",
+                        placeholder=translate("documents_list.create_note_dialog.name_placeholder"),
                         name="name",
                         required=True,
                     ),
@@ -280,7 +289,7 @@ def _create_note_dialog() -> rx.Component:
                 rx.flex(
                     rx.dialog.close(
                         rx.button(
-                            "Cancel",
+                            translate("documents_list.create_note_dialog.cancel"),
                             variant="soft",
                             color_scheme="gray",
                             type="button",
@@ -293,10 +302,10 @@ def _create_note_dialog() -> rx.Component:
                             DocumentsListState.is_creating_note,
                             rx.hstack(
                                 rx.spinner(size="2"),
-                                "Creating...",
+                                translate("documents_list.create_note_dialog.creating"),
                                 spacing="2",
                             ),
-                            "Create",
+                            translate("documents_list.create_note_dialog.submit"),
                         ),
                         type="submit",
                         disabled=DocumentsListState.is_creating_note,

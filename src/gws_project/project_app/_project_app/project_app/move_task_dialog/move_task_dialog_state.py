@@ -4,7 +4,7 @@ from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
 from gws_project.task.task_dto import TaskDTO
 from gws_project.task.task_service import TaskService
-from gws_reflex_main import ReflexDialogCloseEvent, ReflexMainState
+from gws_reflex_main import ReflexDialogCloseEvent, ReflexMainState, toast_tr
 
 
 class MoveTaskDialogState(rx.State):
@@ -187,14 +187,14 @@ class MoveTaskDialogState(rx.State):
 
         try:
             if not task_id or not project_id:
-                yield rx.toast.error("Please select a destination project.")
+                yield await toast_tr.error(self, "move_task.select_destination_error")
                 return
 
             with await main_state.authenticate_user():
                 task_service = TaskService()
                 task = task_service.move_task(task_id, project_id, parent_task_id)
 
-            yield rx.toast.success("Task moved successfully")
+            yield await toast_tr.success(self, "move_task.moved_success")
 
             if callback_after_close:
                 await callback_after_close(task)

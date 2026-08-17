@@ -3,11 +3,14 @@ import reflex as rx
 from gws_core import RichTextDTO
 from gws_project.template.project_template_dto import ProjectTemplateDTO
 from gws_project.template.project_template_service import ProjectTemplateService
-from gws_reflex_main import ReflexMainState
+from gws_reflex_main import ReflexMainState, toast_tr
 
 from ...common.project_app_router import ProjectAppRouter
 from ...common.timestamp_text_component import format_timestamp
 from ..template_page_state import TemplatePageState
+from . import (
+    project_template_detail_translations,  # noqa: F401  (side effect: registers translations)
+)
 
 
 class TemplateDetailState(rx.State):
@@ -109,7 +112,7 @@ class TemplateDetailState(rx.State):
         """Delete the current template and redirect to template list."""
         project_template = await self.project_template
         if not project_template:
-            yield rx.toast.error("Template not found")
+            yield await toast_tr.error(self, "project_template_detail.template_not_found")
             return
 
         try:
@@ -118,11 +121,13 @@ class TemplateDetailState(rx.State):
                 template_service = ProjectTemplateService()
                 template_service.delete_project_template(project_template.id)
 
-            yield rx.toast.success("Template deleted successfully")
+            yield await toast_tr.success(self, "project_template_detail.deleted_toast")
             yield rx.redirect(ProjectAppRouter.get_project_template_list_url())
 
         except Exception as e:
-            yield rx.toast.error(f"Error deleting template: {str(e)}")
+            yield await toast_tr.error(
+                self, "project_template_detail.delete_error", {"error": str(e)}
+            )
 
         finally:
             self.delete_dialog_opened = False
@@ -135,7 +140,7 @@ class TemplateDetailState(rx.State):
         """
         project_template = await self.project_template
         if not project_template:
-            yield rx.toast.error("Template not found")
+            yield await toast_tr.error(self, "project_template_detail.template_not_found")
             return
 
         # Convert event data to RichTextDTO
@@ -154,10 +159,12 @@ class TemplateDetailState(rx.State):
             template_page_state = await self.get_state(TemplatePageState)
             await template_page_state.refresh_object()
 
-            yield rx.toast.success("Description updated successfully")
+            yield await toast_tr.success(self, "project_template_detail.description_updated_toast")
 
         except Exception as e:
-            yield rx.toast.error(f"Error updating description: {str(e)}")
+            yield await toast_tr.error(
+                self, "project_template_detail.description_update_error", {"error": str(e)}
+            )
 
     def set_view_mode(self, value: str | list[str]):
         """Set the view mode for the tabs.

@@ -1,7 +1,10 @@
 import reflex as rx
 from gws_project.task.task_dto import TaskPriority
-from gws_reflex_main import form_dialog_component
+from gws_reflex_main import form_dialog_component, translate
 
+from . import (
+    task_template_form_dialog_translations,  # noqa: F401  (side effect: registers translations)
+)
 from .task_template_form_dialog_state import TaskTemplateFormDialogState
 
 
@@ -10,9 +13,9 @@ def _form_content() -> rx.Component:
     return rx.vstack(
         # Title field
         rx.vstack(
-            rx.text("Task Template Title*", size="2", weight="bold"),
+            rx.text(translate("task_template_form_dialog.title_label"), size="2", weight="bold"),
             rx.input(
-                placeholder="Enter task template title",
+                placeholder=translate("task_template_form_dialog.title_placeholder"),
                 name="title",
                 required=True,
                 width="100%",
@@ -26,12 +29,12 @@ def _form_content() -> rx.Component:
         rx.cond(
             ~TaskTemplateFormDialogState.is_update_mode,
             rx.vstack(
-                rx.text("Task Type*", size="2", weight="bold"),
+                rx.text(translate("task_template_form_dialog.type_label"), size="2", weight="bold"),
                 rx.radio.root(
                     rx.hstack(
                         rx.radio.item(
                             rx.hstack(
-                                rx.text("📋 Single task", size="2"),
+                                rx.text(translate("task_template_form_dialog.type_single"), size="2"),
                                 spacing="2",
                                 align="center"
                             ),
@@ -39,7 +42,9 @@ def _form_content() -> rx.Component:
                         ),
                         rx.radio.item(
                             rx.hstack(
-                                rx.text("📁 Task with subtasks", size="2"),
+                                rx.text(
+                                    translate("task_template_form_dialog.type_with_subtasks"), size="2"
+                                ),
                                 spacing="2",
                                 align="center"
                             ),
@@ -64,28 +69,36 @@ def _form_content() -> rx.Component:
                 # Date offset and duration fields
                 rx.hstack(
                     rx.vstack(
-                        rx.text("Start Date Offset (days)", size="2", weight="bold"),
+                        rx.text(
+                            translate("task_template_form_dialog.start_offset_label"),
+                            size="2",
+                            weight="bold",
+                        ),
                         rx.input(
                             type="number",
                             name="start_date_offset",
                             width="100%",
                             default_value=TaskTemplateFormDialogState.form_start_date_offset,
                             min="0",
-                            placeholder="Days from project start"
+                            placeholder=translate("task_template_form_dialog.start_offset_placeholder")
                         ),
                         width="100%",
                         spacing="1"
                     ),
 
                     rx.vstack(
-                        rx.text("Duration (days)", size="2", weight="bold"),
+                        rx.text(
+                            translate("task_template_form_dialog.duration_label"),
+                            size="2",
+                            weight="bold",
+                        ),
                         rx.input(
                             type="number",
                             name="duration_days",
                             width="100%",
                             default_value=TaskTemplateFormDialogState.form_duration_days,
                             min="1",
-                            placeholder="Task duration"
+                            placeholder=translate("task_template_form_dialog.duration_placeholder")
                         ),
                         width="100%",
                         spacing="1"
@@ -96,7 +109,7 @@ def _form_content() -> rx.Component:
 
                 # Priority field
                 rx.vstack(
-                    rx.text("Priority*", size="2", weight="bold"),
+                    rx.text(translate("task_template_form_dialog.priority_label"), size="2", weight="bold"),
                     rx.select(
                         [priority.value for priority in TaskPriority],
                         name="priority",
@@ -118,11 +131,11 @@ def _form_content() -> rx.Component:
                     rx.callout.text(
                         rx.cond(
                             TaskTemplateFormDialogState.is_create_sub_mode,
-                            "Date offsets, duration, and priority will be managed by the parent task and automatically propagated up the hierarchy.",
+                            translate("task_template_form_dialog.info_create_sub"),
                             rx.cond(
                                 TaskTemplateFormDialogState.is_parent_task_in_update_mode,
-                                "Date offsets, duration, and priority are automatically calculated from all descendant task templates.",
-                                "Date offsets, duration, and priority will be automatically calculated from all descendant task templates once you add them."
+                                translate("task_template_form_dialog.info_update_parent"),
+                                translate("task_template_form_dialog.info_create_parent")
                             )
                         ),
                         size="2"
@@ -135,14 +148,14 @@ def _form_content() -> rx.Component:
 
         # Assign to role field
         rx.vstack(
-            rx.text("Assign to Role (optional)", size="2", weight="bold"),
+            rx.text(translate("task_template_form_dialog.role_label"), size="2", weight="bold"),
             rx.text(
-                "Specify a role name to assign this task to a specific role. When creating a project from this template, you'll be able to assign users to each role.",
+                translate("task_template_form_dialog.role_description"),
                 size="1",
                 color="gray",
             ),
             rx.input(
-                placeholder="e.g., project_manager, team_member",
+                placeholder=translate("task_template_form_dialog.role_placeholder"),
                 name="assign_to_role",
                 width="100%",
                 default_value=TaskTemplateFormDialogState.form_assign_to_role
@@ -167,17 +180,19 @@ def task_template_form_dialog() -> rx.Component:
     """
     return form_dialog_component(
         state=TaskTemplateFormDialogState, title=rx.cond(
-            TaskTemplateFormDialogState.is_update_mode, "Update Task Template", rx.cond(
-                TaskTemplateFormDialogState.is_create_sub_mode, "Create New Subtask Template",
-                "Create New Task Template")),
+            TaskTemplateFormDialogState.is_update_mode,
+            translate("task_template_form_dialog.title_update"), rx.cond(
+                TaskTemplateFormDialogState.is_create_sub_mode,
+                translate("task_template_form_dialog.title_create_sub"),
+                translate("task_template_form_dialog.title_create_root"))),
         description=rx.cond(
             TaskTemplateFormDialogState.is_update_mode, rx.cond(
                 TaskTemplateFormDialogState.is_parent_task_in_update_mode,
-                "Update the task template details below. Date offsets, duration, and priority are automatically calculated from all descendant task templates.",
-                "Update the task template details below."),
+                translate("task_template_form_dialog.description_update_parent"),
+                translate("task_template_form_dialog.description_update")),
             rx.cond(
                 TaskTemplateFormDialogState.is_create_sub_mode,
-                "Fill in the details below to create a new subtask template. Changes will propagate up the hierarchy.",
-                "Fill in the details below to create a new task template for this project template.")),
+                translate("task_template_form_dialog.description_create_sub"),
+                translate("task_template_form_dialog.description_create_root"))),
         form_content=_form_content(),
         max_width="600px")

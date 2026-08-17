@@ -2,6 +2,7 @@ import reflex as rx
 from gws_reflex_main import (
     main_component,
     right_sidebar_close_button,
+    translate,
     user_inline_component,
 )
 from gws_reflex_main.gws_components import rich_text_component
@@ -17,6 +18,7 @@ from ..task_template_form_dialog.task_template_form_dialog_component import (
 from ..task_template_list.task_template_list_component import task_template_list_component
 from ..task_template_list.task_template_list_state import TaskTemplateListState
 from ..template_breadcrumb_state import TemplateBreadcrumbState
+from . import task_template_detail_translations  # noqa: F401  (side effect: registers translations)
 from .task_template_detail_state import TaskTemplateDetailState
 
 
@@ -45,13 +47,13 @@ def task_template_header() -> rx.Component:
             rx.menu.content(
                 rx.menu.item(
                     rx.icon("pencil", size=16),
-                    "Update Task Template",
+                    translate("task_template_detail.update_menu_item"),
                     on_click=TaskTemplateDetailState.open_update_task_template_dialog,
                 ),
                 rx.menu.separator(),
                 rx.menu.item(
                     rx.icon("trash-2", size=16),
-                    "Delete",
+                    translate("task_template_detail.delete_menu_item"),
                     color_scheme="red",
                     on_click=TaskTemplateDetailState.open_delete_task_template_dialog,
                 ),
@@ -96,7 +98,7 @@ def _tab_action_button() -> rx.Component:
                 TaskTemplateDetailState.task_template.allow_subtasks,
                 rx.button(
                     rx.icon("plus", size=16),
-                    "Create Subtask Template",
+                    translate("task_template_detail.create_subtask_button"),
                     variant="solid",
                     size="2",
                     on_click=TaskTemplateDetailState.open_create_subtask_template_dialog,
@@ -117,8 +119,8 @@ def _tab_action_button() -> rx.Component:
                 ),
                 rx.cond(
                     TaskTemplateDetailState.description_edit_mode,
-                    "View",
-                    "Edit",
+                    translate("task_template_detail.view"),
+                    translate("task_template_detail.edit"),
                 ),
                 variant="solid",
                 size="2",
@@ -171,7 +173,12 @@ def task_template_subtasks() -> rx.Component:
         rx.center(
             rx.vstack(
                 rx.icon("list_todo", size=48, color="gray"),
-                rx.text("This task template does not allow subtasks", size="4", color="gray", margin_top="1rem"),
+                rx.text(
+                    translate("task_template_detail.no_subtasks_allowed"),
+                    size="4",
+                    color="gray",
+                    margin_top="1rem",
+                ),
                 spacing="2",
                 align="center",
             ),
@@ -196,7 +203,7 @@ def main_content_area() -> rx.Component:
             rx.tabs.list(
                 rx.tabs.trigger(
                     rx.hstack(
-                        rx.text("Subtasks"),
+                        rx.text(translate("task_template_detail.tab_subtasks")),
                         _tab_count_badge(TaskTemplateListState.task_template_count),
                         align="center",
                         spacing="2",
@@ -204,7 +211,7 @@ def main_content_area() -> rx.Component:
                     value="subtasks",
                 ),
                 rx.tabs.trigger(
-                    rx.text("Description"),
+                    rx.text(translate("task_template_detail.tab_description")),
                     value="description",
                 ),
             ),
@@ -286,7 +293,7 @@ def details_sidebar() -> rx.Component:
     return rx.vstack(
         # Heading with close button
         rx.hstack(
-            _sidebar_section_label("Task template details"),
+            _sidebar_section_label(translate("task_template_detail.sidebar_title")),
             rx.spacer(),
             right_sidebar_close_button(),
             width="100%",
@@ -296,7 +303,7 @@ def details_sidebar() -> rx.Component:
         rx.cond(
             TaskTemplateDetailState.parent_task_template,
             rx.vstack(
-                _sidebar_section_label("Parent task template"),
+                _sidebar_section_label(translate("task_template_detail.parent_task_template")),
                 rx.link(
                     TaskTemplateDetailState.parent_task_template.title,
                     href=f"/task_template/{TaskTemplateDetailState.parent_task_template.id}",
@@ -309,7 +316,7 @@ def details_sidebar() -> rx.Component:
         ),
         # Assigned role
         rx.vstack(
-            _sidebar_section_label("Assigned role"),
+            _sidebar_section_label(translate("task_template_detail.assigned_role")),
             rx.cond(
                 TaskTemplateDetailState.task_template.assign_to_role,
                 rx.badge(
@@ -318,7 +325,12 @@ def details_sidebar() -> rx.Component:
                     color_scheme="blue",
                     size="2",
                 ),
-                rx.text("Unassigned", size="2", color="gray", font_style="italic"),
+                rx.text(
+                    translate("task_template_detail.unassigned"),
+                    size="2",
+                    color="gray",
+                    font_style="italic",
+                ),
             ),
             spacing="2",
             align_items="start",
@@ -326,7 +338,7 @@ def details_sidebar() -> rx.Component:
         ),
         # Priority
         rx.vstack(
-            _sidebar_section_label("Priority"),
+            _sidebar_section_label(translate("task_template_detail.priority")),
             rx.box(
                 task_priority_chip(
                     TaskTemplateDetailState.task_template.priority,
@@ -341,7 +353,7 @@ def details_sidebar() -> rx.Component:
         ),
         # Start date offset
         rx.vstack(
-            _sidebar_section_label("Start date offset (days)"),
+            _sidebar_section_label(translate("task_template_detail.start_offset")),
             rx.text(
                 rx.cond(
                     TaskTemplateDetailState.task_template.start_date_offset.is_not_none(),
@@ -356,7 +368,7 @@ def details_sidebar() -> rx.Component:
         ),
         # Duration
         rx.vstack(
-            _sidebar_section_label("Duration (days)"),
+            _sidebar_section_label(translate("task_template_detail.duration")),
             rx.text(
                 rx.cond(
                     TaskTemplateDetailState.task_template.duration_days.is_not_none(),
@@ -373,21 +385,21 @@ def details_sidebar() -> rx.Component:
         rx.vstack(
             rx.divider(margin_bottom="0.5rem"),
             _sidebar_metadata_row(
-                "Created by",
+                translate("task_template_detail.created_by"),
                 user_inline_component(TaskTemplateDetailState.task_template.created_by, size="small"),
             ),
             _sidebar_metadata_row(
-                "Created at",
+                translate("task_template_detail.created_at"),
                 rx.text(TaskTemplateDetailState.created_at_text, size="1", weight="medium"),
             ),
             _sidebar_metadata_row(
-                "Last modified by",
+                translate("task_template_detail.last_modified_by"),
                 user_inline_component(
                     TaskTemplateDetailState.task_template.last_modified_by, size="small"
                 ),
             ),
             _sidebar_metadata_row(
-                "Last modified at",
+                translate("task_template_detail.last_modified_at"),
                 rx.text(
                     TaskTemplateDetailState.last_modified_at_text, size="1", weight="medium"
                 ),

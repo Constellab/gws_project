@@ -2,6 +2,7 @@ import reflex as rx
 from gws_reflex_main import (
     main_component,
     right_sidebar_close_button,
+    translate,
     user_inline_component,
 )
 from gws_reflex_main.gws_components import rich_text_component
@@ -21,6 +22,9 @@ from ..task_template_form_dialog.task_template_form_dialog_component import (
 from ..task_template_list.task_template_list_component import task_template_list_component
 from ..task_template_list.task_template_list_state import TaskTemplateListState
 from ..template_breadcrumb_state import TemplateBreadcrumbState
+from . import (
+    project_template_detail_translations,  # noqa: F401  (side effect: registers translations)
+)
 from .project_template_detail_state import TemplateDetailState
 
 
@@ -37,7 +41,7 @@ def template_action_menu() -> rx.Component:
         rx.menu.content(
             rx.menu.item(
                 rx.icon("pencil", size=16),
-                "Update Template",
+                translate("project_template_detail.update_menu_item"),
                 on_click=lambda: ProjectTemplateFormDialogState.open_update_dialog(
                     TemplateDetailState.project_template
                 ),
@@ -45,7 +49,7 @@ def template_action_menu() -> rx.Component:
             rx.menu.separator(),
             rx.menu.item(
                 rx.icon("trash-2", size=16),
-                "Delete Template",
+                translate("project_template_detail.delete_menu_item"),
                 color_scheme="red",
                 on_click=TemplateDetailState.open_delete_template_dialog,
             ),
@@ -61,21 +65,21 @@ def delete_confirmation_dialog() -> rx.Component:
     """
     return rx.alert_dialog.root(
         rx.alert_dialog.content(
-            rx.alert_dialog.title("Delete Template"),
+            rx.alert_dialog.title(translate("project_template_detail.delete_dialog_title")),
             rx.alert_dialog.description(
-                "Are you sure you want to delete this template? This action cannot be undone."
+                translate("project_template_detail.delete_dialog_description")
             ),
             rx.hstack(
                 rx.alert_dialog.cancel(
                     rx.button(
-                        "Cancel",
+                        translate("project_template_detail.cancel"),
                         variant="soft",
                         color_scheme="gray",
                     ),
                 ),
                 rx.alert_dialog.action(
                     rx.button(
-                        "Delete",
+                        translate("project_template_detail.delete"),
                         color_scheme="red",
                         on_click=TemplateDetailState.delete_template,
                     ),
@@ -120,7 +124,7 @@ def _tab_action_button() -> rx.Component:
             "task_templates",
             rx.button(
                 rx.icon("plus", size=16),
-                "Create Task Template",
+                translate("project_template_detail.create_task_template_button"),
                 variant="solid",
                 size="2",
                 on_click=TaskTemplateListState.open_create_task_template_dialog,
@@ -139,8 +143,8 @@ def _tab_action_button() -> rx.Component:
                 ),
                 rx.cond(
                     TemplateDetailState.description_edit_mode,
-                    "View",
-                    "Edit",
+                    translate("project_template_detail.view"),
+                    translate("project_template_detail.edit"),
                 ),
                 variant="solid",
                 size="2",
@@ -211,7 +215,7 @@ def main_content_area() -> rx.Component:
             rx.tabs.list(
                 rx.tabs.trigger(
                     rx.hstack(
-                        rx.text("Task Templates"),
+                        rx.text(translate("project_template_detail.tab_task_templates")),
                         _tab_count_badge(TaskTemplateListState.task_template_count),
                         align="center",
                         spacing="2",
@@ -219,7 +223,7 @@ def main_content_area() -> rx.Component:
                     value="task_templates",
                 ),
                 rx.tabs.trigger(
-                    rx.text("Description"),
+                    rx.text(translate("project_template_detail.tab_description")),
                     value="description",
                 ),
             ),
@@ -301,7 +305,7 @@ def details_sidebar() -> rx.Component:
     return rx.vstack(
         # Heading with close button
         rx.hstack(
-            _sidebar_section_label("Template details"),
+            _sidebar_section_label(translate("project_template_detail.sidebar_title")),
             rx.spacer(),
             right_sidebar_close_button(),
             width="100%",
@@ -311,7 +315,7 @@ def details_sidebar() -> rx.Component:
         rx.cond(
             TemplateDetailState.template_roles.length() > 0,
             rx.vstack(
-                _sidebar_section_label("Roles"),
+                _sidebar_section_label(translate("project_template_detail.roles")),
                 rx.vstack(
                     rx.foreach(
                         TemplateDetailState.template_roles,
@@ -330,21 +334,21 @@ def details_sidebar() -> rx.Component:
         rx.vstack(
             rx.divider(margin_bottom="0.5rem"),
             _sidebar_metadata_row(
-                "Created by",
+                translate("project_template_detail.created_by"),
                 user_inline_component(TemplateDetailState.project_template.created_by, size="small"),
             ),
             _sidebar_metadata_row(
-                "Created at",
+                translate("project_template_detail.created_at"),
                 rx.text(TemplateDetailState.created_at_text, size="1", weight="medium"),
             ),
             _sidebar_metadata_row(
-                "Last modified by",
+                translate("project_template_detail.last_modified_by"),
                 user_inline_component(
                     TemplateDetailState.project_template.last_modified_by, size="small"
                 ),
             ),
             _sidebar_metadata_row(
-                "Last modified at",
+                translate("project_template_detail.last_modified_at"),
                 rx.text(TemplateDetailState.last_modified_at_text, size="1", weight="medium"),
             ),
             spacing="1",

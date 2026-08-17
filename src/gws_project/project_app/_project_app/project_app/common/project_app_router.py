@@ -80,3 +80,12 @@ class ProjectAppRouter:
         :rtype: str
         """
         return f"/template/task/{task_template_id}"
+
+    @staticmethod
+    def get_admin_url() -> str:
+        """Get the URL for the admin page.
+
+        :return: The admin page URL
+        :rtype: str
+        """
+        return "/admin"

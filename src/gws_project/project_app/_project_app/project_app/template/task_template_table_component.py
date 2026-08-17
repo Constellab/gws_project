@@ -1,13 +1,18 @@
 import reflex as rx
+from gws_reflex_main import translate
 
 from ..common.project_app_router import ProjectAppRouter
 from ..common.tasks.task_components import task_template_icon_component
 from ..common.tasks.task_priority_chip_component import task_priority_chip
+from .task_template_list import (
+    task_template_list_translations,  # noqa: F401  (side effect: registers translations)
+)
 from .task_template_list.task_template_list_state import TaskTemplateListState, TaskTemplateRowDTO
 
 
 def task_template_table_component(
-    task_templates: list[TaskTemplateRowDTO], empty_message: str = "No task templates found"
+    task_templates: list[TaskTemplateRowDTO],
+    empty_message: str | rx.Var[str] | None = None,
 ) -> rx.Component:
     """Create a reusable task template table component.
 
@@ -24,17 +29,26 @@ def task_template_table_component(
     :return: The task template table component
     :rtype: rx.Component
     """
+    resolved_empty_message = (
+        translate("task_template_table.empty_message") if empty_message is None else empty_message
+    )
     return rx.cond(
         task_templates.length() > 0,
         rx.table.root(
             rx.table.header(
                 rx.table.row(
-                    rx.table.column_header_cell("Title"),
-                    rx.table.column_header_cell("Start Offset (days)"),
-                    rx.table.column_header_cell("Duration (days)"),
-                    rx.table.column_header_cell("Priority"),
-                    rx.table.column_header_cell("Assigned Role"),
-                    rx.table.column_header_cell("Actions", width="100px"),
+                    rx.table.column_header_cell(translate("task_template_table.column_title")),
+                    rx.table.column_header_cell(
+                        translate("task_template_table.column_start_offset")
+                    ),
+                    rx.table.column_header_cell(translate("task_template_table.column_duration")),
+                    rx.table.column_header_cell(translate("task_template_table.column_priority")),
+                    rx.table.column_header_cell(
+                        translate("task_template_table.column_assigned_role")
+                    ),
+                    rx.table.column_header_cell(
+                        translate("task_template_table.column_actions"), width="100px"
+                    ),
                 ),
             ),
             rx.table.body(rx.foreach(task_templates, _task_template_row)),
@@ -45,7 +59,7 @@ def task_template_table_component(
         rx.center(
             rx.vstack(
                 rx.icon("list_todo", size=48, color="gray"),
-                rx.text(empty_message, size="4", color="gray", margin_top="1rem"),
+                rx.text(resolved_empty_message, size="4", color="gray", margin_top="1rem"),
                 spacing="2",
                 align="center",
             ),
@@ -87,7 +101,7 @@ def _task_template_row(row: TaskTemplateRowDTO) -> rx.Component:
             rx.cond(
                 task_template.assign_to_role,
                 rx.badge(task_template.assign_to_role, variant="soft", color_scheme="blue"),
-                rx.text("Unassigned", size="2", color="gray"),
+                rx.text(translate("task_template_table.unassigned"), size="2", color="gray"),
             )
         ),
         rx.table.cell(_actions_menu(row)),
@@ -124,7 +138,7 @@ def _actions_menu(row: TaskTemplateRowDTO) -> rx.Component:
         rx.menu.content(
             rx.menu.item(
                 rx.icon("pencil", size=16),
-                "Update",
+                translate("task_template_table.update"),
                 on_click=lambda: TaskTemplateListState.open_update_task_template_dialog(
                     task_template.id
                 ),
@@ -133,7 +147,7 @@ def _actions_menu(row: TaskTemplateRowDTO) -> rx.Component:
                 row.can_move_up,
                 rx.menu.item(
                     rx.icon("arrow-up", size=16),
-                    "Move up",
+                    translate("task_template_table.move_up"),
                     on_click=lambda: TaskTemplateListState.move_task_template_up(task_template.id),
                 ),
             ),
@@ -141,7 +155,7 @@ def _actions_menu(row: TaskTemplateRowDTO) -> rx.Component:
                 row.can_move_down,
                 rx.menu.item(
                     rx.icon("arrow-down", size=16),
-                    "Move down",
+                    translate("task_template_table.move_down"),
                     on_click=lambda: TaskTemplateListState.move_task_template_down(
                         task_template.id
                     ),
@@ -150,7 +164,7 @@ def _actions_menu(row: TaskTemplateRowDTO) -> rx.Component:
             rx.menu.separator(),
             rx.menu.item(
                 rx.icon("trash-2", size=16),
-                "Delete",
+                translate("task_template_table.delete"),
                 color_scheme="red",
                 on_click=lambda: TaskTemplateListState.open_delete_task_template_dialog(
                     task_template

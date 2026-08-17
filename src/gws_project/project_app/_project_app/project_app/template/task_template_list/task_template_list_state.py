@@ -4,10 +4,11 @@ from gws_core import BaseModelDTO
 from gws_project.template.task_template import TaskTemplate
 from gws_project.template.task_template_dto import TaskTemplateDTO
 from gws_project.template.task_template_service import TaskTemplateService
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
+from gws_reflex_main import ConfirmDialogState, I18nState, ReflexMainState, toast_tr
 
 from ..task_template_form_dialog import TaskTemplateFormDialogState
 from ..template_page_state import TemplatePageState, TemplateUrlParam
+from . import task_template_list_translations  # noqa: F401  (side effect: registers translations)
 
 
 class TaskTemplateRowDTO(BaseModelDTO):
@@ -195,15 +196,16 @@ class TaskTemplateListState(rx.State):
         :type task_template: TaskTemplateDTO
         """
         delete_dialog_state = await self.get_state(ConfirmDialogState)
+        i18n = await self.get_state(I18nState)
 
         # Build confirmation message
         warning = ""
         if task_template.allow_subtasks:
-            warning = " This will also delete all its descendants (subtask templates, sub-subtask templates, etc.)."
+            warning = i18n.tr("task_template_list.delete_dialog_warning")
 
         delete_dialog_state.open_dialog(
-            title="Delete Task Template",
-            content=f"Are you sure you want to delete this task template?{warning}",
+            title=i18n.tr("task_template_list.delete_dialog_title"),
+            content=f"{i18n.tr('task_template_list.delete_dialog_content')}{warning}",
             action=lambda: self._delete_action(task_template.id)
         )
 
@@ -215,7 +217,7 @@ class TaskTemplateListState(rx.State):
             task_template_service.delete_task_template(task_template_id)
 
         # Show success toast
-        yield rx.toast.success("Task template deleted successfully")
+        yield await toast_tr.success(self, "task_template_list.deleted_toast")
 
         # Remove from list
         self.delete_task_template(task_template_id)
@@ -230,7 +232,7 @@ class TaskTemplateListState(rx.State):
         url_param = await template_state.get_url_params()
 
         if not url_param:
-            yield rx.toast.error("No template context found")
+            yield await toast_tr.error(self, "task_template_list.no_template_context")
             return
 
         # Determine the project template ID based on URL param type
@@ -244,7 +246,7 @@ class TaskTemplateListState(rx.State):
                 task_template = task_template_service.get_task_template(url_param.id)
                 project_template_id = task_template.project_template.id
         else:
-            yield rx.toast.error("Invalid template context")
+            yield await toast_tr.error(self, "task_template_list.invalid_template_context")
             return
 
         # Open the dialog

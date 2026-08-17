@@ -3,6 +3,7 @@ from gws_project.document.project_document import PROJECT_DOCUMENT_RICH_TEXT_OBJ
 from gws_reflex_main import (
     main_component,
     right_sidebar_close_button,
+    translate,
     user_inline_component,
 )
 from gws_reflex_main.gws_components import RichTextImageConfig, rich_text_component
@@ -10,6 +11,7 @@ from gws_reflex_main.gws_components import RichTextImageConfig, rich_text_compon
 from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..common.detail_page_layout import detail_page_layout
 from ..common.page_layout import page_layout
+from . import note_detail_translations  # noqa: F401  (side effect: registers translations)
 from .note_detail_state import NoteDetailState
 
 
@@ -31,13 +33,13 @@ def _note_actions_menu() -> rx.Component:
         rx.menu.content(
             rx.menu.item(
                 rx.icon("pencil", size=16),
-                "Rename",
+                translate("note_detail.actions.rename"),
                 on_click=NoteDetailState.open_rename_dialog,
             ),
             rx.menu.separator(),
             rx.menu.item(
                 rx.icon("trash-2", size=16),
-                "Delete",
+                translate("note_detail.actions.delete"),
                 color_scheme="red",
                 on_click=NoteDetailState.open_delete_dialog,
             ),
@@ -73,11 +75,11 @@ def _rename_note_dialog() -> rx.Component:
     """
     return rx.dialog.root(
         rx.dialog.content(
-            rx.dialog.title("Rename Note"),
+            rx.dialog.title(translate("note_detail.rename_dialog.title")),
             rx.form(
                 rx.flex(
                     rx.text(
-                        "Note Name",
+                        translate("note_detail.rename_dialog.name_label"),
                         as_="div",
                         size="2",
                         margin_bottom="4px",
@@ -86,7 +88,7 @@ def _rename_note_dialog() -> rx.Component:
                     rx.input(
                         value=NoteDetailState.rename_note_name,
                         on_change=NoteDetailState.set_rename_note_name,
-                        placeholder="Enter note name",
+                        placeholder=translate("note_detail.rename_dialog.name_placeholder"),
                         name="name",
                         required=True,
                     ),
@@ -96,7 +98,7 @@ def _rename_note_dialog() -> rx.Component:
                 rx.flex(
                     rx.dialog.close(
                         rx.button(
-                            "Cancel",
+                            translate("note_detail.rename_dialog.cancel"),
                             variant="soft",
                             color_scheme="gray",
                             type="button",
@@ -109,10 +111,10 @@ def _rename_note_dialog() -> rx.Component:
                             NoteDetailState.is_renaming,
                             rx.hstack(
                                 rx.spinner(size="2"),
-                                "Renaming...",
+                                translate("note_detail.rename_dialog.renaming"),
                                 spacing="2",
                             ),
-                            "Rename",
+                            translate("note_detail.rename_dialog.submit"),
                         ),
                         type="submit",
                         disabled=NoteDetailState.is_renaming,
@@ -208,7 +210,7 @@ def details_sidebar() -> rx.Component:
     return rx.vstack(
         # Heading with close button
         rx.hstack(
-            _sidebar_section_label("Note details"),
+            _sidebar_section_label(translate("note_detail.sidebar.title")),
             rx.spacer(),
             right_sidebar_close_button(),
             width="100%",
@@ -217,19 +219,19 @@ def details_sidebar() -> rx.Component:
         # Metadata section
         rx.vstack(
             _sidebar_metadata_row(
-                "Created by",
+                translate("note_detail.sidebar.created_by"),
                 user_inline_component(NoteDetailState.note.created_by, size="small"),
             ),
             _sidebar_metadata_row(
-                "Created at",
+                translate("note_detail.sidebar.created_at"),
                 rx.text(NoteDetailState.created_at_text, size="1", weight="medium"),
             ),
             _sidebar_metadata_row(
-                "Last modified by",
+                translate("note_detail.sidebar.last_modified_by"),
                 user_inline_component(NoteDetailState.note.last_modified_by, size="small"),
             ),
             _sidebar_metadata_row(
-                "Last modified at",
+                translate("note_detail.sidebar.last_modified_at"),
                 rx.text(NoteDetailState.last_modified_at_text, size="1", weight="medium"),
             ),
             spacing="1",

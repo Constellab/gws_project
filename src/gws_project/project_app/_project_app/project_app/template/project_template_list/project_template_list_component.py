@@ -1,9 +1,12 @@
 import reflex as rx
-from gws_reflex_main import main_component, user_inline_component
+from gws_reflex_main import main_component, translate, user_inline_component
 
 from ...common.page_layout import page_layout
 from ..project_template_form_dialog.project_template_form_dialog_component import (
     create_template_dialog,
+)
+from . import (
+    project_template_list_translations,  # noqa: F401  (side effect: registers translations)
 )
 from .project_template_list_state import ProjectTemplateDTO, ProjectTemplateListState
 
@@ -41,9 +44,15 @@ def project_template_list_page() -> rx.Component:
                         rx.table.root(
                             rx.table.header(
                                 rx.table.row(
-                                    rx.table.column_header_cell("Name"),
-                                    rx.table.column_header_cell("Created By"),
-                                    rx.table.column_header_cell("Created At"),
+                                    rx.table.column_header_cell(
+                                        translate("project_template_list.column_name")
+                                    ),
+                                    rx.table.column_header_cell(
+                                        translate("project_template_list.column_created_by")
+                                    ),
+                                    rx.table.column_header_cell(
+                                        translate("project_template_list.column_created_at")
+                                    ),
                                 ),
                             ),
                             rx.table.body(
@@ -57,10 +66,13 @@ def project_template_list_page() -> rx.Component:
                             rx.vstack(
                                 rx.icon("layout_template", size=48, color="gray"),
                                 rx.text(
-                                    "No templates found", size="4", color="gray", margin_top="1rem"
+                                    translate("project_template_list.empty_title"),
+                                    size="4",
+                                    color="gray",
+                                    margin_top="1rem",
                                 ),
                                 rx.text(
-                                    "Create your first template to get started",
+                                    translate("project_template_list.empty_subtitle"),
                                     size="2",
                                     color="gray",
                                 ),
@@ -77,7 +89,7 @@ def project_template_list_page() -> rx.Component:
                 margin_top="16px",
             ),
             header_content=rx.hstack(
-                rx.heading("Templates", size="6"),
+                rx.heading(translate("project_template_list.title"), size="6"),
                 create_template_dialog(),
                 justify="between",
                 align="center",

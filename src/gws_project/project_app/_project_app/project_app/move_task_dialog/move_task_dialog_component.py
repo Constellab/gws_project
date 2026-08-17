@@ -1,8 +1,9 @@
 import reflex as rx
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.task.task_dto import TaskDTO
-from gws_reflex_main import dialog_header, user_inline_component
+from gws_reflex_main import dialog_header, translate, user_inline_component
 
+from . import move_task_dialog_translations  # noqa: F401  (side effect: registers translations)
 from .move_task_dialog_state import MoveTaskDialogState
 
 
@@ -31,7 +32,7 @@ def _breadcrumb() -> rx.Component:
     Clicking any segment navigates back to that level.
     """
     return rx.hstack(
-        _breadcrumb_segment("Projects", MoveTaskDialogState.navigate_to_projects_root),
+        _breadcrumb_segment(translate("move_task.projects_root"), MoveTaskDialogState.navigate_to_projects_root),
         rx.cond(
             MoveTaskDialogState.current_project,
             rx.fragment(
@@ -112,7 +113,7 @@ def _folder_table(header_label: str, rows: rx.Component) -> rx.Component:
     return rx.table.root(
         rx.table.header(
             rx.table.row(
-                rx.table.column_header_cell("Name"),
+                rx.table.column_header_cell(translate("move_task.name_column")),
                 rx.table.column_header_cell(header_label),
             ),
         ),
@@ -130,13 +131,13 @@ def _browser_content() -> rx.Component:
         MoveTaskDialogState.current_project,
         rx.cond(
             MoveTaskDialogState.tasks.length() > 0,
-            _folder_table("Assignee", rx.foreach(MoveTaskDialogState.tasks, _task_row)),
-            _empty_state("This folder is empty."),
+            _folder_table(translate("move_task.assignee_column"), rx.foreach(MoveTaskDialogState.tasks, _task_row)),
+            _empty_state(translate("move_task.folder_empty")),
         ),
         rx.cond(
             MoveTaskDialogState.projects.length() > 0,
-            _folder_table("Manager", rx.foreach(MoveTaskDialogState.projects, _project_row)),
-            _empty_state("No projects found."),
+            _folder_table(translate("move_task.manager_column"), rx.foreach(MoveTaskDialogState.projects, _project_row)),
+            _empty_state(translate("move_task.no_projects_found")),
         ),
     )
 
@@ -155,7 +156,7 @@ def move_task_dialog() -> rx.Component:
         rx.dialog.content(
             rx.vstack(
                 dialog_header(
-                    "Move Task",
+                    translate("move_task.title"),
                     subtitle=MoveTaskDialogState.task_title,
                     close=MoveTaskDialogState.close_dialog,
                 ),
@@ -170,7 +171,7 @@ def move_task_dialog() -> rx.Component:
                 ),
                 rx.hstack(
                     rx.button(
-                        "Cancel",
+                        translate("move_task.cancel"),
                         variant="soft",
                         color_scheme="gray",
                         on_click=MoveTaskDialogState.close_dialog,
@@ -178,7 +179,7 @@ def move_task_dialog() -> rx.Component:
                     ),
                     rx.button(
                         rx.spinner(loading=MoveTaskDialogState.is_loading),
-                        "Move here",
+                        translate("move_task.move_here"),
                         on_click=MoveTaskDialogState.confirm_move,
                         disabled=MoveTaskDialogState.is_loading | ~MoveTaskDialogState.can_confirm_move,
                     ),

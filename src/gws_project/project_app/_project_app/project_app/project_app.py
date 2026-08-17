@@ -1,6 +1,8 @@
 import reflex as rx
 from gws_reflex_main import register_gws_reflex_app
 
+from .admin.admin_component import admin_page
+from .admin.admin_state import AdminState
 from .company.company_detail_component import company_detail_page
 from .company.company_list_component import company_list_page
 from .company.company_list_state import CompanyListState
@@ -137,3 +139,10 @@ def task_template_detail():
     The template_id is extracted from the URL path.
     """
     return task_template_detail_page()
+
+
+# Declare the admin page
+@rx.page(route="/admin", on_load=[AdminState.on_load])
+def admin():
+    """Admin page: language, roles, and (admin-only) global working hours."""
+    return admin_page()
