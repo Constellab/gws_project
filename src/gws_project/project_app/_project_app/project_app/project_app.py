@@ -12,6 +12,8 @@ from .kanban.kanban_component import kanban_page
 from .kanban.kanban_state import KanbanState
 from .note_detail.note_detail_component import note_detail_page
 from .note_detail.note_detail_state import NoteDetailState
+from .planning.planning_component import planning_page
+from .planning.planning_state import PlanningState
 from .project_detail.project_detail_component import project_detail_page
 from .project_list.project_list_component import project_list_page
 from .project_list.project_list_state import ProjectListState
@@ -107,6 +109,13 @@ def gantt():
     This page shows a timeline view of all projects and their root tasks.
     """
     return gantt_page_component()
+
+
+# Declare the planning page
+@rx.page(route="/planning", on_load=[PlanningState.on_load])
+def planning():
+    """Planning page: a person x day weekly grid to schedule and confirm work."""
+    return planning_page()
 
 
 # Declare the template list page

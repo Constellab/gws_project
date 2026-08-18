@@ -7,6 +7,7 @@ register_translations(
         "en": {
             "sidebar.projects": "Projects",
             "sidebar.kanban": "Kanban",
+            "sidebar.planning": "Planning",
             "sidebar.companies": "Companies",
             "sidebar.gantt": "Gantt",
             "sidebar.templates": "Templates",
@@ -16,6 +17,7 @@ register_translations(
         "fr": {
             "sidebar.projects": "Projets",
             "sidebar.kanban": "Kanban",
+            "sidebar.planning": "Planning",
             "sidebar.companies": "Entreprises",
             "sidebar.gantt": "Gantt",
             "sidebar.templates": "Modèles",

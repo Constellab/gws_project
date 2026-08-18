@@ -31,6 +31,7 @@ def sidebar_content() -> rx.Component:
                 additional_active_route_prefixes=["/project"],
             ),
             menu_item_component("kanban", translate("sidebar.kanban"), "/kanban"),
+            menu_item_component("calendar-days", translate("sidebar.planning"), "/planning"),
             menu_item_component(
                 "building-2",
                 translate("sidebar.companies"),
