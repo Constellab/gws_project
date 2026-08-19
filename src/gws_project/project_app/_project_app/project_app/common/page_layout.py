@@ -13,6 +13,23 @@ from .language_init_state import LanguageInitState
 from .sidebar_footer_component import sidebar_footer_component
 
 
+def _sub_menu_items(*items: rx.Component) -> rx.Component:
+    """Group menu items as an indented sub-list under their parent entry.
+
+    :param items: The menu item components to nest (use menu_item_component)
+    :type items: rx.Component
+    :return: The indented sub-menu component
+    :rtype: rx.Component
+    """
+    return rx.vstack(
+        *items,
+        width="100%",
+        spacing="1",
+        align_items="start",
+        padding_left="1.25rem",
+    )
+
+
 def sidebar_content() -> rx.Component:
     """Create the sidebar content with logo, navigation links, and a bottom
     footer showing the current user and a link to the Admin page.
@@ -30,16 +47,18 @@ def sidebar_content() -> rx.Component:
                 "/",
                 additional_active_route_prefixes=["/project"],
             ),
-            menu_item_component("kanban", translate("sidebar.kanban"), "/kanban"),
+            _sub_menu_items(
+                menu_item_component("kanban", translate("sidebar.kanban"), "/kanban"),
+                menu_item_component("calendar-days", translate("sidebar.planning"), "/planning"),
+                menu_item_component("gantt_chart", translate("sidebar.gantt"), "/gantt"),
+            ),
             menu_item_component("list-checks", translate("sidebar.my_work"), "/my-work"),
-            menu_item_component("calendar-days", translate("sidebar.planning"), "/planning"),
             menu_item_component(
                 "building-2",
                 translate("sidebar.companies"),
                 "/companies",
                 additional_active_route_prefixes=["/company"],
             ),
-            menu_item_component("gantt_chart", translate("sidebar.gantt"), "/gantt"),
             menu_item_component(
                 "layout_template",
                 translate("sidebar.templates"),
