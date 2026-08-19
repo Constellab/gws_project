@@ -124,6 +124,12 @@ class TaskService:
 
         TaskHistoryService().log(task, TaskHistoryEventType.CREATED)
 
+        # The project's progress is the average of its root tasks, so gaining one changes it:
+        # a new unfinished task must pull a completed project back to in progress, and a first
+        # finished task must push it to 100. Mirrors what create_sub_task and delete_task do
+        # through _recalculate_parent_info.
+        self._recalculate_project_progress(project)
+
         return task
 
     @ProjectDbManager.transaction()

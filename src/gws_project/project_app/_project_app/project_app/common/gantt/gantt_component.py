@@ -1,4 +1,4 @@
-"""Reflex wrapper for React Gantt chart component using gantt-task-react."""
+"""Reflex wrapper for the portfolio Gantt chart."""
 
 import reflex as rx
 from gws_reflex_main import translate
@@ -11,104 +11,100 @@ from .gantt_type import GanttDataDTO
 gantt_path = rx.asset("gantt_chart.tsx", shared=True)
 public_gantt_path = "$/public/" + gantt_path
 
+# Labels the chart draws itself. It is a React component, so translate() cannot be called
+# inside it; the resolved strings are handed down as one reactive prop.
+_LABEL_KEYS = [
+    "column_project",
+    "column_meta",
+    "group_late",
+    "group_ongoing",
+    "group_done",
+    "project_one",
+    "project_many",
+    "task_one",
+    "task_many",
+    "late_by",
+    "done",
+    "empty",
+]
+
+
+def _to_camel(name: str) -> str:
+    """Convert a snake_case label key to the camelCase the chart expects.
+
+    :param name: The snake_case key
+    :type name: str
+    :return: The camelCase key
+    :rtype: str
+    """
+    head, *rest = name.split("_")
+    return head + "".join(part.capitalize() for part in rest)
+
 
 class GanttChart(rx.Component):
-    """Custom Gantt Chart component using gantt-task-react.
+    """Portfolio Gantt chart: projects grouped by status on a pixels-per-day timeline.
 
-    A interactive Gantt chart that displays projects and their tasks in a timeline view.
-    Tasks are grouped by project and displayed with progress bars.
-
-    Example:
-        ```python
-        from project_app.common.gantt import gantt_chart
-
-        gantt_chart(
-            data={
-                "tasks": [
-                    {
-                        "id": "project-1",
-                        "name": "Project Alpha",
-                        "start": "2024-01-01",
-                        "end": "2024-03-31",
-                        "progress": 45,
-                        "type": "project"
-                    },
-                    {
-                        "id": "task-1",
-                        "name": "Task 1",
-                        "start": "2024-01-01",
-                        "end": "2024-01-15",
-                        "progress": 100,
-                        "type": "task",
-                        "project": "project-1"
-                    }
-                ]
-            },
-            on_task_click=MyState.handle_task_click,
-        )
-        ```
+    Rows are grouped En retard / En cours / Terminé and sorted by end date. The left column
+    and the two-row time axis are frozen; the chart re-centres on today whenever the zoom
+    changes or ``recenter_token`` is bumped.
     """
 
-    # Use the custom JSX component
     library = public_gantt_path
     tag = "GanttChart"
 
-    # Component props
+    # Projects, their root tasks and the server's idea of "today"
     data: Var[GanttDataDTO]
 
-    # View mode: 'Day', 'Week', 'Month', 'Year'
+    # Zoom level: 'Day', 'Week', 'Month' or 'Year'
     view_mode: Var[str]
 
-    # Event handler for task click
+    # Whether the "Terminé" group is drawn at all
+    show_completed: Var[bool]
+
+    # Any change re-centres the timeline on today (the "Aujourd'hui" button bumps it)
+    recenter_token: Var[int]
+
+    # BCP 47 locale tag used for every date the chart renders
+    locale: Var[str]
+
+    # Translated labels, keyed camelCase
+    labels: Var[dict[str, str]]
+
+    # Fired with the project id when a project name is clicked
     on_task_click: rx.EventHandler[rx.event.passthrough_event_spec(str)]
 
 
-# Convenience function to create the component
 gantt_chart = GanttChart.create
 
 
-def _empty_state() -> rx.Component:
-    """Create an empty state component when no projects are available.
+def gantt_component(
+    data: GanttDataDTO,
+    view_mode: str,
+    show_completed: bool,
+    recenter_token: int,
+    on_task_click: rx.EventHandler,
+) -> rx.Component:
+    """Create the portfolio Gantt chart.
 
-    :return: Empty state component
-    :rtype: rx.Component
-    """
-    return rx.box(
-        rx.vstack(
-            rx.text("📊", font_size="48px"),
-            rx.heading(translate("gantt_chart.empty_state.title"), size="5", font_weight="600"),
-            rx.text(
-                translate("gantt_chart.empty_state.description"), font_size="14px", color="gray"
-            ),
-            spacing="3",
-            align="center",
-        ),
-        text_align="center",
-        background_color="var(--gray-2)",
-        border_radius="8px",
-        width="100%",
-    )
-
-
-def gantt_component(data: GanttDataDTO, view_mode: str, on_task_click: rx.EventHandler) -> rx.Component:
-    """Create a Gantt chart component.
-
-    :param data: Gantt chart data
+    :param data: Projects, tasks and today's date
     :type data: GanttDataDTO
-    :param view_mode: View mode ('Day', 'Week', 'Month', 'Year')
+    :param view_mode: Zoom level ('Day', 'Week', 'Month', 'Year')
     :type view_mode: str
-    :param on_task_click: Event handler for task click
+    :param show_completed: Whether finished projects are shown
+    :type show_completed: bool
+    :param recenter_token: Bump to re-centre the timeline on today
+    :type recenter_token: int
+    :param on_task_click: Handler receiving the clicked project id
     :type on_task_click: rx.EventHandler
-    :return: Gantt chart component
+    :return: The Gantt chart component
     :rtype: rx.Component
     """
-    # Show empty state if no projects, otherwise show Gantt chart
-    return rx.cond(
-        data.tasks.length() > 0,
-        gantt_chart(
-            data=data,
-            view_mode=view_mode,
-            on_task_click=on_task_click,
-        ),
-        _empty_state(),
+    return gantt_chart(
+        data=data,
+        view_mode=view_mode,
+        show_completed=show_completed,
+        recenter_token=recenter_token,
+        locale=translate("gantt_chart.locale"),
+        labels={_to_camel(key): translate(f"gantt_chart.{key}") for key in _LABEL_KEYS},
+        on_task_click=on_task_click,
     )

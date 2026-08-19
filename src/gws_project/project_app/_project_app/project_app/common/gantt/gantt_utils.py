@@ -1,101 +1,156 @@
-from datetime import date
+"""Builds the portfolio Gantt payload from the project/task DTOs."""
 
+from datetime import date, datetime
+
+from gws_core import UserDTO
 from gws_project.project.project_dto import ProjectWithRootTasksDTO
-from gws_project.task.task_dto import TaskStatus
+from gws_project.task.task_dto import TaskDTO, TaskStatus
 
-from .gantt_type import GanttDataDTO, GanttTaskDTO
+from .gantt_type import GanttDataDTO, GanttProjectDTO, GanttStatus, GanttTaskDTO
+
+# Progress at which an item counts as finished.
+COMPLETE_PROGRESS = 100
 
 
-def get_status_color(status: TaskStatus) -> dict:
-    """Get color styles based on task status.
+def _as_date(value: date | datetime | None) -> date | None:
+    """Normalise a date/datetime to a plain date.
 
-    :param status: Task status
-    :type status: TaskStatus
-    :return: Dictionary with backgroundColor and progressColor
-    :rtype: dict
+    :param value: The value to normalise
+    :type value: date | datetime | None
+    :return: The corresponding date, or None
+    :rtype: date | None
     """
-    status_colors = {
-        TaskStatus.BACKLOG: {
-            "backgroundColor": "var(--accent-4)",
-            "progressColor": "var(--accent-9)",
-            "progressSelectedColor": "var(--accent-9)",
-        },
-        TaskStatus.TODO: {
-            "backgroundColor": "var(--accent-4)",
-            "progressColor": "var(--accent-9)",
-            "progressSelectedColor": "var(--accent-9)",
-        },
-        TaskStatus.DOING: {
-            "backgroundColor": "var(--accent-4)",
-            "progressColor": "var(--accent-9)",
-            "progressSelectedColor": "var(--accent-9)",
-        },
-        TaskStatus.DONE: {
-            "backgroundColor": "var(--accent-9)",
-            "progressColor": "var(--accent-9)",
-            "progressSelectedColor": "var(--accent-9)",
-        },
-    }
-    return status_colors.get(status, status_colors[TaskStatus.TODO])
+    if isinstance(value, datetime):
+        return value.date()
+    return value
 
 
-def build_gantt_data_from_projects(projects_with_tasks: list[ProjectWithRootTasksDTO]) -> GanttDataDTO:
-    """Build Gantt chart data from projects with their root tasks.
+def resolve_status(end: date | None, progress: int, today: date) -> str:
+    """Resolve the Gantt status of an item from its end date and progress.
 
-    This utility function converts ProjectWithRootTasksDTO objects into a Gantt chart format.
-    Projects are displayed as project rows, and tasks are displayed as task rows grouped under their project.
+    Finished wins over late: a project completed after its deadline is done, not late.
 
-    :param projects_with_tasks: List of projects with their root tasks
-    :type projects_with_tasks: List[ProjectWithRootTasksDTO]
-    :return: GanttDataDTO with tasks structure for the Gantt chart
+    :param end: Inclusive end date
+    :type end: date | None
+    :param progress: Completion percentage, 0-100
+    :type progress: int
+    :param today: The reference date
+    :type today: date
+    :return: One of :class:`GanttStatus`
+    :rtype: str
+    """
+    if progress >= COMPLETE_PROGRESS:
+        return GanttStatus.DONE
+    if end is not None and end < today:
+        return GanttStatus.LATE
+    return GanttStatus.ONGOING
+
+
+def get_initials(user: UserDTO | None) -> str:
+    """Build the two-letter avatar initials for a user.
+
+    :param user: The user, may be None
+    :type user: UserDTO | None
+    :return: Up to two uppercase letters, empty when the user is unknown
+    :rtype: str
+    """
+    if user is None:
+        return ""
+    initials = f"{(user.first_name or '')[:1]}{(user.last_name or '')[:1]}".upper()
+    return initials or (user.email or "")[:1].upper()
+
+
+def get_full_name(user: UserDTO | None) -> str:
+    """Build the display name for a user.
+
+    :param user: The user, may be None
+    :type user: UserDTO | None
+    :return: The full name, falling back to the email
+    :rtype: str
+    """
+    if user is None:
+        return ""
+    name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+    return name or (user.email or "")
+
+
+def _build_task(task: TaskDTO, today: date) -> GanttTaskDTO | None:
+    """Convert a root task into a Gantt bar, or None when it cannot be plotted.
+
+    A bar needs both ends, so tasks missing a start or end date are dropped here; they remain
+    visible in the task list and kanban views.
+
+    :param task: The task to convert
+    :type task: TaskDTO
+    :param today: The reference date
+    :type today: date
+    :return: The Gantt task, or None
+    :rtype: GanttTaskDTO | None
+    """
+    start = _as_date(task.start_date)
+    end = _as_date(task.end_date)
+    if start is None or end is None:
+        return None
+
+    # A DONE task is finished whatever its stored progress says.
+    progress = COMPLETE_PROGRESS if task.status == TaskStatus.DONE else task.progress
+    return GanttTaskDTO(
+        name=task.title,
+        start=start.isoformat(),
+        end=end.isoformat(),
+        progress=progress,
+        status=resolve_status(end, progress, today),
+    )
+
+
+def build_gantt_data_from_projects(
+    projects_with_tasks: list[ProjectWithRootTasksDTO],
+    today: date | None = None,
+) -> GanttDataDTO:
+    """Build the Gantt payload from projects and their root tasks.
+
+    Grouping and sorting are intentionally left to the chart: they are presentation concerns
+    that change with the "show finished projects" toggle, which never round-trips.
+
+    :param projects_with_tasks: Projects with their root tasks
+    :type projects_with_tasks: list[ProjectWithRootTasksDTO]
+    :param today: Reference date, defaults to the current day
+    :type today: date | None
+    :return: The Gantt payload
     :rtype: GanttDataDTO
     """
-    gantt_tasks = []
-    display_order = 1
+    reference_day = today or date.today()
+    gantt_projects: list[GanttProjectDTO] = []
 
     for project_data in projects_with_tasks:
         project = project_data.project
-        root_tasks = project_data.root_tasks
+        start = _as_date(project.start_date)
+        end = _as_date(project.end_date)
+        if start is None or end is None:
+            continue
 
-        # Add project row
-        project_task = GanttTaskDTO(
-            id=f"project-{project.id}",
-            name=project.title,
-            start=project.start_date.isoformat() if isinstance(project.start_date, date) else project.start_date,
-            end=project.end_date.isoformat() if isinstance(project.end_date, date) else project.end_date,
-            progress=project.progress,
-            type="project",
-            styles={
-                "backgroundColor": "var(--accent-9)",
-                "progressColor": "var(--accent-9)",
-                "progressSelectedColor": "var(--accent-9)",
-            },
-            display_order=display_order,
-        )
-        gantt_tasks.append(project_task)
-        display_order += 1
+        status = resolve_status(end, project.progress, reference_day)
+        late_days = (reference_day - end).days if status == GanttStatus.LATE else 0
 
-        # Add task rows for this project. A task needs both dates to be plotted as a
-        # bar, so tasks with a missing start or end date are skipped here (they still
-        # show up in the regular task list and kanban board).
-        for task in root_tasks:
-            if task.start_date is None or task.end_date is None:
-                continue
+        tasks = [
+            gantt_task
+            for gantt_task in (_build_task(task, reference_day) for task in project_data.root_tasks)
+            if gantt_task is not None
+        ]
 
-            task_styles = get_status_color(task.status)
-
-            task_item = GanttTaskDTO(
-                id=task.id,
-                name=task.title,
-                start=task.start_date.isoformat() if isinstance(task.start_date, date) else task.start_date,
-                end=task.end_date.isoformat() if isinstance(task.end_date, date) else task.end_date,
-                progress=task.progress,
-                type="task",
-                project=f"project-{project.id}",
-                styles=task_styles,
-                display_order=display_order,
+        gantt_projects.append(
+            GanttProjectDTO(
+                id=project.id,
+                name=project.title,
+                start=start.isoformat(),
+                end=end.isoformat(),
+                progress=project.progress,
+                status=status,
+                owner=get_initials(project.project_manager),
+                owner_name=get_full_name(project.project_manager),
+                late_days=late_days,
+                tasks=tasks,
             )
-            gantt_tasks.append(task_item)
-            display_order += 1
+        )
 
-    return GanttDataDTO(tasks=gantt_tasks)
+    return GanttDataDTO(projects=gantt_projects, today=reference_day.isoformat())

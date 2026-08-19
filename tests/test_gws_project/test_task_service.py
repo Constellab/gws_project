@@ -8,7 +8,7 @@ from gws_core import (
     UserGroup,
 )
 from gws_project.project.project import Project
-from gws_project.project.project_dto import ProjectUserRole, SaveProjectDTO
+from gws_project.project.project_dto import ProjectStatus, ProjectUserRole, SaveProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
 from gws_project.task.task_dto import CreateTaskDTO, TaskPriority, TaskStatus, UpdateTaskDTO
@@ -1017,6 +1017,69 @@ class TestTaskService(BaseTestCase):
 
         # When a task has no subtasks, it should maintain its initial status
         self.assertEqual(parent_task.status, TaskStatus.DOING)
+
+    def test_create_root_task_recalculates_project_progress(self):
+        """Adding an unfinished root task must pull a completed project back to in-progress.
+
+        Regression: create_root_task saved the task without recalculating the project, so a
+        project sitting at 100% stayed COMPLETED even though it had just gained work to do.
+        """
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        # One finished root task: the project is complete.
+        done_dto = CreateTaskDTO(
+            title="Done Task",
+            start_date=date(2025, 3, 1),
+            end_date=date(2025, 3, 10),
+            status=TaskStatus.DONE,
+            assign_to_id=current_user.id,
+        )
+        task_service.create_root_task(project.id, done_dto)
+
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 100)
+        self.assertEqual(refreshed_project.get_status(), ProjectStatus.COMPLETED)
+
+        # Add work that is not done yet.
+        todo_dto = CreateTaskDTO(
+            title="New Todo Task",
+            start_date=date(2025, 3, 11),
+            end_date=date(2025, 3, 20),
+            status=TaskStatus.TODO,
+            assign_to_id=current_user.id,
+        )
+        task_service.create_root_task(project.id, todo_dto)
+
+        # 1 DONE + 1 TODO = 50%, so the project is active again.
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 50)
+        self.assertEqual(refreshed_project.get_status(), ProjectStatus.ACTIVE)
+
+    def test_create_first_root_task_recalculates_project_progress(self):
+        """The very first root task must also drive the project progress."""
+        task_service = self._get_task_service()
+        project_service = self._get_project_service()
+
+        project = self._create_test_project(project_service)
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        task_service.create_root_task(
+            project.id,
+            CreateTaskDTO(
+                title="Only Task",
+                start_date=date(2025, 3, 1),
+                end_date=date(2025, 3, 10),
+                status=TaskStatus.DONE,
+                assign_to_id=current_user.id,
+            ),
+        )
+
+        refreshed_project = Project.get_by_id(project.id)
+        self.assertEqual(refreshed_project.progress, 100)
 
     def test_delete_task_recalculates_parent_progress(self):
         """Test that deleting a subtask recalculates parent progress"""

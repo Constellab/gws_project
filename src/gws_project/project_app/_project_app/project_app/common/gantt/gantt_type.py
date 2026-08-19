@@ -1,41 +1,70 @@
+"""DTOs for the portfolio Gantt view.
+
+The frontend receives a ready-to-draw structure: statuses are already resolved, owners are
+already reduced to initials and dates are plain ISO strings. Nothing here is meant to be
+recomputed client-side beyond geometry.
+"""
+
 from gws_core import BaseModelDTO
 
 
-class GanttTaskDTO(BaseModelDTO):
-    """DTO for a Gantt chart task.
+class GanttStatus:
+    """The only three statuses the Gantt knows about.
 
-    Attributes:
-        id: Unique identifier for the task
-        name: Task name
-        start: Start date as ISO string
-        end: End date as ISO string
-        progress: Progress percentage (0-100)
-        type: Task type - 'task' or 'project'
-        project: ID of parent project (if this is a task)
-        dependencies: List of task IDs this task depends on
-        styles: Optional styles for the task bar
-        display_order: Display order for sorting
-        hide_children: Whether to hide children by default
+    Deliberately not a mirror of ``ProjectStatus`` / ``TaskStatus``: those describe what the
+    user declared, this describes where the item stands against today's date. There is no
+    "to start" or "planned" state — anything not late and not finished is ongoing.
     """
 
-    id: str
+    ONGOING = "encours"
+    LATE = "retard"
+    DONE = "termine"
+
+
+class GanttTaskDTO(BaseModelDTO):
+    """A single bar on the chart.
+
+    Attributes:
+        name: Label drawn on (or next to) the bar
+        start: Inclusive start date, ISO ``YYYY-MM-DD``
+        end: Inclusive end date, ISO ``YYYY-MM-DD``
+        progress: Completion percentage, 0-100
+        status: One of :class:`GanttStatus`
+    """
+
     name: str
     start: str
     end: str
     progress: int
-    type: str
-    project: str | None = None
-    dependencies: list[str] | None = None
-    styles: dict | None = None
-    display_order: int = 0
-    hide_children: bool = False
+    status: str
+
+
+class GanttProjectDTO(GanttTaskDTO):
+    """A project row, with the tasks that collapse underneath it.
+
+    Attributes:
+        id: Project id, used to route on click and to key the expanded state
+        owner: Project manager initials, e.g. ``MB``
+        owner_name: Full manager name, used in the bar tooltip
+        late_days: Days past the end date when late, else 0
+        tasks: Root tasks that have both dates set
+    """
+
+    id: str
+    owner: str
+    owner_name: str
+    late_days: int = 0
+    tasks: list[GanttTaskDTO] = []
 
 
 class GanttDataDTO(BaseModelDTO):
-    """DTO for the Gantt chart data structure.
+    """Everything the chart needs for one render.
 
     Attributes:
-        tasks: List of tasks in the Gantt chart
+        projects: Projects to draw, in no particular order (the chart groups and sorts)
+        today: Today's date, ISO ``YYYY-MM-DD``, resolved server-side so the chart and the
+            backend never disagree about what "late" means across timezones
     """
 
-    tasks: list[GanttTaskDTO]
+    projects: list[GanttProjectDTO] = []
+    today: str = ""

@@ -36,7 +36,6 @@ config = rx.Config(
         "@dnd-kit/core",
         "@dnd-kit/sortable",
         "@dnd-kit/utilities",
-        "gantt-task-react@0.3.9",
     ],
 )
 
