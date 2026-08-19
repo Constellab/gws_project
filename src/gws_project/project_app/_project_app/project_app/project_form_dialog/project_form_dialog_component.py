@@ -28,6 +28,11 @@ def _role_assignment_row(role: str) -> rx.Component:
         user_select(
             users=ProjectFormDialogState.available_users,
             placeholder=translate("project_form_dialog.select_user_placeholder"),
+            # Bound to the mapping so the select is controlled rather than keeping its own
+            # state: rx.foreach reconciles rows by position and emits no React key, so an
+            # uncontrolled select would keep showing the user picked for the role that used
+            # to sit in this row after the template - and its role list - changed.
+            value=ProjectFormDialogState.role_mapping.get(role, ""),
             on_change=lambda user_id, r=role: ProjectFormDialogState.handle_role_user_change(
                 r, user_id
             ),

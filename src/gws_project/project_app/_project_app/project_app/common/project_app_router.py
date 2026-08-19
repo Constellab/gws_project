@@ -42,6 +42,15 @@ class ProjectAppRouter:
         return f"/project/note/{note_id}"
 
     @staticmethod
+    def get_my_work_url() -> str:
+        """Get the URL for the My work page.
+
+        :return: The My work URL
+        :rtype: str
+        """
+        return "/my-work"
+
+    @staticmethod
     def get_kanban_url() -> str:
         """Get the URL for the kanban board page.
 

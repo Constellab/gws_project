@@ -3,6 +3,7 @@ from gws_reflex_main import register_gws_reflex_app
 
 from .admin.admin_component import admin_page
 from .admin.admin_state import AdminState
+from .common.language_init_state import LanguageInitState
 from .company.company_detail_component import company_detail_page
 from .company.company_list_component import company_list_page
 from .company.company_list_state import CompanyListState
@@ -10,6 +11,8 @@ from .gantt.gantt_page_component import gantt_page_component
 from .gantt.gantt_page_state import GanttPageState
 from .kanban.kanban_component import kanban_page
 from .kanban.kanban_state import KanbanState
+from .my_work.my_work_component import my_work_page
+from .my_work.my_work_state import MyWorkState
 from .note_detail.note_detail_component import note_detail_page
 from .note_detail.note_detail_state import NoteDetailState
 from .planning.planning_component import planning_page
@@ -109,6 +112,20 @@ def gantt():
     This page shows a timeline view of all projects and their root tasks.
     """
     return gantt_page_component()
+
+
+# Declare the My work page.
+# The language is initialised first: on_load runs before the layout mounts, and My work
+# resolves its texts server-side, so it would otherwise format the first render in the
+# shared default language instead of the app's.
+@rx.page(route="/my-work", on_load=[LanguageInitState.ensure_default_language, MyWorkState.on_load])
+def my_work():
+    """My work page: the signed-in user's day and their remaining assigned tasks.
+
+    A derived, strictly personal view: it reads the existing tasks and planning slots,
+    and never shows another member's work.
+    """
+    return my_work_page()
 
 
 # Declare the planning page

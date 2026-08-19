@@ -12,7 +12,10 @@ from gws_project.planning.planning_slot_dto import (
     SlotOverlapDTO,
     UpdatePlanningSlotDTO,
 )
-from gws_project.planning.planning_slot_service import PlanningSlotService
+from gws_project.planning.planning_slot_service import (
+    DEFAULT_SLOT_DURATION_MINUTES,
+    PlanningSlotService,
+)
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task_dto import TaskStatus
@@ -413,7 +416,7 @@ class PlanningState(rx.State):
                 start_str = self._safe_time_str(start_time_str, day_start_str)
                 start_time = datetime.strptime(start_str, "%H:%M").time()
                 start_dt = datetime.combine(day, start_time)
-                end_dt = start_dt + timedelta(hours=2)
+                end_dt = start_dt + timedelta(minutes=DEFAULT_SLOT_DURATION_MINUTES)
 
                 PlanningSlotService().create_slot(
                     CreatePlanningSlotDTO(

@@ -51,3 +51,12 @@ class PlanningSlotSearchBuilder(SearchBuilder):
         """Filter the search query by slots assigned to a specific user."""
         self.add_expression(PlanningSlot.assigned_user == user_id)
         return self
+
+    def add_start_from_filter(self, from_datetime: datetime) -> "PlanningSlotSearchBuilder":
+        """Filter the search query by slots starting at or after `from_datetime`.
+
+        Used to find a person's upcoming slots (the "scheduled Thu 9:00" badge of the
+        My work screen), where the horizon is open-ended rather than a fixed week.
+        """
+        self.add_expression(PlanningSlot.start_datetime >= from_datetime)
+        return self

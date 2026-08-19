@@ -15,6 +15,15 @@ from gws_project.planning.planning_slot_search_builder import PlanningSlotSearch
 from gws_project.project.project_security_service import ProjectSecurityService, ProjectUserRole
 from gws_project.user.user import User
 
+# Default length of a slot created without an explicit duration (drag & drop on the
+# Planning grid, "Add to my day" on My work). The planner resizes from there.
+DEFAULT_SLOT_DURATION_MINUTES = 120
+
+# Used only when the admin working-hours settings are malformed; same values as the
+# Planning grid's own fallbacks (09:00 - 18:00).
+_FALLBACK_DAY_START_MINUTES = 9 * 60
+_FALLBACK_DAY_END_MINUTES = 18 * 60
+
 
 class PlanningSlotService:
     """Service managing planning slots (créneaux): CRUD, week duplication, and the
@@ -43,6 +52,31 @@ class PlanningSlotService:
             search_builder.add_company_filter(company_id)
         if user_id:
             search_builder.add_user_filter(user_id)
+
+        return search_builder.search_all()
+
+    def get_slots_for_day(self, day: date, user_id: str) -> list[PlanningSlot]:
+        """Get one person's planning slots on one day, ordered by start time.
+
+        No dedicated day filter is needed: `add_week_range_filter(day, day)` already
+        bounds the query to [day 00:00, day 23:59:59].
+        """
+        search_builder = PlanningSlotSearchBuilder()
+        search_builder.add_week_range_filter(day, day)
+        search_builder.add_user_filter(user_id)
+
+        return search_builder.search_all()
+
+    def get_upcoming_slots_for_user(self, user_id: str, from_datetime: datetime) -> list[PlanningSlot]:
+        """Get one person's slots starting at or after `from_datetime`, ordered by start time.
+
+        The horizon is deliberately open-ended: this backs the "scheduled Thu 9:00" badge
+        of the My work screen, which must show a task's next slot whenever it is, not only
+        within the current week.
+        """
+        search_builder = PlanningSlotSearchBuilder()
+        search_builder.add_user_filter(user_id)
+        search_builder.add_start_from_filter(from_datetime)
 
         return search_builder.search_all()
 
@@ -143,6 +177,105 @@ class PlanningSlotService:
 
         return new_slots
 
+    @ProjectDbManager.transaction()
+    def reorder_day_slots(
+        self,
+        day: date,
+        user_id: str,
+        ordered_slot_ids: list[str],
+        settings: WorkingHoursSettings,
+    ) -> list[PlanningSlot]:
+        """Re-sequence one person's slots on one day into `ordered_slot_ids`.
+
+        The existing durations are laid back-to-back from the day's earliest start time,
+        skipping the lunch break. Tasks, assignees and durations are untouched - only
+        start/end move - so a reordering done from My work is immediately visible on the
+        team Planning grid. The order *is* the planning, which is why My work stores no
+        personal order of its own.
+
+        Reordering compacts the day: gaps between slots disappear. That is what makes the
+        operation idempotent, and the result stays freely editable from the Planning grid.
+
+        :raises BadRequestException: if `ordered_slot_ids` is not exactly the set of the
+            person's slots for that day (typically a stale frontend list).
+        """
+        slots = self.get_slots_for_day(day, user_id)
+        slots_by_id = {slot.id: slot for slot in slots}
+
+        if set(ordered_slot_ids) != set(slots_by_id.keys()):
+            raise BadRequestException(
+                "The reordered slots do not match this day's slots. Please reload the page and retry."
+            )
+
+        if not slots:
+            return []
+
+        # Keep the hour at which the day starts; only the sequence after it changes.
+        cursor = min(slot.start_datetime for slot in slots)
+        lunch_start, lunch_end = self._lunch_bounds(cursor, settings)
+
+        reordered: list[PlanningSlot] = []
+        for slot_id in ordered_slot_ids:
+            slot = slots_by_id[slot_id]
+            duration = slot.end_datetime - slot.start_datetime
+
+            # Never lay a slot across lunch: push it past the break instead.
+            if lunch_start is not None and cursor < lunch_end and cursor + duration > lunch_start:
+                cursor = lunch_end
+
+            slot.start_datetime = cursor
+            slot.end_datetime = cursor + duration
+            slot.save()
+
+            cursor = slot.end_datetime
+            reordered.append(slot)
+
+        return reordered
+
+    def find_first_free_start(
+        self,
+        day: date,
+        user_id: str,
+        duration_minutes: int,
+        settings: WorkingHoursSettings,
+    ) -> tuple[datetime, bool]:
+        """Find the first start time on `day` where `duration_minutes` fits for a person.
+
+        Candidate windows are the working day, minus the lunch break, minus the person's
+        existing slots. When nothing fits, the returned start is placed after the day's
+        last commitment (or at the end of the working day) and the flag is False: planning
+        warns, it never blocks, so this method never raises.
+
+        :return: (start datetime, whether it fits inside the working day)
+        :rtype: tuple[datetime, bool]
+        """
+        day_start = self.parse_time_to_minutes(settings.day_start_time)
+        day_end = self.parse_time_to_minutes(settings.day_end_time)
+        if day_start is None or day_end is None or day_end <= day_start:
+            # Admin's working-hours form does not validate "HH:MM": fall back to the same
+            # 09:00-18:00 default the Planning grid uses rather than refusing to schedule.
+            day_start, day_end = _FALLBACK_DAY_START_MINUTES, _FALLBACK_DAY_END_MINUTES
+
+        windows = [(day_start, day_end)]
+
+        lunch_start = self.parse_time_to_minutes(settings.lunch_start_time)
+        lunch_end = self.parse_time_to_minutes(settings.lunch_end_time)
+        if lunch_start is not None and lunch_end is not None and lunch_end > lunch_start:
+            windows = self._subtract_interval(windows, lunch_start, lunch_end)
+
+        last_busy_end = day_start
+        for slot in self.get_slots_for_day(day, user_id):
+            busy_start = slot.start_datetime.hour * 60 + slot.start_datetime.minute
+            busy_end = busy_start + slot.duration_minutes()
+            windows = self._subtract_interval(windows, busy_start, busy_end)
+            last_busy_end = max(last_busy_end, busy_end)
+
+        for window_start, window_end in windows:
+            if window_end - window_start >= duration_minutes:
+                return self._day_minutes_to_datetime(day, window_start), True
+
+        return self._day_minutes_to_datetime(day, max(day_end, last_busy_end)), False
+
     def compute_week_loads(
         self,
         slots: list[PlanningSlot],
@@ -151,7 +284,7 @@ class PlanningSlotService:
     ) -> list[PersonWeekLoadDTO]:
         """Compute each person's total/daily load for the given slots against the
         single, app-wide working hours settings (capacity is uniform across people)."""
-        daily_capacity_hours = self._daily_capacity_hours(settings)
+        daily_capacity_hours = self.daily_capacity_hours(settings)
         capacity_hours = settings.weekly_hours
 
         loads = []
@@ -206,11 +339,59 @@ class PlanningSlotService:
 
         return overlaps
 
+    def _lunch_bounds(
+        self,
+        reference: datetime,
+        settings: WorkingHoursSettings,
+    ) -> tuple[datetime | None, datetime | None]:
+        """The lunch break as two datetimes on `reference`'s day, sharing its tzinfo.
+
+        Built with `replace` rather than `datetime.combine` on purpose: slot datetimes are
+        timezone-aware (TypedDateTimeUTC) whereas `combine` yields naive ones, and
+        comparing the two raises.
+
+        :return: (lunch start, lunch end), or (None, None) when there is no usable break.
+        """
+        start_minutes = self.parse_time_to_minutes(settings.lunch_start_time)
+        end_minutes = self.parse_time_to_minutes(settings.lunch_end_time)
+        if start_minutes is None or end_minutes is None or end_minutes <= start_minutes:
+            return None, None
+
+        midnight = reference.replace(hour=0, minute=0, second=0, microsecond=0)
+        return midnight + timedelta(minutes=start_minutes), midnight + timedelta(minutes=end_minutes)
+
+    @staticmethod
+    def _subtract_interval(
+        windows: list[tuple[int, int]],
+        busy_start: int,
+        busy_end: int,
+    ) -> list[tuple[int, int]]:
+        """Remove [busy_start, busy_end] from a list of ordered minute windows."""
+        remaining: list[tuple[int, int]] = []
+        for window_start, window_end in windows:
+            if busy_end <= window_start or busy_start >= window_end:
+                remaining.append((window_start, window_end))
+                continue
+            if window_start < busy_start:
+                remaining.append((window_start, busy_start))
+            if busy_end < window_end:
+                remaining.append((busy_end, window_end))
+        return remaining
+
+    @staticmethod
+    def _day_minutes_to_datetime(day: date, minutes: int) -> datetime:
+        """Turn minutes-since-midnight into a datetime on `day`.
+
+        A timedelta rather than `time(...)` so an over-full day (minutes >= 1440) rolls
+        over instead of raising - the caller already knows it does not fit.
+        """
+        return datetime.combine(day, time.min) + timedelta(minutes=minutes)
+
     def _validate_time_range(self, start_datetime: datetime, end_datetime: datetime) -> None:
         if end_datetime <= start_datetime:
             raise BadRequestException("A planning slot's end time must be after its start time.")
 
-    def _daily_capacity_hours(self, settings: WorkingHoursSettings) -> float:
+    def daily_capacity_hours(self, settings: WorkingHoursSettings) -> float:
         """Length of a working day minus the lunch break, in hours.
 
         Admin's working-hours form does not enforce non-empty/well-formed "HH:MM"

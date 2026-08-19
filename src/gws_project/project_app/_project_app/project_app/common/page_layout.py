@@ -31,6 +31,7 @@ def sidebar_content() -> rx.Component:
                 additional_active_route_prefixes=["/project"],
             ),
             menu_item_component("kanban", translate("sidebar.kanban"), "/kanban"),
+            menu_item_component("list-checks", translate("sidebar.my_work"), "/my-work"),
             menu_item_component("calendar-days", translate("sidebar.planning"), "/planning"),
             menu_item_component(
                 "building-2",
@@ -59,6 +60,17 @@ def sidebar_content() -> rx.Component:
     )
 
 
+def _centered(content: rx.Component, max_width: str) -> rx.Component:
+    """Constrain content to `max_width` and centre it horizontally."""
+    return rx.box(
+        content,
+        width="100%",
+        max_width=max_width,
+        margin_left="auto",
+        margin_right="auto",
+    )
+
+
 def page_layout(
     content: rx.Component,
     header_content: rx.Component | None = None,
@@ -66,6 +78,7 @@ def page_layout(
     right_sidebar_content: rx.Component | None = None,
     right_sidebar_width: str = "350px",
     max_content_width: str | None = None,
+    center_content: bool = False,
     **kwargs,
 ) -> rx.Component:
     """Create a common page layout with left sidebar menu and main content area.
@@ -84,9 +97,22 @@ def page_layout(
     :type right_sidebar_width: str
     :param max_content_width: Optional max width to constrain header and content area (optional)
     :type max_content_width: str | None
+    :param center_content: Whether to also centre that constrained column in the available
+        width. Off by default because gws_core's own `max_content_width` constrains without
+        centring, and most pages of this app rely on that left-flush behaviour.
+    :type center_content: bool
     :return: The page layout component
     :rtype: rx.Component
     """
+    if center_content and max_content_width:
+        # Centre the header and the content separately rather than passing
+        # max_content_width down: they are siblings of the same padded container, so an
+        # identical max width lines them up, and this avoids nesting two constraining boxes.
+        content = _centered(content, max_content_width)
+        if header_content is not None:
+            header_content = _centered(header_content, max_content_width)
+        max_content_width = None
+
     caller_on_mount = kwargs.pop("on_mount", None)
     on_mount = (
         [LanguageInitState.ensure_default_language, caller_on_mount]

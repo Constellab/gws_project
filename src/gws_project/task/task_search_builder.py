@@ -87,3 +87,22 @@ class TaskSearchBuilder(SearchBuilder):
             ((Task.start_date <= start_date) & (Task.end_date >= end_date))      # task wraps range
         )
         return self
+
+    def add_exclude_backlog_parent_filter(self) -> "TaskSearchBuilder":
+        """Exclude tasks whose parent task is in the backlog.
+
+        Without this, the subtasks of a backlogged task surface in views that only
+        exclude BACKLOG on the task itself - a subtask is not a commitment if its
+        parent has not been promoted out of the backlog yet.
+
+        The `is_null` branch is not decorative: in SQL `NULL NOT IN (...)` evaluates to
+        NULL, so without it every root task (parent_task IS NULL) would be filtered out.
+        """
+        parent_task = Task.alias()
+        backlog_parent_ids = parent_task.select(parent_task.id).where(
+            parent_task.status == TaskStatus.BACKLOG
+        )
+        self.add_expression(
+            Task.parent_task.is_null(True) | Task.parent_task.not_in(backlog_parent_ids)
+        )
+        return self

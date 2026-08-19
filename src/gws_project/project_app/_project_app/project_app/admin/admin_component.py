@@ -203,4 +203,5 @@ def admin_page() -> rx.Component:
         ),
         header_content=rx.heading(translate("admin.title"), size="6"),
         max_content_width="900px",
+        center_content=True,
     )
