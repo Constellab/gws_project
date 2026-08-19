@@ -127,9 +127,13 @@ def _rest_row(item: MyRestItemDTO) -> rx.Component:
                 rx.icon("calendar-plus", size=16),
                 variant="ghost",
                 color_scheme="gray",
+                # Disabled once the working day is full: a slot appended outside the working
+                # hours is bad data on the team Planning, so the day is rearranged there
+                # instead. The tooltip says so rather than leaving a dead button unexplained.
+                disabled=MyWorkState.add_to_day_disabled,
                 on_click=lambda: MyWorkState.handle_add_to_my_day(item.task_id),
             ),
-            content=translate("my_work.rest.add_to_day"),
+            content=MyWorkState.add_to_day_hint,
         ),
         width="100%",
         align="center",

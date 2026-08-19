@@ -61,3 +61,7 @@ class MyWorkDTO(BaseModelDTO):
     planned_minutes: int
     daily_capacity_minutes: int
     is_over_capacity: bool
+    # Whether a slot of the default duration still fits inside today's working hours.
+    # False disables "Add to my day": a full day is rearranged from the Planning, never by
+    # appending work outside the working hours.
+    can_add_to_day: bool

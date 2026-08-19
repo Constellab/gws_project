@@ -235,19 +235,23 @@ class PlanningSlotService:
     def find_first_free_start(
         self,
         day: date,
-        user_id: str,
         duration_minutes: int,
         settings: WorkingHoursSettings,
-    ) -> tuple[datetime, bool]:
-        """Find the first start time on `day` where `duration_minutes` fits for a person.
+        existing_slots: list[PlanningSlot],
+    ) -> datetime | None:
+        """Find the first start time on `day` where `duration_minutes` fits inside the
+        working hours, given the slots already booked.
 
-        Candidate windows are the working day, minus the lunch break, minus the person's
-        existing slots. When nothing fits, the returned start is placed after the day's
-        last commitment (or at the end of the working day) and the flag is False: planning
-        warns, it never blocks, so this method never raises.
+        Candidate windows are the working day, minus the lunch break, minus
+        `existing_slots`. **Returns None when nothing fits** rather than proposing a time
+        past the end of the day: a slot placed outside the working hours is not a warning,
+        it is bad data on the team Planning - a full day has to be rearranged there.
 
-        :return: (start datetime, whether it fits inside the working day)
-        :rtype: tuple[datetime, bool]
+        Takes the slots as a parameter rather than querying them, like `compute_week_loads`
+        and `compute_overlaps`, so a caller that already holds the day can reuse it.
+
+        :return: the first free start time, or None if the working day has no room left
+        :rtype: datetime | None
         """
         day_start = self.parse_time_to_minutes(settings.day_start_time)
         day_end = self.parse_time_to_minutes(settings.day_end_time)
@@ -263,18 +267,17 @@ class PlanningSlotService:
         if lunch_start is not None and lunch_end is not None and lunch_end > lunch_start:
             windows = self._subtract_interval(windows, lunch_start, lunch_end)
 
-        last_busy_end = day_start
-        for slot in self.get_slots_for_day(day, user_id):
+        for slot in existing_slots:
             busy_start = slot.start_datetime.hour * 60 + slot.start_datetime.minute
-            busy_end = busy_start + slot.duration_minutes()
-            windows = self._subtract_interval(windows, busy_start, busy_end)
-            last_busy_end = max(last_busy_end, busy_end)
+            windows = self._subtract_interval(
+                windows, busy_start, busy_start + slot.duration_minutes()
+            )
 
         for window_start, window_end in windows:
             if window_end - window_start >= duration_minutes:
-                return self._day_minutes_to_datetime(day, window_start), True
+                return self._day_minutes_to_datetime(day, window_start)
 
-        return self._day_minutes_to_datetime(day, max(day_end, last_busy_end)), False
+        return None
 
     def compute_week_loads(
         self,
@@ -380,11 +383,7 @@ class PlanningSlotService:
 
     @staticmethod
     def _day_minutes_to_datetime(day: date, minutes: int) -> datetime:
-        """Turn minutes-since-midnight into a datetime on `day`.
-
-        A timedelta rather than `time(...)` so an over-full day (minutes >= 1440) rolls
-        over instead of raising - the caller already knows it does not fit.
-        """
+        """Turn minutes-since-midnight into a datetime on `day`."""
         return datetime.combine(day, time.min) + timedelta(minutes=minutes)
 
     def _validate_time_range(self, start_datetime: datetime, end_datetime: datetime) -> None:

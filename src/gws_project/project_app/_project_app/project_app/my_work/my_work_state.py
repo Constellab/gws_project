@@ -4,6 +4,7 @@ import reflex as rx
 from gws_core import BaseModelDTO
 from gws_project.my_work.my_work_dto import MyDaySlotDTO, MyRestTaskDTO, MyWorkDTO
 from gws_project.my_work.my_work_service import MyWorkService
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import I18nState, ReflexMainState, toast_tr
 
 from ..common.my_day_list.my_day_list import MyDayItemDTO
@@ -39,6 +40,10 @@ class MyWorkState(rx.State):
     # Empty unless the day goes past the working hours; indicative, never blocking.
     over_capacity_note: str = ""
     reorder_label: str = ""
+    # False when the working day has no room left for another slot: "Add to my day" is then
+    # disabled, because appending work outside the working hours corrupts the team Planning.
+    can_add_to_day: bool = True
+    add_to_day_hint: str = ""
     day_items: list[MyDayItemDTO] = []
     rest_items: list[MyRestItemDTO] = []
 
@@ -53,6 +58,10 @@ class MyWorkState(rx.State):
     @rx.var
     def has_rest_items(self) -> bool:
         return len(self.rest_items) > 0
+
+    @rx.var
+    def add_to_day_disabled(self) -> bool:
+        return not self.can_add_to_day
 
     @rx.var
     def is_empty(self) -> bool:
@@ -95,19 +104,21 @@ class MyWorkState(rx.State):
 
     @rx.event
     async def handle_add_to_my_day(self, task_id: str):
-        """Ask the Planning for a slot at the first free time range of the day."""
+        """Ask the Planning for a slot at the first free time range of the working day."""
+        if not self.can_add_to_day:
+            # The button is disabled, but the page can be stale - the day may have filled up
+            # from the Planning or another tab. The service refuses too; checking here only
+            # makes the message translatable.
+            i18n = await self.get_state(I18nState)
+            raise ReflexAppException(i18n.tr("my_work.rest.day_full"))
+
         main_state = await self.get_state(ReflexMainState)
 
         with await main_state.authenticate_user():
-            _, fits_in_working_day = MyWorkService().add_to_my_day(task_id)
+            MyWorkService().add_to_my_day(task_id)
 
         await self._reload()
-
-        if fits_in_working_day:
-            yield await toast_tr.success(self, "my_work.toast.added")
-        else:
-            # The slot was still created: an unusual load is worth a warning, not a refusal.
-            yield await toast_tr.warning(self, "my_work.toast.added_over_capacity")
+        yield await toast_tr.success(self, "my_work.toast.added")
 
     @rx.event
     def handle_open_task(self, task_id: str):
@@ -137,6 +148,10 @@ class MyWorkState(rx.State):
             else ""
         )
         self.reorder_label = i18n.tr("my_work.reorder")
+        self.can_add_to_day = my_work.can_add_to_day
+        self.add_to_day_hint = i18n.tr(
+            "my_work.rest.add_to_day" if my_work.can_add_to_day else "my_work.rest.day_full"
+        )
         self.day_items = [self._to_day_item(slot, i18n) for slot in my_work.day_slots]
         self.rest_items = [self._to_rest_item(task, i18n) for task in my_work.rest_tasks]
 

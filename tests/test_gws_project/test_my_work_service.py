@@ -381,29 +381,31 @@ class TestMyWorkService(BaseTestCase):
             settings = WorkingHoursService.get_settings()
             slot_service = PlanningSlotService()
 
+            def first_free(duration_minutes: int):
+                return slot_service.find_first_free_start(
+                    self.TEST_DAY,
+                    duration_minutes,
+                    settings,
+                    slot_service.get_slots_for_day(self.TEST_DAY, user.id),
+                )
+
             # Empty day: the start of the working day.
-            start, fits = slot_service.find_first_free_start(self.TEST_DAY, user.id, 120, settings)
-            self.assertEqual(self._clock(start), "09:00")
-            self.assertTrue(fits)
+            self.assertEqual(self._clock(first_free(120)), "09:00")
 
             # A morning slot pushes the opening after it.
             task = self._create_task(project, "Morning", user.id)
             self._create_slot(task, user.id, midnight.replace(hour=9), 60)
-            start, fits = slot_service.find_first_free_start(self.TEST_DAY, user.id, 60, settings)
-            self.assertEqual(self._clock(start), "10:00")
-            self.assertTrue(fits)
+            self.assertEqual(self._clock(first_free(60)), "10:00")
 
-            # A 2h request no longer fits before lunch (10:00-12:00 is exactly 2h, so ask 3h).
-            start, fits = slot_service.find_first_free_start(self.TEST_DAY, user.id, 180, settings)
-            self.assertEqual(self._clock(start), "13:00")
-            self.assertTrue(fits)
+            # A 3h request no longer fits before lunch (10:00-12:00 is only 2h), so it lands
+            # after the break rather than straddling it.
+            self.assertEqual(self._clock(first_free(180)), "13:00")
 
-            # Saturate the rest of the day: the slot is still placed, but flagged.
+            # Saturate the rest of the day: no opening is proposed at all. Never a time past
+            # the end of the working day, which would put the slot outside working hours.
             afternoon = self._create_task(project, "Afternoon", user.id)
             self._create_slot(afternoon, user.id, midnight.replace(hour=10), 8 * 60)
-            start, fits = slot_service.find_first_free_start(self.TEST_DAY, user.id, 120, settings)
-            self.assertFalse(fits)
-            self.assertEqual(self._clock(start), "18:00")
+            self.assertIsNone(first_free(120))
 
     def test_add_to_my_day_creates_a_slot_at_the_first_opening(self):
         """"Add to my day" asks the Planning for a slot; it never picks an arbitrary time."""
@@ -413,11 +415,10 @@ class TestMyWorkService(BaseTestCase):
             project = self._create_project("Add Project")
             task = self._create_task(project, "To schedule", user.id)
 
-            slot_dto, fits = MyWorkService().add_to_my_day(task.id, self.TEST_DAY)
+            slot_dto = MyWorkService().add_to_my_day(task.id, self.TEST_DAY)
 
             my_work = MyWorkService().get_my_work(self.TEST_DAY)
 
-        self.assertTrue(fits)
         self.assertEqual(self._clock(slot_dto.start_datetime), "09:00")
         # Default slot duration, shared with the Planning grid's drag & drop.
         self.assertEqual(slot_dto.duration_minutes, 120)
@@ -442,6 +443,32 @@ class TestMyWorkService(BaseTestCase):
                 service.add_to_my_day(backlog_task.id, self.TEST_DAY)
             with self.assertRaises(BadRequestException):
                 service.add_to_my_day(parent.id, self.TEST_DAY)
+
+    def test_add_to_my_day_refuses_once_the_working_day_is_full(self):
+        """A full day is rearranged from the Planning, never by appending after hours."""
+        user = self._create_user("myworkdayfull@test.com")
+
+        with self._authenticate_as(user):
+            project = self._create_project("Day Full Project")
+            midnight = datetime.combine(self.TEST_DAY, datetime.min.time())
+
+            # Room left at first.
+            self.assertTrue(MyWorkService().get_my_work(self.TEST_DAY).can_add_to_day)
+
+            # Fill the whole working day (09:00-18:00 by default).
+            blocker = self._create_task(project, "All day", user.id)
+            self._create_slot(blocker, user.id, midnight.replace(hour=9), 9 * 60)
+
+            self.assertFalse(MyWorkService().get_my_work(self.TEST_DAY).can_add_to_day)
+
+            waiting = self._create_task(project, "Waiting", user.id)
+            with self.assertRaises(BadRequestException):
+                MyWorkService().add_to_my_day(waiting.id, self.TEST_DAY)
+
+            # And nothing was created outside the working hours as a consolation prize.
+            day_slots = MyWorkService().get_my_work(self.TEST_DAY).day_slots
+
+        self.assertEqual([slot.task_id for slot in day_slots], [blocker.id])
 
     def test_complete_task_marks_it_done_and_journals_the_change(self):
         """Ticking a task off delegates to TaskService, which writes the history event."""

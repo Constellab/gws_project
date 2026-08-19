@@ -74,6 +74,10 @@ class MyWorkService:
             planned_minutes=planned_minutes,
             daily_capacity_minutes=daily_capacity_minutes,
             is_over_capacity=daily_capacity_minutes > 0 and planned_minutes > daily_capacity_minutes,
+            can_add_to_day=slot_service.find_first_free_start(
+                day, DEFAULT_SLOT_DURATION_MINUTES, settings, day_slots
+            )
+            is not None,
         )
 
     def reorder_my_day(self, ordered_slot_ids: list[str], day: date | None = None) -> MyWorkDTO:
@@ -105,16 +109,18 @@ class MyWorkService:
 
         TaskService().update_status(task_id, TaskStatus.DONE)
 
-    def add_to_my_day(self, task_id: str, day: date | None = None) -> tuple[MyDaySlotDTO, bool]:
+    def add_to_my_day(self, task_id: str, day: date | None = None) -> MyDaySlotDTO:
         """Ask the Planning for a slot on `day`, at the first free time range.
 
-        My work never creates a slot at an arbitrary time: it asks for the first opening and
-        lets the Planning own the result.
+        My work never creates a slot at an arbitrary time: it asks for the first opening
+        inside the working hours and lets the Planning own the result.
 
-        :return: the created slot, and whether it fits inside the working day. When it does
-            not, the slot is created all the same, after the day's last commitment: an
-            unusual load is worth a note, never a refusal.
-        :rtype: tuple[MyDaySlotDTO, bool]
+        :raises BadRequestException: if the working day has no room left. My work refuses
+            rather than appending after the end of the day: a slot at 2am is not a heavier
+            day, it is wrong data on the team Planning, and rearranging a full day is a
+            Planning job.
+        :return: the created slot
+        :rtype: MyDaySlotDTO
         """
         day = day or date.today()
         user = self._get_current_user()
@@ -133,9 +139,18 @@ class MyWorkService:
 
         settings = WorkingHoursService.get_settings()
         slot_service = PlanningSlotService()
-        start_datetime, fits_in_working_day = slot_service.find_first_free_start(
-            day, user.id, DEFAULT_SLOT_DURATION_MINUTES, settings
+        start_datetime = slot_service.find_first_free_start(
+            day,
+            DEFAULT_SLOT_DURATION_MINUTES,
+            settings,
+            slot_service.get_slots_for_day(day, user.id),
         )
+
+        if start_datetime is None:
+            raise BadRequestException(
+                "Your working day is already full. Rearrange today's schedule from the "
+                "Planning instead."
+            )
 
         slot = slot_service.create_slot(
             CreatePlanningSlotDTO(
@@ -146,7 +161,7 @@ class MyWorkService:
             )
         )
 
-        return self._to_day_slot_dto(slot, user, day), fits_in_working_day
+        return self._to_day_slot_dto(slot, user, day)
 
     def _get_current_user(self) -> User:
         """The signed-in user, as the brick's local mirror of the gws_core user.
