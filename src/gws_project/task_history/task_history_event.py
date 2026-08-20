@@ -13,6 +13,13 @@ from gws_project.task_history.task_history_event_dto import TaskHistoryEventDTO
 from gws_project.task_history.task_history_event_type import TaskHistoryEventType
 from gws_project.user.user import User
 
+# How a message refers to the task it happened on. The task's own Activity tab lists the
+# events underneath the task, so "this task" reads naturally there. A cross-project feed
+# (the Home page) names the task on a line of its own, where "the task" is the right
+# wording - hence the subject is a parameter of the message rather than baked into it.
+TIMELINE_TASK_SUBJECT = "this task"
+FEED_TASK_SUBJECT = "the task"
+
 
 class TaskHistoryEvent(Model):
     """
@@ -47,28 +54,41 @@ class TaskHistoryEvent(Model):
         TaskHistoryEventType.TYPE_CHANGED: "layers",
     }
 
-    def _build_assignee_message(self) -> str:
+    def get_icon(self) -> str:
+        """The Lucide icon standing for this event's type.
+
+        :return: The icon name
+        :rtype: str
+        """
+        return self._ICONS[self.event_type]
+
+    def _build_assignee_message(self, task_subject: str) -> str:
         """Build the message for an ASSIGNEE_CHANGED event.
 
+        :param task_subject: How the message refers to the task
+        :type task_subject: str
         :return: The message describing the event
         :rtype: str
         """
         if not self.old_value:
-            return f"assigned this task to {self.new_value}"
+            return f"assigned {task_subject} to {self.new_value}"
         if not self.new_value:
-            return f"unassigned this task (was {self.old_value})"
+            return f"unassigned {task_subject} (was {self.old_value})"
         return f"changed assignee from {self.old_value} to {self.new_value}"
 
-    def _build_message(self) -> str:
+    def build_message(self, task_subject: str = TIMELINE_TASK_SUBJECT) -> str:
         """Build the human-readable, pre-formatted message describing this event.
 
+        :param task_subject: How the message refers to the task it happened on. Defaults to
+            the task-timeline wording; pass FEED_TASK_SUBJECT for a cross-project feed.
+        :type task_subject: str
         :return: The message describing the event
         :rtype: str
         """
         message_builders = {
-            TaskHistoryEventType.CREATED: lambda: "created this task",
+            TaskHistoryEventType.CREATED: lambda: f"created {task_subject}",
             TaskHistoryEventType.TITLE_CHANGED: (
-                lambda: f'renamed this task from "{self.old_value}" to "{self.new_value}"'
+                lambda: f'renamed {task_subject} from "{self.old_value}" to "{self.new_value}"'
             ),
             TaskHistoryEventType.STATUS_CHANGED: (
                 lambda: f"changed status from {self.old_value} to {self.new_value}"
@@ -79,13 +99,15 @@ class TaskHistoryEvent(Model):
             TaskHistoryEventType.DATES_CHANGED: (
                 lambda: f"changed the dates from {self.old_value} to {self.new_value}"
             ),
-            TaskHistoryEventType.ASSIGNEE_CHANGED: self._build_assignee_message,
+            TaskHistoryEventType.ASSIGNEE_CHANGED: lambda: self._build_assignee_message(
+                task_subject
+            ),
             TaskHistoryEventType.DESCRIPTION_UPDATED: lambda: "updated the description",
             TaskHistoryEventType.MOVED: (
-                lambda: f"moved this task from {self.old_value} to {self.new_value}"
+                lambda: f"moved {task_subject} from {self.old_value} to {self.new_value}"
             ),
             TaskHistoryEventType.TYPE_CHANGED: (
-                lambda: f"changed this task from {self.old_value} to {self.new_value}"
+                lambda: f"changed {task_subject} from {self.old_value} to {self.new_value}"
             ),
         }
         message = message_builders[self.event_type]()
@@ -111,8 +133,8 @@ class TaskHistoryEvent(Model):
             old_value=self.old_value,
             new_value=self.new_value,
             is_automatic=self.is_automatic,
-            message=self._build_message(),
-            icon=self._ICONS[self.event_type],
+            message=self.build_message(),
+            icon=self.get_icon(),
             created_at_text=self.created_at.strftime("%b %d, %Y %H:%M"),
         )
 

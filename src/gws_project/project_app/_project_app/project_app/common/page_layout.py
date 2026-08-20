@@ -41,6 +41,7 @@ def sidebar_content() -> rx.Component:
         title="Project",
         subtitle="By Constellab",
         menu_items=[
+            menu_item_component("house", translate("sidebar.home"), "/home"),
             menu_item_component(
                 "folder",
                 translate("sidebar.projects"),

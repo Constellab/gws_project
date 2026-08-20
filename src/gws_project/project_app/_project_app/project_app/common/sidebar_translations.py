@@ -5,6 +5,7 @@ from gws_reflex_main import register_translations
 register_translations(
     {
         "en": {
+            "sidebar.home": "Home",
             "sidebar.projects": "Projects",
             "sidebar.kanban": "Kanban",
             "sidebar.my_work": "My work",
@@ -16,6 +17,7 @@ register_translations(
             "sidebar.role_member": "Member",
         },
         "fr": {
+            "sidebar.home": "Accueil",
             "sidebar.projects": "Projets",
             "sidebar.kanban": "Kanban",
             "sidebar.my_work": "Mon travail",

@@ -1,5 +1,14 @@
 class ProjectAppRouter:
     @staticmethod
+    def get_home_url() -> str:
+        """Get the URL for the Home page.
+
+        :return: The Home page URL
+        :rtype: str
+        """
+        return "/home"
+
+    @staticmethod
     def get_project_list_url() -> str:
         """Get the URL for the project list page.
 
@@ -49,6 +58,15 @@ class ProjectAppRouter:
         :rtype: str
         """
         return "/my-work"
+
+    @staticmethod
+    def get_planning_url() -> str:
+        """Get the URL for the Planning page.
+
+        :return: The Planning page URL
+        :rtype: str
+        """
+        return "/planning"
 
     @staticmethod
     def get_kanban_url() -> str:

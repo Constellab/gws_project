@@ -9,6 +9,8 @@ from .company.company_list_component import company_list_page
 from .company.company_list_state import CompanyListState
 from .gantt.gantt_page_component import gantt_page_component
 from .gantt.gantt_page_state import GanttPageState
+from .home.home_component import home_page
+from .home.home_state import HomeState
 from .kanban.kanban_component import kanban_page
 from .kanban.kanban_state import KanbanState
 from .my_work.my_work_component import my_work_page
@@ -41,6 +43,20 @@ def index():
     This is the default landing page of the application.
     """
     return project_list_page()
+
+
+# Declare the Home page.
+# The language is initialised first, for the same reason as My work below: on_load runs
+# before the layout mounts and Home resolves its texts server-side, so it would otherwise
+# format the first render in the shared default language instead of the app's.
+@rx.page(route="/home", on_load=[LanguageInitState.ensure_default_language, HomeState.on_load])
+def home():
+    """Home page: the ways into the app, then what the team has been doing recently.
+
+    A derived, read-only screen: it re-reads the tasks, planning slots and activity trail
+    that other pages own, and is bounded to the projects the signed-in user belongs to.
+    """
+    return home_page()
 
 
 # Declare the task detail page with URL parameter
