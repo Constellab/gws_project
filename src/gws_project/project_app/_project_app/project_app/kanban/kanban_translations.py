@@ -21,6 +21,9 @@ register_translations(
             "kanban.filters.date_current_month": "Current Month",
             "kanban.filters.show_backlog": "Show Backlog",
             "kanban.filters.clear": "Clear",
+            "kanban.toast.invalid_move": "Invalid card move data",
+            "kanban.quick_add.toast.missing_fields": "Please enter a title and choose a project.",
+            "kanban.toast.move_failed": "Failed to move the task: {{error}}",
         },
         "fr": {
             "kanban.title": "Tableau des tâches",
@@ -35,6 +38,9 @@ register_translations(
             "kanban.filters.date_current_month": "Mois actuel",
             "kanban.filters.show_backlog": "Afficher le backlog",
             "kanban.filters.clear": "Effacer",
+            "kanban.toast.invalid_move": "Données de déplacement de carte invalides",
+            "kanban.quick_add.toast.missing_fields": "Saisissez un titre et choisissez un projet.",
+            "kanban.toast.move_failed": "Échec du déplacement de la tâche : {{error}}",
         },
     }
 )

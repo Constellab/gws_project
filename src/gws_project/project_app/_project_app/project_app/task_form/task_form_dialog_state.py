@@ -17,7 +17,13 @@ from gws_project.task.task_dto import (
 from gws_project.task.task_service import TaskService
 from gws_project.template.project_template_dto import ProjectTemplateDTO
 from gws_project.template.project_template_service import ProjectTemplateService
-from gws_reflex_main import FormDialogState, ReflexDialogCloseEvent, ReflexMainState
+from gws_reflex_main import (
+    FormDialogState,
+    I18nState,
+    ReflexDialogCloseEvent,
+    ReflexMainState,
+    toast_tr,
+)
 
 
 class TaskFormMode(Enum):
@@ -141,7 +147,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
             main_state = await self.get_state(ReflexMainState)
             self.form_assign_to_id = (await main_state.get_and_check_current_user()).id
 
-    def _validate_and_extract_common_fields(self, form_data: dict) -> dict:
+    async def _validate_and_extract_common_fields(self, form_data: dict) -> dict:
         """Validate and extract common fields from form data.
 
         Args:
@@ -155,13 +161,15 @@ class TaskFormDialogState(FormDialogState, rx.State):
         Raises:
             Exception: If validation fails
         """
+        i18n = await self.get_state(I18nState)
+
         # Get values from form data
         title = form_data.get('title', '').strip()
         assign_to_id = form_data.get('assign_to_id', '').strip() or None
 
         # Validate required fields
         if not title:
-            raise Exception("Task title is required")
+            raise Exception(i18n.tr("task_form.error.title_required"))
 
         result = {
             'title': title,
@@ -307,7 +315,9 @@ class TaskFormDialogState(FormDialogState, rx.State):
         # Open the dialog
         await self.open_dialog()
 
-    def _validate_and_parse_create_task_form_data(self, form_data: dict) -> CreateTaskDTO | None:
+    async def _validate_and_parse_create_task_form_data(
+        self, form_data: dict
+    ) -> CreateTaskDTO | None:
         """Validate and parse form data into a CreateTaskDTO for create operations.
 
         Args:
@@ -317,7 +327,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
             CreateTaskDTO if validation succeeds, None otherwise (error toast is shown)
         """
         # Validate and extract common fields
-        common_fields = self._validate_and_extract_common_fields(form_data)
+        common_fields = await self._validate_and_extract_common_fields(form_data)
         # Handle radio button value: "with_children" or "without_children"
         allow_subtasks_value = form_data.get('allow_subtasks', 'without_children')
         allow_subtasks = allow_subtasks_value == 'with_children'
@@ -333,7 +343,9 @@ class TaskFormDialogState(FormDialogState, rx.State):
             assign_to_id=common_fields.get('assign_to_id')
         )
 
-    def _validate_and_parse_update_task_form_data(self, form_data: dict) -> UpdateTaskDTO | None:
+    async def _validate_and_parse_update_task_form_data(
+        self, form_data: dict
+    ) -> UpdateTaskDTO | None:
         """Validate and parse form data into an UpdateTaskDTO for update operations.
 
         Args:
@@ -343,7 +355,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
             UpdateTaskDTO if validation succeeds, None otherwise (error toast is shown)
         """
         # Validate and extract common fields
-        common_fields = self._validate_and_extract_common_fields(form_data)
+        common_fields = await self._validate_and_extract_common_fields(form_data)
 
         # Create and return UpdateTaskDTO
         return UpdateTaskDTO(
@@ -377,7 +389,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
             return
 
         # Validate and parse form data for create operations
-        task_dto = self._validate_and_parse_create_task_form_data(form_data)
+        task_dto = await self._validate_and_parse_create_task_form_data(form_data)
         if task_dto is None:
             return  # Validation error already shown
 
@@ -390,7 +402,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
                 task = task_service.create_root_task(self._project.id, task_dto)
 
             # Show success toast
-            yield rx.toast.success("Task created successfully")
+            yield await toast_tr.success(self, "task_form.toast.task_created")
 
         elif self._form_mode == TaskFormMode.CREATE_SUB.value:
             # Create the subtask
@@ -399,7 +411,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
                 task = task_service.create_sub_task(self._parent_task_id, task_dto)
 
             # Show success toast
-            yield rx.toast.success("Subtask created successfully")
+            yield await toast_tr.success(self, "task_form.toast.subtask_created")
 
         if self._callback_after_close:
             await self._callback_after_close(task)
@@ -417,14 +429,18 @@ class TaskFormDialogState(FormDialogState, rx.State):
         Yields:
             Reflex events (rx.toast)
         """
+        i18n = await self.get_state(I18nState)
+
         start_date_str = form_data.get('start_date', '').strip()
         if not start_date_str:
-            raise Exception("Start date is required")
+            raise Exception(i18n.tr("task_form.error.start_date_required"))
 
         if len(self.role_mapping) != len(self.template_roles):
             missing_roles = [role for role in self.template_roles if role not in self.role_mapping]
             raise Exception(
-                f"Please assign users to all roles. Missing: {', '.join(missing_roles)}"
+                i18n.tr(
+                    "task_form.error.missing_roles", {"roles": ", ".join(missing_roles)}
+                )
             )
 
         add_dto = AddTasksFromTemplateDTO(
@@ -437,7 +453,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
             project_service = ProjectService()
             created_tasks = project_service.add_tasks_from_template(self._project.id, add_dto)
 
-        yield rx.toast.success("Tasks added from template successfully")
+        yield await toast_tr.success(self, "task_form.toast.tasks_added_from_template")
 
         if self._callback_after_close:
             for task in created_tasks:
@@ -458,7 +474,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
             main_state = await self.get_state(ReflexMainState)
 
         # Validate and parse form data for update operations
-        task_dto = self._validate_and_parse_update_task_form_data(form_data)
+        task_dto = await self._validate_and_parse_update_task_form_data(form_data)
         if task_dto is None:
             return  # Validation error already shown
 
@@ -469,7 +485,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
             task = task_service.update_task(self._editing_task.id, task_dto)
 
         # Show success toast
-        yield rx.toast.success("Task updated successfully")
+        yield await toast_tr.success(self, "task_form.toast.task_updated")
 
         # Invoke callback if provided
         if self._callback_after_close:

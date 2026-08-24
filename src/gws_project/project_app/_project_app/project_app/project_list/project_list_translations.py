@@ -20,6 +20,11 @@ register_translations(
             "project_list.column_progress": "Progress",
             "project_list.column_manager": "Manager",
             "project_list.empty_state": "No projects found",
+            "project_list.error.not_authenticated": "You must be signed in to view projects",
+            "project_list.stats.total": "Total projects",
+            "project_list.stats.ongoing": "Ongoing",
+            "project_list.stats.completed": "Completed",
+            "project_list.stats.not_started": "Not started",
         },
         "fr": {
             "project_list.title": "Mes projets",
@@ -33,6 +38,11 @@ register_translations(
             "project_list.column_progress": "Progression",
             "project_list.column_manager": "Responsable",
             "project_list.empty_state": "Aucun projet trouvé",
+            "project_list.error.not_authenticated": "Vous devez être connecté pour voir les projets",
+            "project_list.stats.total": "Projets au total",
+            "project_list.stats.ongoing": "En cours",
+            "project_list.stats.completed": "Terminés",
+            "project_list.stats.not_started": "Non démarrés",
         },
     }
 )

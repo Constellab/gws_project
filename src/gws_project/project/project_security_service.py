@@ -35,6 +35,20 @@ class ProjectSecurityService:
 
         return project
 
+    def get_current_user_project_ids(self) -> list[str]:
+        """Get the ids of every project the current user is a member of.
+
+        Used to scope list/search queries: a search that is not restricted to a single,
+        explicitly authorized project must be bounded to these ids, otherwise it would
+        read rows of projects the user has no access to.
+
+        :return: List of project ids the current user is a member of
+        :rtype: list[str]
+        """
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        return ProjectUser.get_project_ids_of_user(current_user.id)
+
     def get_and_check_role_for_task(self, task_id: str, role: ProjectUserRole) -> Task:
         """Check if the current user has read access to the project associated with the given task ID.
 

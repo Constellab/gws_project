@@ -10,6 +10,7 @@ from gws_reflex_main import (
 
 from . import sidebar_translations  # noqa: F401  (side effect: registers translations)
 from .language_init_state import LanguageInitState
+from .project_app_router import ProjectAppRouter
 from .sidebar_footer_component import sidebar_footer_component
 
 
@@ -41,11 +42,14 @@ def sidebar_content() -> rx.Component:
         title="Project",
         subtitle="By Constellab",
         menu_items=[
-            menu_item_component("house", translate("sidebar.home"), "/home"),
+            menu_item_component(
+                "house", translate("sidebar.home"), ProjectAppRouter.get_home_url()
+            ),
             menu_item_component(
                 "folder",
                 translate("sidebar.projects"),
-                "/",
+                ProjectAppRouter.get_project_list_url(),
+                # Also covers /project/<id> and /project/task/<id>
                 additional_active_route_prefixes=["/project"],
             ),
             _sub_menu_items(

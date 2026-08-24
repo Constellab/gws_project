@@ -21,8 +21,14 @@ from gws_project.project.project_service import ProjectService
 from gws_project.task.task_dto import TaskStatus
 from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.user.user import User
-from gws_reflex_main import I18nState, ReflexMainState
+from gws_reflex_main import I18nState, ReflexMainState, toast_tr
 
+from ..common.date_format import (
+    format_date_range,
+    format_day_month,
+    format_short_weekday_day,
+    format_short_weekday_day_month,
+)
 from ..common.planning_grid.planning_grid import (
     GridPersonDTO,
     GridSlotDTO,
@@ -208,7 +214,8 @@ class PlanningState(rx.State):
                     assignee_name=f"{task.assign_to.first_name} {task.assign_to.last_name}".strip(),
                     is_scheduled=task.id in scheduled_task_ids,
                     due_date_text=(
-                        f"{i18n.tr('planning.due_prefix')} {task.end_date.strftime('%b %-d')}"
+                        f"{i18n.tr('planning.due_prefix')} "
+                        f"{format_day_month(task.end_date, i18n.lang)}"
                         if task.end_date
                         else None
                     ),
@@ -275,9 +282,10 @@ class PlanningState(rx.State):
         return [(c.id, c.name) for c in self.available_companies]
 
     @rx.var
-    def week_label(self) -> str:
+    async def week_label(self) -> str:
+        lang = (await self.get_state(I18nState)).lang
         week_end = self.week_start + timedelta(days=6)
-        return f"{self.week_start.strftime('%b %d')} - {week_end.strftime('%b %d, %Y')}"
+        return format_date_range(self.week_start, week_end, lang)
 
     def _working_day_indices(self) -> list[int]:
         working_days = self.working_hours.working_days if self.working_hours else [0, 1, 2, 3, 4]
@@ -287,10 +295,20 @@ class PlanningState(rx.State):
     def days(self) -> list[str]:
         return [(self.week_start + timedelta(days=i)).isoformat() for i in self._working_day_indices()]
 
-    @rx.var
-    def day_labels(self) -> list[str]:
+    def _day_labels(self, lang: str) -> list[str]:
+        """The column headers of the grid, e.g. "Mon 06", in the active language.
+
+        A plain method rather than a computed var: its only consumer is `grid_data`,
+        which already holds the language, and a var would have to be awaited there.
+
+        :param lang: The active language code
+        :type lang: str
+        :return: One label per working day of the displayed week
+        :rtype: list[str]
+        """
         return [
-            (self.week_start + timedelta(days=i)).strftime("%a %d") for i in self._working_day_indices()
+            format_short_weekday_day(self.week_start + timedelta(days=i), lang)
+            for i in self._working_day_indices()
         ]
 
     def _safe_time_str(self, value: str | None, default: str) -> str:
@@ -321,7 +339,7 @@ class PlanningState(rx.State):
 
         return PlanningGridDataDTO(
             days=self.days,
-            day_labels=self.day_labels,
+            day_labels=self._day_labels(i18n.lang),
             people=self.people,
             slots=self.slots,
             day_start_time=day_start_time,
@@ -371,7 +389,9 @@ class PlanningState(rx.State):
             if key in seen:
                 continue
             seen.add(key)
-            day_label = date.fromisoformat(overlap.day).strftime("%a %b %d")
+            day_label = format_short_weekday_day_month(
+                date.fromisoformat(overlap.day), i18n.lang
+            )
             parts.append(f"{overlap.user_name}: {day_label}")
         return f"{i18n.tr('planning.banner.overlap_prefix')} {', '.join(parts)}"
 
@@ -403,7 +423,7 @@ class PlanningState(rx.State):
             day_str = event_dict.get("day")
             start_time_str = event_dict.get("start_time")
             if not task_id or not person_id or not day_str:
-                yield rx.toast.error("Invalid drop data")
+                yield await toast_tr.error(self, "planning.toast.invalid_drop")
                 return
 
             day = date.fromisoformat(day_str)
@@ -430,7 +450,9 @@ class PlanningState(rx.State):
                 async with self:
                     await self._load_week()
         except Exception as e:
-            yield rx.toast.error(f"Error creating slot: {e}")
+            yield await toast_tr.error(
+                self, "planning.toast.create_failed", {"error": str(e)}
+            )
 
     @rx.event(background=True)
     async def handle_slot_move(self, event_dict: dict):
@@ -444,7 +466,7 @@ class PlanningState(rx.State):
             day_str = event_dict.get("day")
             start_time_str = event_dict.get("start_time")
             if not slot_id or not person_id or not day_str or not start_time_str:
-                yield rx.toast.error("Invalid move data")
+                yield await toast_tr.error(self, "planning.toast.invalid_move")
                 return
 
             day = date.fromisoformat(day_str)
@@ -476,7 +498,9 @@ class PlanningState(rx.State):
                 async with self:
                     await self._load_week()
         except Exception as e:
-            yield rx.toast.error(f"Error moving slot: {e}")
+            yield await toast_tr.error(
+                self, "planning.toast.move_failed", {"error": str(e)}
+            )
 
     @rx.event(background=True)
     async def handle_slot_resize(self, event_dict: dict):
@@ -489,7 +513,7 @@ class PlanningState(rx.State):
             edge = event_dict.get("edge")
             new_time_str = event_dict.get("new_time")
             if not slot_id or edge not in ("start", "end") or not new_time_str:
-                yield rx.toast.error("Invalid resize data")
+                yield await toast_tr.error(self, "planning.toast.invalid_resize")
                 return
 
             new_time = datetime.strptime(new_time_str, "%H:%M").time()
@@ -519,7 +543,9 @@ class PlanningState(rx.State):
                 async with self:
                     await self._load_week()
         except Exception as e:
-            yield rx.toast.error(f"Error resizing slot: {e}")
+            yield await toast_tr.error(
+                self, "planning.toast.resize_failed", {"error": str(e)}
+            )
 
     @rx.event(background=True)
     async def handle_slot_delete(self, slot_id: str):
@@ -534,7 +560,9 @@ class PlanningState(rx.State):
                 async with self:
                     await self._load_week()
         except Exception as e:
-            yield rx.toast.error(f"Error deleting slot: {e}")
+            yield await toast_tr.error(
+                self, "planning.toast.delete_failed", {"error": str(e)}
+            )
 
     @rx.event(background=True)
     async def open_duplicate_dialog(self):
@@ -559,7 +587,9 @@ class PlanningState(rx.State):
                 self.duplicate_selected_user_ids = list(names_by_id.keys())
                 self.duplicate_dialog_open = True
         except Exception as e:
-            yield rx.toast.error(f"Error loading previous week: {e}")
+            yield await toast_tr.error(
+                self, "planning.toast.load_previous_week_failed", {"error": str(e)}
+            )
 
     def set_duplicate_dialog_open(self, value: bool):
         self.duplicate_dialog_open = value
@@ -583,7 +613,7 @@ class PlanningState(rx.State):
             self.duplicate_dialog_open = False
 
         if not selected_ids:
-            yield rx.toast.error("Select at least one person to duplicate")
+            yield await toast_tr.error(self, "planning.toast.no_person_selected")
             return
 
         try:
@@ -592,6 +622,10 @@ class PlanningState(rx.State):
 
             async with self:
                 await self._load_week()
-                yield rx.toast.success(f"{len(duplicated)} slot(s) duplicated from last week")
+                yield await toast_tr.success(
+                    self, "planning.toast.duplicated", {"count": len(duplicated)}
+                )
         except Exception as e:
-            yield rx.toast.error(f"Error duplicating previous week: {e}")
+            yield await toast_tr.error(
+                self, "planning.toast.duplicate_failed", {"error": str(e)}
+            )

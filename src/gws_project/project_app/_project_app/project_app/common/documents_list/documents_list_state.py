@@ -7,10 +7,12 @@ from gws_project.document.document_dto import ProjectDocumentDTO, ProjectDocumen
 from gws_project.document.document_service import DocumentService
 from gws_project.project.project import Project
 from gws_project.task.task import Task
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
+from gws_reflex_main import ConfirmDialogState, I18nState, ReflexMainState, toast_tr
 
+from ..date_format import format_date
 from ..project_app_router import ProjectAppRouter
 from ..projects.project_page_state import ProjectPageState
+from . import documents_list_translations  # noqa: F401  (side effect: registers translations)
 
 
 class DocumentInfo(BaseModelDTO):
@@ -49,11 +51,13 @@ def _get_extension_label(filename: str) -> str:
     return ext[:3].upper() if ext else "FILE"
 
 
-def _to_document_info(document: ProjectDocumentDTO) -> DocumentInfo:
+def _to_document_info(document: ProjectDocumentDTO, lang: str) -> DocumentInfo:
     """Convert a ProjectDocumentDTO to the frontend DocumentInfo.
 
     :param document: The document DTO
     :type document: ProjectDocumentDTO
+    :param lang: The active language code, used to format the last-modified date
+    :type lang: str
     :return: The frontend document info
     :rtype: DocumentInfo
     """
@@ -65,9 +69,7 @@ def _to_document_info(document: ProjectDocumentDTO) -> DocumentInfo:
         size_pretty=FileHelper.get_file_size_pretty_text(document.size)
         if document.size is not None
         else "",
-        last_modified=document.last_modified_at.strftime("%b %d, %Y")
-        if document.last_modified_at
-        else "",
+        last_modified=format_date(document.last_modified_at, lang),
         extension="NOTE" if is_note else _get_extension_label(document.name),
     )
 
@@ -125,6 +127,9 @@ class DocumentsListState(rx.State):
                 return
 
             main_state = await self.get_state(ReflexMainState)
+            # Read the language inside the lock: this is a background event, so the
+            # state (and any state reached through it) must not be touched outside it.
+            lang = (await self.get_state(I18nState)).lang
 
             # Set loading state
             self._cached_object_id = current_object.id
@@ -149,7 +154,9 @@ class DocumentsListState(rx.State):
 
                 async with self:
                     self._pagination = PaginationState(
-                        documents=[_to_document_info(doc) for doc in page_result.objects],
+                        documents=[
+                            _to_document_info(doc, lang) for doc in page_result.objects
+                        ],
                         page=0,
                         page_size=20,
                         has_more=not page_result.is_last_page,
@@ -207,6 +214,7 @@ class DocumentsListState(rx.State):
 
         try:
             main_state = await self.get_state(ReflexMainState)
+            lang = (await self.get_state(I18nState)).lang
             with await main_state.authenticate_user():
                 document_service = DocumentService()
 
@@ -220,7 +228,9 @@ class DocumentsListState(rx.State):
                         project_id=current_object.id, page=page, size=self._pagination.page_size
                     )
 
-                new_page_documents = [_to_document_info(doc) for doc in page_result.objects]
+                new_page_documents = [
+                    _to_document_info(doc, lang) for doc in page_result.objects
+                ]
                 if append:
                     new_documents = self._pagination.documents + new_page_documents
                 else:
@@ -267,12 +277,14 @@ class DocumentsListState(rx.State):
         try:
             current_object = await self._get_current_object()
             if not current_object:
-                yield rx.toast.error("No project or task selected")
+                yield await toast_tr.error(self, "documents_list.toast.no_target")
                 return
 
             if not files:
-                yield rx.toast.error("No files selected")
+                yield await toast_tr.error(self, "documents_list.toast.no_file")
                 return
+
+            lang = (await self.get_state(I18nState)).lang
 
             uploaded_count = 0
             failed_count = 0
@@ -314,7 +326,7 @@ class DocumentsListState(rx.State):
 
                         # Add the uploaded document to the beginning of the list
                         self._pagination = PaginationState(
-                            documents=[_to_document_info(uploaded_doc)]
+                            documents=[_to_document_info(uploaded_doc, lang)]
                             + self._pagination.documents,
                             page=self._pagination.page,
                             page_size=self._pagination.page_size,
@@ -326,7 +338,11 @@ class DocumentsListState(rx.State):
                 except Exception as e:
                     failed_count += 1
                     Logger.log_exception_stack_trace(e)
-                    yield rx.toast.error(f"Failed to upload {file.name}: {str(e)}")
+                    yield await toast_tr.error(
+                        self,
+                        "documents_list.toast.upload_failed",
+                        {"name": file.name, "error": str(e)},
+                    )
                 finally:
                     # Clean up temporary file (the store moves it, so it only
                     # remains on failure)
@@ -339,12 +355,20 @@ class DocumentsListState(rx.State):
             # Show success message
             if uploaded_count > 0:
                 if uploaded_count == 1:
-                    yield rx.toast.success(f"Successfully uploaded {uploaded_count} file")
+                    yield await toast_tr.success(
+                        self, "documents_list.toast.upload_success_one"
+                    )
                 else:
-                    yield rx.toast.success(f"Successfully uploaded {uploaded_count} files")
+                    yield await toast_tr.success(
+                        self,
+                        "documents_list.toast.upload_success_many",
+                        {"count": uploaded_count},
+                    )
 
             if failed_count > 0:
-                yield rx.toast.warning(f"{failed_count} file(s) failed to upload")
+                yield await toast_tr.warning(
+                    self, "documents_list.toast.upload_partial_failure", {"count": failed_count}
+                )
         finally:
             self.is_uploading = False
 
@@ -374,16 +398,18 @@ class DocumentsListState(rx.State):
     @rx.event(background=True)  # type: ignore
     async def handle_rename_document(self):
         """Handle the rename document action."""
-        if not self.rename_document_id or not self.rename_document_name.strip():
-            yield rx.toast.error("Document name cannot be empty")
-            return
-
         document_id = self.rename_document_id
         document_name = self.rename_document_name.strip()
 
         async with self:
             self.is_renaming = True
             main_state = await self.get_state(ReflexMainState)
+
+        if not document_id or not document_name:
+            async with self:
+                self.is_renaming = False
+            yield await toast_tr.error(self, "documents_list.toast.name_empty")
+            return
 
         try:
             with await main_state.authenticate_user():
@@ -409,10 +435,12 @@ class DocumentsListState(rx.State):
                 )
 
                 self.close_rename_dialog()
-            yield rx.toast.success("Document renamed successfully")
+            yield await toast_tr.success(self, "documents_list.toast.rename_success")
 
         except Exception as e:
-            yield rx.toast.error(f"Failed to rename document: {str(e)}")
+            yield await toast_tr.error(
+                self, "documents_list.toast.rename_failed", {"error": str(e)}
+            )
         finally:
             async with self:
                 self.is_renaming = False
@@ -438,7 +466,9 @@ class DocumentsListState(rx.State):
             yield rx.download(data=file_data, filename=document_name)
 
         except Exception as e:
-            yield rx.toast.error(f"Failed to download document: {str(e)}")
+            yield await toast_tr.error(
+                self, "documents_list.toast.download_failed", {"error": str(e)}
+            )
 
     # ===== Delete Document =====
     @rx.event
@@ -452,10 +482,13 @@ class DocumentsListState(rx.State):
         """
         delete_dialog_state = await self.get_state(ConfirmDialogState)
 
+        i18n = await self.get_state(I18nState)
+
         delete_dialog_state.open_dialog(
-            title="Delete Document",
-            content=f"Are you sure you want to permanently delete '{document_name}'? "
-            "This action cannot be undone.",
+            title=i18n.tr("documents_list.delete_dialog.title"),
+            content=i18n.tr(
+                "documents_list.delete_dialog.content", {"name": document_name}
+            ),
             action=lambda: self._delete_document_action(document_id),
         )
 
@@ -483,10 +516,12 @@ class DocumentsListState(rx.State):
                 is_loading=self._pagination.is_loading,
             )
 
-            yield rx.toast.success("Document deleted successfully")
+            yield await toast_tr.success(self, "documents_list.toast.delete_success")
 
         except Exception as e:
-            yield rx.toast.error(f"Failed to delete document: {str(e)}")
+            yield await toast_tr.error(
+                self, "documents_list.toast.delete_failed", {"error": str(e)}
+            )
 
     # ===== Create Note =====
     def open_create_note_dialog(self):
@@ -512,14 +547,16 @@ class DocumentsListState(rx.State):
     async def handle_create_note(self):
         """Handle creation of a new note attached to the current project or task."""
         if not self.create_note_name.strip():
-            yield rx.toast.error("Note name cannot be empty")
+            yield await toast_tr.error(self, "documents_list.toast.note_name_empty")
             return
 
         try:
             current_object = await self._get_current_object()
             if not current_object:
-                yield rx.toast.error("No project or task selected")
+                yield await toast_tr.error(self, "documents_list.toast.no_target")
                 return
+
+            lang = (await self.get_state(I18nState)).lang
 
             self.is_creating_note = True
             yield
@@ -543,7 +580,8 @@ class DocumentsListState(rx.State):
 
                 # Add the created note to the beginning of the list
                 self._pagination = PaginationState(
-                    documents=[_to_document_info(created_note)] + self._pagination.documents,
+                    documents=[_to_document_info(created_note, lang)]
+                    + self._pagination.documents,
                     page=self._pagination.page,
                     page_size=self._pagination.page_size,
                     has_more=self._pagination.has_more,
@@ -551,14 +589,16 @@ class DocumentsListState(rx.State):
                 )
 
             self.close_create_note_dialog()
-            yield rx.toast.success("Note created successfully")
+            yield await toast_tr.success(self, "documents_list.toast.note_created")
 
             # Navigate to the created note's page right away
             yield rx.redirect(ProjectAppRouter.get_note_detail_url(created_note.id))
 
         except Exception as e:
             Logger.log_exception_stack_trace(e)
-            yield rx.toast.error(f"Failed to create note: {str(e)}")
+            yield await toast_tr.error(
+                self, "documents_list.toast.note_failed", {"error": str(e)}
+            )
         finally:
             self.is_creating_note = False
 

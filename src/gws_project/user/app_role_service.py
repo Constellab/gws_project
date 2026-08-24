@@ -1,3 +1,5 @@
+from gws_core import UnauthorizedException
+
 from .user_app_role import AppRole, UserAppRole
 
 
@@ -31,3 +33,34 @@ class AppRoleService:
     def is_admin(cls, user_id: str) -> bool:
         """Check if a user has the Admin app role."""
         return cls.get_role_for_user(user_id) == AppRole.ADMIN
+
+    @classmethod
+    def has_one_of_roles(cls, user_id: str, roles: list[AppRole]) -> bool:
+        """Check if a user holds one of the given app roles.
+
+        :param user_id: The id of the user to check
+        :type user_id: str
+        :param roles: The accepted app roles
+        :type roles: list[AppRole]
+        :return: True if the user's app role is one of `roles`
+        :rtype: bool
+        """
+        return cls.get_role_for_user(user_id) in roles
+
+    @classmethod
+    def check_has_one_of_roles(cls, user_id: str, roles: list[AppRole], action: str) -> None:
+        """Check a user holds one of the given app roles, and raise otherwise.
+
+        :param user_id: The id of the user to check
+        :type user_id: str
+        :param roles: The accepted app roles
+        :type roles: list[AppRole]
+        :param action: What the user was trying to do, used in the error message
+        :type action: str
+        :raises UnauthorizedException: If the user holds none of the given roles
+        """
+        if not cls.has_one_of_roles(user_id, roles):
+            accepted = ", ".join(role.value for role in roles)
+            raise UnauthorizedException(
+                f"Unauthorized: one of the app roles [{accepted}] is required to {action}."
+            )

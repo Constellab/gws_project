@@ -3,10 +3,14 @@ from gws_core import UserDTO
 from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from gws_project.task.task_service import TaskService
 from gws_project.user.user import User
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
+from gws_reflex_main import ConfirmDialogState, I18nState, ReflexMainState, toast_tr
 
 from ..common.breadcrumb.breadcrumb_state import Task
+from ..common.date_format import localize_task_dto
 from ..common.projects.project_page_state import ProjectPageState, ProjectUrlParam
+from ..common.tasks import (
+    task_actions_translations,  # noqa: F401  (side effect: registers translations)
+)
 from ..move_task_dialog.move_task_dialog_state import MoveTaskDialogState
 from ..task_form.task_form_dialog_state import TaskFormDialogState
 
@@ -60,7 +64,8 @@ class TaskListState(rx.State):
         :return: List of filtered TaskDTOs
         :rtype: List[TaskDTO]
         """
-        tasks = [task.to_dto() for task in self._tasks]
+        lang = (await self.get_state(I18nState)).lang
+        tasks = [localize_task_dto(task.to_dto(), lang) for task in self._tasks]
 
         if self.search_text:
             search_lower = self.search_text.lower()
@@ -209,7 +214,7 @@ class TaskListState(rx.State):
                 break
 
         if not task:
-            yield rx.toast.error("Task not found")
+            yield await toast_tr.error(self, "task_actions.toast.not_found")
             return
 
         form_state = await self.get_state(TaskFormDialogState)
@@ -258,19 +263,18 @@ class TaskListState(rx.State):
         :type task: TaskDTO
         """
         confirm_dialog_state = await self.get_state(ConfirmDialogState)
+        i18n = await self.get_state(I18nState)
 
         if task.allow_subtasks:
             confirm_dialog_state.open_dialog(
-                title="Convert to normal task",
-                content="Are you sure you want to convert this task to a normal task? "
-                "Status, priority, dates and progress will become manually managed.",
+                title=i18n.tr("task_actions.convert_to_leaf.title"),
+                content=i18n.tr("task_actions.convert_to_leaf.content"),
                 action=lambda: self._change_task_type_action(task.id, False),
             )
         else:
             confirm_dialog_state.open_dialog(
-                title="Convert to task with subtasks",
-                content="Are you sure you want to convert this task to a task with subtasks? "
-                "Status, priority, dates and progress will be automatically calculated from subtasks.",
+                title=i18n.tr("task_actions.convert_to_parent.title"),
+                content=i18n.tr("task_actions.convert_to_parent.content"),
                 action=lambda: self._change_task_type_action(task.id, True),
             )
 
@@ -281,7 +285,7 @@ class TaskListState(rx.State):
             task_service = TaskService()
             updated_task = task_service.update_allow_subtasks(task_id, allow_subtasks)
 
-        yield rx.toast.success("Task type changed successfully")
+        yield await toast_tr.success(self, "task_actions.toast.type_changed")
 
         await self.add_or_update_task(updated_task)
 
@@ -293,15 +297,16 @@ class TaskListState(rx.State):
         :type task: TaskDTO
         """
         delete_dialog_state = await self.get_state(ConfirmDialogState)
+        i18n = await self.get_state(I18nState)
 
         # Build confirmation message
-        warning = ""
+        content = i18n.tr("task_actions.delete.content")
         if task.allow_subtasks:
-            warning = " This will also delete all its descendants (subtasks, sub-subtasks, etc.)."
+            content += " " + i18n.tr("task_actions.delete.descendants_warning")
 
         delete_dialog_state.open_dialog(
-            title="Delete Task",
-            content=f"Are you sure you want to delete this task?{warning}",
+            title=i18n.tr("task_actions.delete.title"),
+            content=content,
             action=lambda: self._delete_action(task.id),
         )
 
@@ -313,7 +318,7 @@ class TaskListState(rx.State):
             task_service.delete_task(task_id)
 
         # Show success toast
-        yield rx.toast.success("Task deleted successfully")
+        yield await toast_tr.success(self, "task_actions.toast.deleted")
 
         # Remove from list
         await self.delete_task(task_id)

@@ -135,7 +135,6 @@ class TaskHistoryEvent(Model):
             is_automatic=self.is_automatic,
             message=self.build_message(),
             icon=self.get_icon(),
-            created_at_text=self.created_at.strftime("%b %d, %Y %H:%M"),
         )
 
     class Meta:

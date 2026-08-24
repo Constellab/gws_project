@@ -4,7 +4,7 @@ import reflex as rx
 from gws_project.company.company import build_company_logo_url
 from gws_project.company.company_dto import CompanyDTO, CompanyStatus, SaveCompanyDTO
 from gws_project.company.company_service import CompanyService
-from gws_reflex_main import FormDialogState, ReflexMainState
+from gws_reflex_main import FormDialogState, I18nState, ReflexMainState, toast_tr
 
 from ..common.companies.company_page_state import CompanyPageState
 
@@ -91,7 +91,7 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         self.is_update_mode = True
         await self.open_dialog()
 
-    def _validate_and_parse_form_data(self, form_data: dict) -> SaveCompanyDTO:
+    async def _validate_and_parse_form_data(self, form_data: dict) -> SaveCompanyDTO:
         """Validate and parse form data into a SaveCompanyDTO.
 
         Args:
@@ -100,9 +100,11 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         Returns:
             The parsed SaveCompanyDTO (only `name` is required)
         """
+        i18n = await self.get_state(I18nState)
+
         name = form_data.get("name", "").strip()
         if not name:
-            raise Exception("Company name is required")
+            raise Exception(i18n.tr("company_form_dialog.error.name_required"))
 
         address = form_data.get("address", "").strip() or None
         siren = form_data.get("siren", "").strip() or None
@@ -126,7 +128,7 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         Yields:
             Reflex events (rx.toast, rx.redirect)
         """
-        company_dto = self._validate_and_parse_form_data(form_data)
+        company_dto = await self._validate_and_parse_form_data(form_data)
 
         main_state: ReflexMainState
         async with self:
@@ -145,11 +147,11 @@ class CompanyFormDialogState(FormDialogState, rx.State):
                 project_form_state = await self.get_state(ProjectFormDialogState)
                 await project_form_state.add_newly_created_company(created_company.to_dto())
 
-            yield rx.toast.success("Company created")
+            yield await toast_tr.success(self, "company_form_dialog.toast.created")
         else:
             from ..common.company_app_router import CompanyAppRouter
 
-            yield rx.toast.success("Company created successfully")
+            yield await toast_tr.success(self, "company_form_dialog.toast.created")
             yield rx.redirect(CompanyAppRouter.get_company_detail_url(created_company.id))
 
     async def _update(self, form_data: dict):
@@ -158,7 +160,7 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         Yields:
             Reflex events (rx.toast)
         """
-        company_dto = self._validate_and_parse_form_data(form_data)
+        company_dto = await self._validate_and_parse_form_data(form_data)
 
         main_state: ReflexMainState
         company_page_state: CompanyPageState
@@ -173,7 +175,7 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         async with self:
             await company_page_state.refresh_object()
 
-        yield rx.toast.success("Company updated successfully")
+        yield await toast_tr.success(self, "company_form_dialog.toast.updated")
 
     @rx.event
     async def handle_logo_upload(self, files: list[rx.UploadFile]):

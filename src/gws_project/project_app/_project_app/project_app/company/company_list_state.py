@@ -1,6 +1,6 @@
 import reflex as rx
 from gws_project.company.company_dto import CompanyDTO, CompanyStatus
-from gws_project.company.company_search_builder import CompanySearchBuilder
+from gws_project.company.company_service import CompanyService
 from gws_reflex_main import ReflexMainState
 
 from ..common.company_app_router import CompanyAppRouter
@@ -28,16 +28,18 @@ class CompanyListState(rx.State):
 
         self.is_loading = True
         try:
-            search_builder = CompanySearchBuilder()
-
-            if self.search_text:
-                search_builder.add_text_search(self.search_text)
-
-            if self.selected_status_filter:
-                search_builder.add_status_filter(CompanyStatus(self.selected_status_filter))
-
-            companies = search_builder.search_all()
-            self.companies = [company.to_dto() for company in companies]
+            # Through the service rather than a search builder built here: the app
+            # never queries the database directly, so authorization always applies.
+            with await main_state.authenticate_user():
+                self.companies = [
+                    company.to_dto()
+                    for company in CompanyService().search_companies(
+                        search_text=self.search_text or None,
+                        status=CompanyStatus(self.selected_status_filter)
+                        if self.selected_status_filter
+                        else None,
+                    )
+                ]
         finally:
             self.is_loading = False
 

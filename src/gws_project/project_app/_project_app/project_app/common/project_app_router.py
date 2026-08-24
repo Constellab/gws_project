@@ -1,12 +1,12 @@
 class ProjectAppRouter:
     @staticmethod
     def get_home_url() -> str:
-        """Get the URL for the Home page.
+        """Get the URL for the Home page, which is the app's landing page.
 
         :return: The Home page URL
         :rtype: str
         """
-        return "/home"
+        return "/"
 
     @staticmethod
     def get_project_list_url() -> str:
@@ -15,7 +15,7 @@ class ProjectAppRouter:
         :return: The project list URL
         :rtype: str
         """
-        return "/"
+        return "/projects"
 
     @staticmethod
     def get_project_detail_url(project_id: str) -> str:

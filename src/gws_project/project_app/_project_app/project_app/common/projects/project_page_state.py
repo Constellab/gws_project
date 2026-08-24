@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import Literal
 
 import reflex as rx
+from gws_core import NotFoundException, UnauthorizedException
 from gws_project.project.project import Project
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
@@ -15,6 +17,15 @@ class ProjectUrlParam:
     type: Literal["project", "task"]
 
 
+class ProjectAccessError(Enum):
+    """Why the object of the current URL could not be loaded."""
+
+    # The project/task does not exist (deleted, or a wrong id in the URL).
+    NOT_FOUND = "not_found"
+    # It exists, but the current user is not a member of its project.
+    NO_ACCESS = "no_access"
+
+
 class ProjectPageState(rx.State):
     """State for managing project and task objects with caching.
 
@@ -25,6 +36,13 @@ class ProjectPageState(rx.State):
 
     # Private cache for storing the loaded object
     _cached_object: Project | Task | None = None
+
+    # Why the current URL's object could not be loaded, as a ProjectAccessError
+    # value ("" when everything is fine). An id in the URL is user input - a stale
+    # link, or a project the user was never added to - so a missing or forbidden
+    # object is a normal state of the page, not a crash: the detail pages read this
+    # to render project_access_error_component instead of their content.
+    access_error: str = ""
 
     async def get_url_params(self) -> ProjectUrlParam | None:
         """Get the current object ID from URL parameters.
@@ -107,20 +125,31 @@ class ProjectPageState(rx.State):
         # Load the object based on URL parameter
         main_state = await self.get_state(ReflexMainState)
         with await main_state.authenticate_user():
-            if task_id:
-                task_service = TaskService()
-                obj = task_service.get_task(task_id)
-                # Update cache
-                self._cached_object = obj
-                return obj
-            elif project_id:
-                project_service = ProjectService()
-                obj = project_service.get_project(project_id)
-                # Update cache
-                self._cached_object = obj
-                return obj
-            else:
+            try:
+                if task_id:
+                    obj = TaskService().get_task(task_id)
+                else:
+                    obj = ProjectService().get_project(project_id)
+            except NotFoundException:
+                self._set_access_error(ProjectAccessError.NOT_FOUND)
                 return None
+            except UnauthorizedException:
+                self._set_access_error(ProjectAccessError.NO_ACCESS)
+                return None
+
+            # Update cache
+            self.access_error = ""
+            self._cached_object = obj
+            return obj
+
+    def _set_access_error(self, error: ProjectAccessError) -> None:
+        """Record why the current URL's object could not be loaded.
+
+        :param error: The reason the object is not available
+        :type error: ProjectAccessError
+        """
+        self.access_error = error.value
+        self._cached_object = None
 
     async def refresh_object(self) -> Project | Task | None:
         """Refresh (reload) the current object from URL parameters.
@@ -133,6 +162,7 @@ class ProjectPageState(rx.State):
         """
         # Clear the cache to force a reload
         self._cached_object = None
+        self.access_error = ""
 
         # Load the object (which will update the cache)
         return await self.get_object()

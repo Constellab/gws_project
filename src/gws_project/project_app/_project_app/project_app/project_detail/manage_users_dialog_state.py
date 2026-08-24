@@ -1,7 +1,7 @@
 import reflex as rx
 from gws_project.project.project_dto import ProjectUserDTO
 from gws_project.project.project_service import ProjectService
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
+from gws_reflex_main import ConfirmDialogState, I18nState, ReflexMainState, toast_tr
 
 from ..common.projects.project_page_state import ProjectPageState
 
@@ -38,9 +38,12 @@ class ManageUsersDialogState(rx.State):
         user_id = user.user.id
         user_name = f"{user.user.first_name} {user.user.last_name}"
 
+        i18n = await self.get_state(I18nState)
         confirm_dialog_state.open_dialog(
-            title="Remove User from Project",
-            content=f"Are you sure you want to remove {user_name} from this project?",
+            title=i18n.tr("manage_users.remove_dialog.title"),
+            content=i18n.tr(
+                "manage_users.remove_dialog.content", {"name": user_name}
+            ),
             action=lambda: self._remove_user_action(user_id),
         )
 
@@ -63,4 +66,4 @@ class ManageUsersDialogState(rx.State):
         await detail_state.reload_users()
 
         # Show success message
-        yield rx.toast.success("User removed from project successfully")
+        yield await toast_tr.success(self, "manage_users.toast.user_removed")

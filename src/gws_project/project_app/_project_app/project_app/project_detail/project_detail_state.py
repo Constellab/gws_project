@@ -4,8 +4,9 @@ from gws_project.project.project_count_dto import ChildrenCountDTO
 from gws_project.project.project_dto import ProjectDTO, ProjectUserDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
+from gws_reflex_main import ConfirmDialogState, I18nState, ReflexMainState, toast_tr
 
+from ..common.date_format import localize_project_dto
 from ..common.project_app_router import ProjectAppRouter
 from ..common.projects.project_page_state import ProjectPageState
 from ..common.timestamp_text_component import format_timestamp
@@ -59,9 +60,10 @@ class ProjectDetailState(rx.State):
         """
         project_page_state = await self.get_state(ProjectPageState)
         current_object = await project_page_state.project()
-        if current_object:
-            return current_object.to_dto()
-        return None
+        if not current_object:
+            return None
+        lang = (await self.get_state(I18nState)).lang
+        return localize_project_dto(current_object.to_dto(), lang)
 
     @rx.var
     async def created_at_text(self) -> str:
@@ -71,7 +73,10 @@ class ProjectDetailState(rx.State):
         :rtype: str
         """
         project = await self.project
-        return format_timestamp(project.created_at) if project else ""
+        if not project:
+            return ""
+        lang = (await self.get_state(I18nState)).lang
+        return format_timestamp(project.created_at, lang)
 
     @rx.var
     async def last_modified_at_text(self) -> str:
@@ -81,7 +86,10 @@ class ProjectDetailState(rx.State):
         :rtype: str
         """
         project = await self.project
-        return format_timestamp(project.last_modified_at) if project else ""
+        if not project:
+            return ""
+        lang = (await self.get_state(I18nState)).lang
+        return format_timestamp(project.last_modified_at, lang)
 
     @rx.var
     async def project_users(self) -> list[ProjectUserDTO]:
@@ -195,9 +203,10 @@ class ProjectDetailState(rx.State):
         """Open the delete project confirmation dialog."""
 
         delete_dialog_state = await self.get_state(ConfirmDialogState)
+        i18n = await self.get_state(I18nState)
         delete_dialog_state.open_dialog(
-            title="Delete Project",
-            content="Are you sure you want to delete this project? Its tasks, documents and notes will be permanently deleted. This action cannot be undone.",
+            title=i18n.tr("project_detail.delete_dialog.title"),
+            content=i18n.tr("project_detail.delete_dialog.content"),
             action=self._delete_project_action,
         )
 
@@ -214,7 +223,7 @@ class ProjectDetailState(rx.State):
             project_service.delete_project(project.id)
 
         # Show success message
-        yield rx.toast.success("Project deleted")
+        yield await toast_tr.success(self, "project_detail.toast.deleted")
 
         # Redirect to project list
         yield rx.redirect(ProjectAppRouter.get_project_list_url())  # Assuming such a method exists

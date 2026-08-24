@@ -2,7 +2,7 @@ import reflex as rx
 from gws_core import SpaceGroupDTO, SpaceGroupType, SpaceService
 from gws_project.project.project_dto import ProjectUserDTO, ProjectUserRole
 from gws_project.project.project_service import ProjectService
-from gws_reflex_main import FormDialogState, ReflexMainState
+from gws_reflex_main import FormDialogState, I18nState, ReflexMainState, toast_tr
 
 from ..common.projects.project_page_state import ProjectPageState
 from .project_detail_state import ProjectDetailState
@@ -62,7 +62,7 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
         # Open the dialog
         await self.open_dialog()
 
-    def _validate_form_data(self, form_data: dict) -> tuple[str, ProjectUserRole]:
+    async def _validate_form_data(self, form_data: dict) -> tuple[str, ProjectUserRole]:
         """Validate form data.
 
         Args:
@@ -71,22 +71,26 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
         Returns:
             True if validation succeeds, False otherwise (error toast is shown)
         """
+        i18n = await self.get_state(I18nState)
+
         # Get values from form data
         group_id = form_data.get("group_id", "").strip()
         role = form_data.get("role", "").strip()
 
         # Validate required fields
         if not group_id and self.is_create_mode:
-            raise Exception("Please select a group")
+            raise Exception(i18n.tr("project_user_form.error.group_required"))
 
         if not role:
-            raise Exception("Please select a role")
+            raise Exception(i18n.tr("project_user_form.error.role_required"))
 
         # Validate role value
         try:
             enum_role = ProjectUserRole[role]
-        except KeyError:
-            raise Exception(f"Invalid role: {role}")
+        except KeyError as err:
+            raise Exception(
+                i18n.tr("project_user_form.error.invalid_role", {"role": role})
+            ) from err
 
         return group_id, enum_role
 
@@ -100,7 +104,7 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
             Reflex events (rx.toast)
         """
         # Validate form data
-        group_id, role = self._validate_form_data(form_data)
+        group_id, role = await self._validate_form_data(form_data)
 
         # Get project_id from ProjectDetailState
         async with self:
@@ -123,7 +127,7 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
         await self._reload_project_detail()
 
         # Show success message
-        yield rx.toast.success("Added to project successfully")
+        yield await toast_tr.success(self, "project_user_form.toast.added")
 
     async def _update(self, form_data: dict):
         """Update an existing project group's role.
@@ -135,7 +139,7 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
             Reflex events (rx.toast)
         """
         # Validate form data
-        _, role = self._validate_form_data(form_data)
+        _, role = await self._validate_form_data(form_data)
 
         # Get project_id from ProjectDetailState
         async with self:
@@ -152,7 +156,7 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
         await self._reload_project_detail()
 
         # Show success message
-        yield rx.toast.success("Group role updated successfully")
+        yield await toast_tr.success(self, "project_user_form.toast.role_updated")
 
     async def _clear_form_state(self):
         """Clear all form state after successful operation."""

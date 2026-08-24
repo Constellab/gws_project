@@ -7,6 +7,12 @@ from gws_project.my_work.my_work_service import MyWorkService
 from gws_reflex_base import ReflexAppException
 from gws_reflex_main import I18nState, ReflexMainState, toast_tr
 
+from ..common.date_format import (
+    format_day_month,
+    format_short_weekday_time,
+    format_time,
+    format_weekday_date,
+)
 from ..common.my_day_list.my_day_list import MyDayItemDTO
 from ..common.project_app_router import ProjectAppRouter
 
@@ -137,7 +143,7 @@ class MyWorkState(rx.State):
 
     def _apply(self, my_work: MyWorkDTO, i18n: I18nState) -> None:
         """Turn the service's DTO into the page's pre-formatted vars."""
-        self.day_label = self._format_long_date(my_work.day)
+        self.day_label = format_weekday_date(my_work.day, i18n.lang, with_year=True)
         self.planned_label = self._format_planned(my_work.planned_minutes, i18n)
         self.over_capacity_note = (
             i18n.tr(
@@ -171,7 +177,7 @@ class MyWorkState(rx.State):
             parent_task_title=slot.parent_task_title,
             project_title=slot.project_title,
             time_range=(
-                f"{slot.start_datetime.strftime('%H:%M')} - {slot.end_datetime.strftime('%H:%M')}"
+                f"{format_time(slot.start_datetime)} - {format_time(slot.end_datetime)}"
             ),
             due_date_text=self._format_due(slot.due_date, i18n),
             due_status=due_status,
@@ -193,7 +199,7 @@ class MyWorkState(rx.State):
             scheduled_label=(
                 i18n.tr(
                     "my_work.rest.scheduled",
-                    {"when": task.next_slot_start.strftime("%a %H:%M")},
+                    {"when": format_short_weekday_time(task.next_slot_start, i18n.lang)},
                 )
                 if task.next_slot_start
                 else ""
@@ -203,17 +209,9 @@ class MyWorkState(rx.State):
     def _format_due(self, due_date: date | None, i18n: I18nState) -> str | None:
         if due_date is None:
             return None
-        return f"{i18n.tr('my_work.due_prefix')} {due_date.strftime('%b %d')}"
-
-    @staticmethod
-    def _format_long_date(day: date) -> str:
-        """The day as a long date.
-
-        Formatted with strftime, so month and weekday names stay English whatever the
-        selected language - the same trade-off the rest of the app already makes (see the
-        Planning grid's day labels and TaskDTO's date texts).
-        """
-        return day.strftime("%A %d %B %Y")
+        return (
+            f"{i18n.tr('my_work.due_prefix')} {format_day_month(due_date, i18n.lang)}"
+        )
 
     @staticmethod
     def _format_planned(minutes: int, i18n: I18nState) -> str:

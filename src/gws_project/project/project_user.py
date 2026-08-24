@@ -55,6 +55,22 @@ class ProjectUser(ModelWithUser):
         return [user.user for user in cls.get_by_project(project_id)]
 
     @classmethod
+    def get_project_ids_of_user(cls, user_id: str) -> list[str]:
+        """Get the ids of every project a user is a member of.
+
+        Returns ids rather than Project rows because the callers only need them to
+        scope a query (see ProjectSecurityService.get_current_user_project_ids).
+
+        :param user_id: The user ID
+        :type user_id: str
+        :return: List of project ids
+        :rtype: list[str]
+        """
+        # `.tuples()` keeps this to a single query returning raw ids: iterating over
+        # ProjectUser rows and reading `.project.id` would lazy-load one Project per row.
+        return [row[0] for row in cls.select(cls.project).where(cls.user == user_id).tuples()]
+
+    @classmethod
     def is_user_in_project(cls, project_id: str, user_id: str) -> bool:
         """Check if a user is a member of a project.
 

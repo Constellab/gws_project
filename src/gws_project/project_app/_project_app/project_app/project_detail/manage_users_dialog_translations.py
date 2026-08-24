@@ -19,6 +19,11 @@ register_translations(
             "manage_users.description": "View and manage users for this project.",
             "manage_users.no_members_found": "No team members found.",
             "manage_users.close": "Close",
+            "manage_users.remove_dialog.title": "Remove user from project",
+            "manage_users.remove_dialog.content": (
+                "Are you sure you want to remove {{name}} from this project?"
+            ),
+            "manage_users.toast.user_removed": "User removed from the project",
         },
         "fr": {
             "manage_users.update_role": "Modifier le rôle",
@@ -31,6 +36,11 @@ register_translations(
             "manage_users.description": "Consultez et gérez les utilisateurs de ce projet.",
             "manage_users.no_members_found": "Aucun membre d'équipe trouvé.",
             "manage_users.close": "Fermer",
+            "manage_users.remove_dialog.title": "Retirer l'utilisateur du projet",
+            "manage_users.remove_dialog.content": (
+                "Voulez-vous vraiment retirer {{name}} de ce projet ?"
+            ),
+            "manage_users.toast.user_removed": "Utilisateur retiré du projet",
         },
     }
 )

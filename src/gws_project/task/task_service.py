@@ -17,6 +17,7 @@ from gws_project.project.project_security_service import ProjectSecurityService,
 from gws_project.project.project_user import ProjectUser
 from gws_project.task.task import Task
 from gws_project.task.task_dto import CreateTaskDTO, TaskPriority, TaskStatus, UpdateTaskDTO
+from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.task_history.task_history_event_type import TaskHistoryEventType
 from gws_project.task_history.task_history_service import TaskHistoryService
 from gws_project.template.task_template import TaskTemplate
@@ -74,6 +75,79 @@ class TaskService:
         )
 
         return Task.get_subtasks_of_task(parent_task.id)
+
+    def search_current_user_tasks(
+        self,
+        project_id: str | None = None,
+        company_id: str | None = None,
+        assigned_user_id: str | None = None,
+        search_text: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        allow_subtasks: bool | None = None,
+        exclude_statuses: list[TaskStatus] | None = None,
+    ) -> list[Task]:
+        """Search tasks the current user is allowed to see, with optional filters.
+
+        This is the only entry point the app should use to list tasks across projects:
+        it owns the authorization, so a filter value coming from the frontend can never
+        widen what is returned. Two cases:
+
+        - `project_id` given: the role on that project is checked first, so an id the
+          user is not a member of raises instead of leaking the project's tasks.
+        - no `project_id`: the search is bounded to the projects the user belongs to.
+
+        :param project_id: Restrict to a single project the user is a member of (optional)
+        :type project_id: str | None
+        :param company_id: Restrict to the projects of a company (optional)
+        :type company_id: str | None
+        :param assigned_user_id: Restrict to the tasks assigned to a user (optional)
+        :type assigned_user_id: str | None
+        :param search_text: Text searched in the task title (optional)
+        :type search_text: str | None
+        :param start_date: Start of the date range the tasks must overlap (optional)
+        :type start_date: date | None
+        :param end_date: End of the date range the tasks must overlap (optional)
+        :type end_date: date | None
+        :param allow_subtasks: Keep only parent tasks (True) or leaf tasks (False) (optional)
+        :type allow_subtasks: bool | None
+        :param exclude_statuses: Statuses to exclude from the results (optional)
+        :type exclude_statuses: list[TaskStatus] | None
+        :return: The matching tasks
+        :rtype: list[Task]
+        :raises UnauthorizedException: If `project_id` is a project the user is not a member of
+        """
+        security_service = ProjectSecurityService()
+        search_builder = TaskSearchBuilder()
+
+        if project_id:
+            security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
+            search_builder.add_project_filter(project_id)
+        else:
+            project_ids = security_service.get_current_user_project_ids()
+            if not project_ids:
+                return []
+            search_builder.add_projects_filter(project_ids)
+
+        if company_id:
+            search_builder.add_company_filter(company_id)
+
+        if assigned_user_id:
+            search_builder.add_user_filter(assigned_user_id)
+
+        if search_text:
+            search_builder.add_text_search(search_text)
+
+        if start_date is not None and end_date is not None:
+            search_builder.add_date_range_filter(start_date, end_date)
+
+        if allow_subtasks is not None:
+            search_builder.add_allow_subtasks_filter(allow_subtasks)
+
+        for status in exclude_statuses or []:
+            search_builder.add_exclude_status_filter(status)
+
+        return search_builder.search_all()
 
     def get_task_children_count(self, task_id: str) -> ChildrenCountDTO:
         """Get the number of direct subtasks and documents for a task.

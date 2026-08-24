@@ -1,12 +1,15 @@
 import io
+from typing import ClassVar
 
-from gws_core import RichTextFileService
+from gws_core import CurrentUserService, RichTextFileService
 from PIL import Image
 
 from gws_project.company.company import COMPANY_LOGO_OBJECT_TYPE, Company
 from gws_project.company.company_dto import CompanyStatus, SaveCompanyDTO
 from gws_project.company.company_search_builder import CompanySearchBuilder
 from gws_project.core.project_db_manager import ProjectDbManager
+from gws_project.user.app_role_service import AppRoleService
+from gws_project.user.user_app_role import AppRole
 
 
 class CompanyService:
@@ -14,7 +17,28 @@ class CompanyService:
 
     Companies are shared, global entities (not scoped to a project's membership) and
     can never be deleted - there is intentionally no delete_company method.
+
+    Reading is open to any authenticated user of the app; creating and modifying a
+    company (including its logo) requires one of the `COMPANY_WRITE_ROLES` app roles.
     """
+
+    # App roles allowed to create or modify a company. Companies are shared reference
+    # data, so writing them is gated on the app-level role rather than on the membership
+    # of any single project. MEMBER being the default role, this currently accepts every
+    # real user of the app; it is the single place to narrow that down.
+    COMPANY_WRITE_ROLES: ClassVar[list[AppRole]] = [AppRole.ADMIN, AppRole.MEMBER]
+
+    def _check_can_write(self) -> None:
+        """Check the current user's app role allows creating/modifying a company.
+
+        :raises UnauthorizedException: If the current user holds none of the
+            `COMPANY_WRITE_ROLES` app roles
+        """
+        current_user = CurrentUserService.get_and_check_current_user()
+
+        AppRoleService.check_has_one_of_roles(
+            current_user.id, self.COMPANY_WRITE_ROLES, "create or modify a company"
+        )
 
     def get_company(self, company_id: str) -> Company:
         """Get a company by ID.
@@ -63,7 +87,10 @@ class CompanyService:
         :type company_id: str | None
         :return: The created company
         :rtype: Company
+        :raises UnauthorizedException: If the current user's app role does not allow it
         """
+        self._check_can_write()
+
         company = Company()
         if company_id:
             company.id = company_id
@@ -87,7 +114,10 @@ class CompanyService:
         :type company_dto: SaveCompanyDTO
         :return: The updated company
         :rtype: Company
+        :raises UnauthorizedException: If the current user's app role does not allow it
         """
+        self._check_can_write()
+
         company = Company.get_by_id_and_check(company_id)
 
         company.name = company_dto.name
@@ -116,7 +146,10 @@ class CompanyService:
         :type extension: str
         :return: The stored filename
         :rtype: str
+        :raises UnauthorizedException: If the current user's app role does not allow it
         """
+        self._check_can_write()
+
         image = Image.open(io.BytesIO(image_bytes))
         result = RichTextFileService.save_image(COMPANY_LOGO_OBJECT_TYPE, object_id, image, extension)
         return result.filename
@@ -137,7 +170,12 @@ class CompanyService:
         :type extension: str
         :return: The updated company
         :rtype: Company
+        :raises UnauthorizedException: If the current user's app role does not allow it
         """
+        # stage_logo runs the same check, but keep it explicit here too: the check must
+        # not depend on which helper this method happens to delegate the storage to.
+        self._check_can_write()
+
         company = Company.get_by_id_and_check(company_id)
 
         company.logo_filename = self.stage_logo(company_id, image_bytes, extension)

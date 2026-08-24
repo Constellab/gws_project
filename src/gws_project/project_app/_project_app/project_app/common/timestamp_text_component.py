@@ -1,7 +1,9 @@
 from datetime import datetime
 
+from .date_format import format_datetime
 
-def format_timestamp(value: datetime | None) -> str:
+
+def format_timestamp(value: datetime | None, lang: str) -> str:
     """Format a datetime value (e.g. created_at, last_modified_at) as a localized
     string including the time of day.
 
@@ -15,9 +17,9 @@ def format_timestamp(value: datetime | None) -> str:
 
     :param value: The datetime value to format
     :type value: datetime | None
+    :param lang: The active language code (``I18nState.lang``), used for the month name
+    :type lang: str
     :return: The formatted timestamp string, or "" if value is None
     :rtype: str
     """
-    if value is None:
-        return ""
-    return value.strftime("%b %d, %Y %H:%M")
+    return format_datetime(value, lang)

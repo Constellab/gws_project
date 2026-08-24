@@ -6,6 +6,7 @@ from gws_project.home.home_dto import HomeActivityItemDTO, HomeSummaryDTO
 from gws_project.home.home_service import HomeService
 from gws_reflex_main import I18nState, ReflexMainState
 
+from ..common.date_format import format_time, format_weekday_date
 from ..common.project_app_router import ProjectAppRouter
 
 
@@ -166,19 +167,18 @@ class HomeState(rx.State):
             task_id=item.task_id,
             task_title=item.task_title,
             project_title=item.project_title,
-            time_text=item.created_at.strftime("%H:%M"),
+            time_text=format_time(item.created_at),
         )
 
     @staticmethod
     def _format_day_label(day: date, today: date, i18n: I18nState) -> str:
         """"Today", "Yesterday", or the day as a long date.
 
-        Older days are formatted with strftime, so weekday and month names stay English
-        whatever the selected language - the same trade-off the rest of the app already
-        makes (see the My work day label and the Planning grid's day labels).
+        Older days go through common/date_format, so the weekday and month names
+        follow the language the user selected.
         """
         if day == today:
             return i18n.tr("home.activity.today")
         if day == today - timedelta(days=1):
             return i18n.tr("home.activity.yesterday")
-        return day.strftime("%A %d %B")
+        return format_weekday_date(day, i18n.lang)

@@ -9,12 +9,12 @@ from gws_project.project.project import Project
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task_dto import TaskDTO, TaskStatus
-from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.task.task_service import TaskService
 from gws_project.user.user import User
-from gws_reflex_main import I18nState, ReflexMainState
+from gws_reflex_main import I18nState, ReflexMainState, toast_tr
 
 from ..common.breadcrumb.breadcrumb_state import Task
+from ..common.date_format import localize_task_dto
 from ..common.kanban.kanban import BoardDataDTO, CardDTO, CardMoveEvent, build_kanban_board_data
 from ..common.project_app_router import ProjectAppRouter
 
@@ -130,56 +130,33 @@ class KanbanState(rx.State):
         return start_date, end_date
 
     async def load_tasks(self):
-        """Fetch all tasks accessible to the current user with applied filters.
+        """Fetch the tasks accessible to the current user with the applied filters.
 
-        Applies text search, project filter, user filter, and date filter using the TaskSearchBuilder.
-        If no project filter is selected, returns tasks from all user's projects.
-
-        :return: List of filtered tasks as DTOs
-        :rtype: List[TaskDTO]
+        Every filter is passed to TaskService, which owns the authorization: the
+        selected project id comes from the frontend, so it must never reach a search
+        query without its role being checked first. With no project selected, the
+        service bounds the search to the projects the user is a member of.
         """
-        tasks: list[Task]
-
-        # Build the search with filters
-        search_builder = TaskSearchBuilder()
-
-        # Project filter: if no specific project is selected, filter by all user projects
-        if self.selected_project_id:
-            search_builder.add_project_filter(self.selected_project_id)
-        else:
-            main_state = await self.get_state(ReflexMainState)
-            with await main_state.authenticate_user():
-                user_projects = ProjectService().get_current_user_projects()
-                project_ids = [project.id for project in user_projects]
-                if project_ids:
-                    search_builder.add_projects_filter(project_ids)
-        # User/assignee filter
-        if self.selected_user_id:
-            search_builder.add_user_filter(self.selected_user_id)
-
-        # Company filter
-        if self.selected_company_id:
-            search_builder.add_company_filter(self.selected_company_id)
-
-        # Text search filter
-        if self.search_text:
-            search_builder.add_text_search(self.search_text)
-
         # Date filter - only applied if not 'all'
         start_date, end_date = self._get_date_range(self.selected_date_filter)
-        if start_date is not None and end_date is not None:
-            search_builder.add_date_range_filter(start_date, end_date)
 
-        # only show the leaf tasks
-        search_builder.add_allow_subtasks_filter(False)
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            tasks = TaskService().search_current_user_tasks(
+                project_id=self.selected_project_id or None,
+                company_id=self.selected_company_id or None,
+                assigned_user_id=self.selected_user_id or None,
+                search_text=self.search_text or None,
+                start_date=start_date,
+                end_date=end_date,
+                # only show the leaf tasks
+                allow_subtasks=False,
+                # Backlog tasks are excluded unless the user opted in via the "Show Backlog" toggle
+                exclude_statuses=None if self.show_backlog else [TaskStatus.BACKLOG],
+            )
 
-        # Backlog tasks are excluded unless the user opted in via the "Show Backlog" toggle
-        if not self.show_backlog:
-            search_builder.add_exclude_status_filter(TaskStatus.BACKLOG)
-
-        tasks = search_builder.search_all()
-
-        self.tasks = [task.to_dto() for task in tasks]
+            lang = (await self.get_state(I18nState)).lang
+            self.tasks = [localize_task_dto(task.to_dto(), lang) for task in tasks]
 
     async def on_load(self):
         """Event handler called when the page loads.
@@ -356,7 +333,7 @@ class KanbanState(rx.State):
             new_status_str = event.to_column_id
 
             if not task_id or not new_status_str:
-                yield rx.toast.error("Invalid card move data")
+                yield await toast_tr.error(self, "kanban.toast.invalid_move")
                 return
 
             # Convert status string to TaskStatus enum
@@ -371,7 +348,9 @@ class KanbanState(rx.State):
                     await self._update_task(task)
 
         except Exception as e:
-            yield rx.toast.error(f"Error moving task: {str(e)}")
+            yield await toast_tr.error(
+                self, "kanban.toast.move_failed", {"error": str(e)}
+            )
 
     async def _update_task(self, task: Task):
         """Update a task in the state.
@@ -382,9 +361,10 @@ class KanbanState(rx.State):
         if not self.tasks:
             return
 
+        lang = (await self.get_state(I18nState)).lang
         for i, t in enumerate(self.tasks):
             if t.id == task.id:
-                self.tasks[i] = task.to_dto()
+                self.tasks[i] = localize_task_dto(task.to_dto(), lang)
                 break
 
     async def add_task(self, task: Task):
@@ -393,7 +373,8 @@ class KanbanState(rx.State):
         :param task: The newly created Task entity
         :type task: Task
         """
-        self.tasks = self.tasks + [task.to_dto()]
+        lang = (await self.get_state(I18nState)).lang
+        self.tasks = self.tasks + [localize_task_dto(task.to_dto(), lang)]
 
     async def handle_card_click(self, card_id: str):
         """Handle card click in the Kanban board.

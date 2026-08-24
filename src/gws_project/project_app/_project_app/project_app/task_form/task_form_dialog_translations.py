@@ -10,6 +10,13 @@ register_translations(
     {
         "en": {
             "task_form.role_user_select_placeholder": "Select user (required)",
+            "task_form.error.title_required": "The task title is required",
+            "task_form.error.start_date_required": "The start date is required",
+            "task_form.error.missing_roles": "Please assign users to all roles. Missing: {{roles}}",
+            "task_form.toast.task_created": "Task created",
+            "task_form.toast.subtask_created": "Subtask created",
+            "task_form.toast.task_updated": "Task updated",
+            "task_form.toast.tasks_added_from_template": "Tasks added from the template",
             "task_form.template.label": "Task Template (Optional)",
             "task_form.template.placeholder": "Select a template (optional)",
             "task_form.title_field.label": "Task Title*",
@@ -39,6 +46,13 @@ register_translations(
         },
         "fr": {
             "task_form.role_user_select_placeholder": "Sélectionner un utilisateur (requis)",
+            "task_form.error.title_required": "Le titre de la tâche est obligatoire",
+            "task_form.error.start_date_required": "La date de début est obligatoire",
+            "task_form.error.missing_roles": "Attribuez un utilisateur à chaque rôle. Manquants : {{roles}}",
+            "task_form.toast.task_created": "Tâche créée",
+            "task_form.toast.subtask_created": "Sous-tâche créée",
+            "task_form.toast.task_updated": "Tâche modifiée",
+            "task_form.toast.tasks_added_from_template": "Tâches ajoutées depuis le modèle",
             "task_form.template.label": "Modèle de tâche (facultatif)",
             "task_form.template.placeholder": "Sélectionner un modèle (facultatif)",
             "task_form.title_field.label": "Titre de la tâche*",

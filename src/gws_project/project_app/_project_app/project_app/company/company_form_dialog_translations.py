@@ -10,6 +10,9 @@ register_translations(
     {
         "en": {
             "company_form_dialog.status_label": "Status",
+            "company_form_dialog.error.name_required": "The company name is required",
+            "company_form_dialog.toast.created": "Company created",
+            "company_form_dialog.toast.updated": "Company updated",
             "company_form_dialog.logo_label": "Logo",
             "company_form_dialog.upload_logo": "Upload logo",
             "company_form_dialog.name_label": "Company Name*",
@@ -29,6 +32,9 @@ register_translations(
         },
         "fr": {
             "company_form_dialog.status_label": "Statut",
+            "company_form_dialog.error.name_required": "Le nom de l'entreprise est obligatoire",
+            "company_form_dialog.toast.created": "Entreprise créée",
+            "company_form_dialog.toast.updated": "Entreprise modifiée",
             "company_form_dialog.logo_label": "Logo",
             "company_form_dialog.upload_logo": "Téléverser le logo",
             "company_form_dialog.name_label": "Nom de l'entreprise*",

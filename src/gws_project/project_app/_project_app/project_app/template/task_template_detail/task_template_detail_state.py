@@ -45,7 +45,10 @@ class TaskTemplateDetailState(rx.State):
         :rtype: str
         """
         task_template = await self.task_template
-        return format_timestamp(task_template.created_at) if task_template else ""
+        if not task_template:
+            return ""
+        lang = (await self.get_state(I18nState)).lang
+        return format_timestamp(task_template.created_at, lang)
 
     @rx.var
     async def last_modified_at_text(self) -> str:
@@ -55,7 +58,10 @@ class TaskTemplateDetailState(rx.State):
         :rtype: str
         """
         task_template = await self.task_template
-        return format_timestamp(task_template.last_modified_at) if task_template else ""
+        if not task_template:
+            return ""
+        lang = (await self.get_state(I18nState)).lang
+        return format_timestamp(task_template.last_modified_at, lang)
 
     async def _get_project_template(self) -> ProjectTemplateDTO | None:
         """Return the current project template DTO.

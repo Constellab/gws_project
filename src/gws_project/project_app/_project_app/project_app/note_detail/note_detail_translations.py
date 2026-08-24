@@ -10,6 +10,15 @@ register_translations(
     {
         "en": {
             "note_detail.actions.rename": "Rename",
+            "note_detail.delete_dialog.title": "Delete note",
+            "note_detail.delete_dialog.content": (
+                "Are you sure you want to permanently delete '{{name}}'? "
+                "This action cannot be undone."
+            ),
+            "note_detail.toast.name_empty": "The note name cannot be empty",
+            "note_detail.toast.renamed": "Note renamed",
+            "note_detail.toast.rename_failed": "Failed to rename the note: {{error}}",
+            "note_detail.toast.deleted": "Note deleted",
             "note_detail.actions.delete": "Delete",
             "note_detail.rename_dialog.title": "Rename Note",
             "note_detail.rename_dialog.name_label": "Note Name",
@@ -25,6 +34,15 @@ register_translations(
         },
         "fr": {
             "note_detail.actions.rename": "Renommer",
+            "note_detail.delete_dialog.title": "Supprimer la note",
+            "note_detail.delete_dialog.content": (
+                "Voulez-vous vraiment supprimer définitivement '{{name}}' ? "
+                "Cette action est irréversible."
+            ),
+            "note_detail.toast.name_empty": "Le nom de la note ne peut pas être vide",
+            "note_detail.toast.renamed": "Note renommée",
+            "note_detail.toast.rename_failed": "Échec du renommage de la note : {{error}}",
+            "note_detail.toast.deleted": "Note supprimée",
             "note_detail.actions.delete": "Supprimer",
             "note_detail.rename_dialog.title": "Renommer la note",
             "note_detail.rename_dialog.name_label": "Nom de la note",

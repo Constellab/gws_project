@@ -6,9 +6,13 @@ from gws_project.task_comment.task_comment_dto import TaskCommentDTO
 from gws_project.task_comment.task_comment_service import TaskCommentService
 from gws_project.task_history.task_history_event_dto import TaskHistoryEventDTO
 from gws_project.task_history.task_history_service import TaskHistoryService
-from gws_reflex_main import ReflexMainState
+from gws_reflex_main import I18nState, ReflexMainState, toast_tr
 
+from ..common.date_format import format_datetime
 from ..common.projects.project_page_state import ProjectPageState
+from ..common.tasks import (
+    task_actions_translations,  # noqa: F401  (side effect: registers translations)
+)
 from .activity_item_dto import ActivityItemDTO
 
 
@@ -101,19 +105,24 @@ class TaskActivityState(rx.State):
             raise e
 
     @rx.var
-    def activity_items(self) -> list[ActivityItemDTO]:
+    async def activity_items(self) -> list[ActivityItemDTO]:
         """Return the merged, chronologically sorted timeline of events and comments.
+
+        Both kinds carry a real `created_at`, formatted here in the active language
+        rather than by the backend, which knows nothing about the session.
 
         :return: List of activity items
         :rtype: List[ActivityItemDTO]
         """
+        lang = (await self.get_state(I18nState)).lang
+
         items = [
             ActivityItemDTO(
                 id=event.id,
                 kind="event",
                 sort_key=event.created_at,
                 actor=event.actor,
-                created_at_text=event.created_at_text,
+                created_at_text=format_datetime(event.created_at, lang),
                 message=event.message,
                 icon=event.icon,
                 is_automatic=event.is_automatic,
@@ -126,7 +135,7 @@ class TaskActivityState(rx.State):
                 kind="comment",
                 sort_key=comment.created_at,
                 actor=comment.created_by,
-                created_at_text=comment.created_at.strftime("%b %d, %Y %H:%M"),
+                created_at_text=format_datetime(comment.created_at, lang),
                 comment_id=comment.id,
                 content=comment.content,
                 is_edited=comment.is_edited,
@@ -152,7 +161,7 @@ class TaskActivityState(rx.State):
         project_page_state = await self.get_state(ProjectPageState)
         task = await project_page_state.task()
         if not task:
-            yield rx.toast.error("Task not found")
+            yield await toast_tr.error(self, "task_actions.toast.not_found")
             return
 
         self.is_posting_comment = True

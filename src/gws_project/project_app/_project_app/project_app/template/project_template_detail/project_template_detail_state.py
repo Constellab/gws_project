@@ -3,7 +3,7 @@ import reflex as rx
 from gws_core import RichTextDTO
 from gws_project.template.project_template_dto import ProjectTemplateDTO
 from gws_project.template.project_template_service import ProjectTemplateService
-from gws_reflex_main import ReflexMainState, toast_tr
+from gws_reflex_main import I18nState, ReflexMainState, toast_tr
 
 from ...common.project_app_router import ProjectAppRouter
 from ...common.timestamp_text_component import format_timestamp
@@ -59,7 +59,10 @@ class TemplateDetailState(rx.State):
         :rtype: str
         """
         project_template = await self.project_template
-        return format_timestamp(project_template.created_at) if project_template else ""
+        if not project_template:
+            return ""
+        lang = (await self.get_state(I18nState)).lang
+        return format_timestamp(project_template.created_at, lang)
 
     @rx.var
     async def last_modified_at_text(self) -> str:
@@ -69,7 +72,10 @@ class TemplateDetailState(rx.State):
         :rtype: str
         """
         project_template = await self.project_template
-        return format_timestamp(project_template.last_modified_at) if project_template else ""
+        if not project_template:
+            return ""
+        lang = (await self.get_state(I18nState)).lang
+        return format_timestamp(project_template.last_modified_at, lang)
 
     @rx.var
     async def template_roles(self) -> list[str]:

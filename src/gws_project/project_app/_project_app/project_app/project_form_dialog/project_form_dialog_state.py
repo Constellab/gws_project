@@ -9,10 +9,13 @@ from gws_project.project.project_service import ProjectService
 from gws_project.template.project_template_dto import ProjectTemplateDTO
 from gws_project.template.project_template_service import ProjectTemplateService
 from gws_project.user.user import User
-from gws_reflex_main import FormDialogState, ReflexMainState
+from gws_reflex_main import FormDialogState, I18nState, ReflexMainState, toast_tr
 
 from ..common.project_app_router import ProjectAppRouter
 from ..common.projects.project_page_state import ProjectPageState
+from . import (
+    project_form_dialog_translations,  # noqa: F401  (side effect: registers translations)
+)
 
 
 class ProjectFormDialogState(FormDialogState, rx.State):
@@ -163,7 +166,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         # Open the dialog
         await self.open_dialog()
 
-    def _validate_and_parse_form_data(self, form_data: dict) -> SaveProjectDTO | None:
+    async def _validate_and_parse_form_data(self, form_data: dict) -> SaveProjectDTO | None:
         """Validate and parse form data into a SaveProjectDTO.
 
         Args:
@@ -172,6 +175,8 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         Returns:
             SaveProjectDTO if validation succeeds, None otherwise (error toast is shown)
         """
+        i18n = await self.get_state(I18nState)
+
         # Get values from form data
         name = form_data.get("name", "").strip()
         start_date_str = form_data.get("start_date", "").strip()
@@ -180,13 +185,13 @@ class ProjectFormDialogState(FormDialogState, rx.State):
 
         # Validate required fields
         if not name:
-            raise Exception("Project name is required")
+            raise Exception(i18n.tr("project_form_dialog.error.name_required"))
 
         if not start_date_str:
-            raise Exception("Start date is required")
+            raise Exception(i18n.tr("project_form_dialog.error.start_date_required"))
 
         if not end_date_str:
-            raise Exception("End date is required")
+            raise Exception(i18n.tr("project_form_dialog.error.end_date_required"))
 
         # Parse dates from string to datetime
         start_date = datetime.fromisoformat(start_date_str)
@@ -225,7 +230,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         else:
             # Standard project creation
             # Validate and parse form data
-            project_dto = self._validate_and_parse_form_data(form_data)
+            project_dto = await self._validate_and_parse_form_data(form_data)
             if project_dto is None:
                 return  # Validation error already shown
 
@@ -235,7 +240,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
                 created_project = project_service.create_project(project_dto)
 
         # Show success toast
-        yield rx.toast.success("Project created successfully")
+        yield await toast_tr.success(self, "project_form_dialog.toast.created")
 
         # Redirect to the project detail page
         yield rx.redirect(ProjectAppRouter.get_project_detail_url(created_project.id))
@@ -254,18 +259,23 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         name = form_data.get("name", "").strip()
         start_date_str = form_data.get("start_date", "").strip()
 
+        i18n = await self.get_state(I18nState)
+
         # Validate required fields
         if not name:
-            raise Exception("Project name is required")
+            raise Exception(i18n.tr("project_form_dialog.error.name_required"))
 
         if not start_date_str:
-            raise Exception("Start date is required")
+            raise Exception(i18n.tr("project_form_dialog.error.start_date_required"))
 
         # Validate that all roles have been assigned
         if len(self.role_mapping) != len(self.template_roles):
             missing_roles = [role for role in self.template_roles if role not in self.role_mapping]
             raise Exception(
-                f"Please assign users to all roles. Missing: {', '.join(missing_roles)}"
+                i18n.tr(
+                    "project_form_dialog.error.missing_roles",
+                    {"roles": ", ".join(missing_roles)},
+                )
             )
 
         # Parse start date
@@ -306,7 +316,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             project_page_state = await self.get_state(ProjectPageState)
 
         # Validate and parse form data
-        project_dto = self._validate_and_parse_form_data(form_data)
+        project_dto = await self._validate_and_parse_form_data(form_data)
         if project_dto is None:
             return  # Validation error already shown
 
@@ -321,7 +331,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             await project_page_state.refresh_object()
 
         # Show success toast
-        yield rx.toast.success("Project updated successfully")
+        yield await toast_tr.success(self, "project_form_dialog.toast.updated")
 
     @rx.event
     async def add_newly_created_company(self, company: CompanyDTO):

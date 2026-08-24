@@ -5,6 +5,7 @@ from gws_project.template.project_template_dto import ProjectTemplateDTO
 from gws_project.template.project_template_service import ProjectTemplateService
 from gws_reflex_main import I18nState, ReflexMainState
 
+from ...common.date_format import localize_project_template_dto
 from ...common.project_app_router import ProjectAppRouter
 from . import (
     project_template_list_translations,  # noqa: F401  (side effect: registers translations)
@@ -43,8 +44,12 @@ class ProjectTemplateListState(rx.State):
                 template_service = ProjectTemplateService()
                 templates = template_service.get_all_templates()
 
-            # Convert templates to DTOs
-            self.project_templates = [template.to_dto() for template in templates]
+            # Convert templates to DTOs, with their dates in the active language
+            lang = (await self.get_state(I18nState)).lang
+            self.project_templates = [
+                localize_project_template_dto(template.to_dto(), lang)
+                for template in templates
+            ]
 
         except Exception as e:
             i18n = await self.get_state(I18nState)

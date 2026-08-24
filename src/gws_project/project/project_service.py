@@ -151,25 +151,32 @@ class ProjectService:
             document_count=document_count,
         )
 
-    def search_current_user_projects_with_root_tasks(
+    def search_current_user_projects(
         self,
         search_title: str | None = None,
         manager_id: str | None = None,
         company_id: str | None = None,
-    ) -> list[ProjectWithRootTasksDTO]:
-        """Get all projects that the current user is a member of, along with their root tasks.
+    ) -> list[Project]:
+        """Search the projects the current user is a member of, with optional filters.
 
-        This method is optimized for GANTT chart display, returning projects with their
-        root-level tasks only (no subtasks). Tasks are ordered by start date.
+        This is the only entry point the app should use to list projects: it owns the
+        membership filter, so a filter value coming from the frontend (a company id, a
+        manager id) can never widen the result beyond the user's own projects.
 
-        :return: List of ProjectWithRootTasksDTO containing projects and their root tasks
-        :rtype: List[ProjectWithRootTasksDTO]
+        :param search_title: Text searched in the project title (optional)
+        :type search_title: str | None
+        :param manager_id: Restrict to the projects managed by this user (optional)
+        :type manager_id: str | None
+        :param company_id: Restrict to the projects of this company (optional)
+        :type company_id: str | None
+        :return: The matching projects the current user is a member of
+        :rtype: list[Project]
         """
-        # Build the search with filters
+        current_user = CurrentUserService.get_and_check_current_user()
+
         search_builder = ProjectSearchBuilder()
 
         # Filter by user's projects (projects where user is a member)
-        current_user = CurrentUserService.get_and_check_current_user()
         search_builder.add_project_user_filter(current_user.id)
 
         # Text search filter
@@ -184,7 +191,25 @@ class ProjectService:
         if company_id:
             search_builder.add_company_filter(company_id)
 
-        projects = search_builder.search_all()
+        return search_builder.search_all()
+
+    def search_current_user_projects_with_root_tasks(
+        self,
+        search_title: str | None = None,
+        manager_id: str | None = None,
+        company_id: str | None = None,
+    ) -> list[ProjectWithRootTasksDTO]:
+        """Get all projects that the current user is a member of, along with their root tasks.
+
+        This method is optimized for GANTT chart display, returning projects with their
+        root-level tasks only (no subtasks). Tasks are ordered by start date.
+
+        :return: List of ProjectWithRootTasksDTO containing projects and their root tasks
+        :rtype: List[ProjectWithRootTasksDTO]
+        """
+        projects = self.search_current_user_projects(
+            search_title=search_title, manager_id=manager_id, company_id=company_id
+        )
 
         result = []
         for project in projects:

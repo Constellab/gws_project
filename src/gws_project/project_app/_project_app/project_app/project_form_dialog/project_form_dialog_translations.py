@@ -11,6 +11,14 @@ register_translations(
     {
         "en": {
             "project_form_dialog.name_label": "Project Name*",
+            "project_form_dialog.error.name_required": "The project name is required",
+            "project_form_dialog.error.start_date_required": "The start date is required",
+            "project_form_dialog.error.end_date_required": "The end date is required",
+            "project_form_dialog.error.missing_roles": (
+                "Please assign users to all roles. Missing: {{roles}}"
+            ),
+            "project_form_dialog.toast.created": "Project created",
+            "project_form_dialog.toast.updated": "Project updated",
             "project_form_dialog.name_placeholder": "Enter project name",
             "project_form_dialog.select_user_placeholder": "Select user (required)",
             "project_form_dialog.company_label": "Company (optional)",
@@ -34,6 +42,14 @@ register_translations(
         },
         "fr": {
             "project_form_dialog.name_label": "Nom du projet*",
+            "project_form_dialog.error.name_required": "Le nom du projet est obligatoire",
+            "project_form_dialog.error.start_date_required": "La date de début est obligatoire",
+            "project_form_dialog.error.end_date_required": "La date de fin est obligatoire",
+            "project_form_dialog.error.missing_roles": (
+                "Attribuez un utilisateur à chaque rôle. Manquants : {{roles}}"
+            ),
+            "project_form_dialog.toast.created": "Projet créé",
+            "project_form_dialog.toast.updated": "Projet modifié",
             "project_form_dialog.name_placeholder": "Saisissez le nom du projet",
             "project_form_dialog.select_user_placeholder": "Sélectionner un utilisateur (requis)",
             "project_form_dialog.company_label": "Entreprise (facultatif)",

@@ -5,10 +5,14 @@ from gws_project.project.project_dto import ProjectDTO
 from gws_project.task.task import Task
 from gws_project.task.task_dto import TaskDTO, TaskPriority, TaskStatus
 from gws_project.task.task_service import TaskService
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
+from gws_reflex_main import ConfirmDialogState, I18nState, ReflexMainState, toast_tr
 
+from ..common.date_format import localize_task_dto
 from ..common.project_app_router import ProjectAppRouter
 from ..common.projects.project_page_state import ProjectPageState
+from ..common.tasks import (
+    task_actions_translations,  # noqa: F401  (side effect: registers translations)
+)
 from ..common.timestamp_text_component import format_timestamp
 from ..common.view_mode_state import ViewModeState
 from ..move_task_dialog.move_task_dialog_state import MoveTaskDialogState
@@ -64,9 +68,10 @@ class TaskDetailState(rx.State):
         """
         project_page_state = await self.get_state(ProjectPageState)
         current_object = await project_page_state.task()
-        if current_object:
-            return current_object.to_dto()
-        return None
+        if not current_object:
+            return None
+        lang = (await self.get_state(I18nState)).lang
+        return localize_task_dto(current_object.to_dto(), lang)
 
     @rx.var
     async def created_at_text(self) -> str:
@@ -76,7 +81,10 @@ class TaskDetailState(rx.State):
         :rtype: str
         """
         task = await self.task
-        return format_timestamp(task.created_at) if task else ""
+        if not task:
+            return ""
+        lang = (await self.get_state(I18nState)).lang
+        return format_timestamp(task.created_at, lang)
 
     @rx.var
     async def last_modified_at_text(self) -> str:
@@ -86,7 +94,10 @@ class TaskDetailState(rx.State):
         :rtype: str
         """
         task = await self.task
-        return format_timestamp(task.last_modified_at) if task else ""
+        if not task:
+            return ""
+        lang = (await self.get_state(I18nState)).lang
+        return format_timestamp(task.last_modified_at, lang)
 
     async def _get_project(self) -> ProjectDTO | None:
         """Return the current project DTO.
@@ -113,7 +124,8 @@ class TaskDetailState(rx.State):
         if not current_task or not current_task.parent_task:
             return None
 
-        return current_task.parent_task.to_dto()
+        lang = (await self.get_state(I18nState)).lang
+        return localize_task_dto(current_task.parent_task.to_dto(), lang)
 
     @rx.var
     async def subtask_members(self) -> list[UserDTO]:
@@ -179,7 +191,7 @@ class TaskDetailState(rx.State):
         task = await project_page_state.task()
 
         if not task:
-            yield rx.toast.error("Task not found")
+            yield await toast_tr.error(self, "task_actions.toast.not_found")
             return
 
         await form_state.open_update_dialog(
@@ -204,7 +216,7 @@ class TaskDetailState(rx.State):
         """Open the move task dialog for the currently viewed task."""
         task = await self.task
         if not task:
-            yield rx.toast.error("Task not found")
+            yield await toast_tr.error(self, "task_actions.toast.not_found")
             return
 
         move_dialog_state = await self.get_state(MoveTaskDialogState)
@@ -269,19 +281,18 @@ class TaskDetailState(rx.State):
             return
 
         delete_dialog_state = await self.get_state(ConfirmDialogState)
+        i18n = await self.get_state(I18nState)
 
         # Build confirmation message
-        warning = " Its documents and notes will be permanently deleted."
-
-        if task.allow_subtasks:
-            warning = (
-                " This will also permanently delete all its descendants "
-                "(subtasks, sub-subtasks, etc.) and their documents and notes."
-            )
+        warning_key = (
+            "task_actions.delete.descendants_documents_warning"
+            if task.allow_subtasks
+            else "task_actions.delete.documents_warning"
+        )
 
         delete_dialog_state.open_dialog(
-            title="Delete Task",
-            content=f"Are you sure you want to delete this task?{warning}",
+            title=i18n.tr("task_actions.delete.title"),
+            content=i18n.tr("task_actions.delete.content") + " " + i18n.tr(warning_key),
             action=self._delete_task_action,
         )
 
@@ -299,7 +310,7 @@ class TaskDetailState(rx.State):
             task_service.delete_task(task.id)
 
         # Show success toast
-        yield rx.toast.success("Task deleted successfully")
+        yield await toast_tr.success(self, "task_actions.toast.deleted")
 
         # Navigate based on context
         project_page_state = await self.get_state(ProjectPageState)
@@ -326,21 +337,20 @@ class TaskDetailState(rx.State):
             return
 
         confirm_dialog_state = await self.get_state(ConfirmDialogState)
+        i18n = await self.get_state(I18nState)
 
         if task.allow_subtasks:
             # Converting parent -> leaf
             confirm_dialog_state.open_dialog(
-                title="Convert to normal task",
-                content="Are you sure you want to convert this task to a normal task? "
-                "Status, priority, dates and progress will become manually managed.",
+                title=i18n.tr("task_actions.convert_to_leaf.title"),
+                content=i18n.tr("task_actions.convert_to_leaf.content"),
                 action=self._change_task_type_action,
             )
         else:
             # Converting leaf -> parent
             confirm_dialog_state.open_dialog(
-                title="Convert to task with subtasks",
-                content="Are you sure you want to convert this task to a task with subtasks? "
-                "Status, priority, dates and progress will be automatically calculated from subtasks.",
+                title=i18n.tr("task_actions.convert_to_parent.title"),
+                content=i18n.tr("task_actions.convert_to_parent.content"),
                 action=self._change_task_type_action,
             )
 
@@ -358,7 +368,7 @@ class TaskDetailState(rx.State):
             task_service = TaskService()
             task_service.update_allow_subtasks(task.id, new_allow_subtasks)
 
-        yield rx.toast.success("Task type changed successfully")
+        yield await toast_tr.success(self, "task_actions.toast.type_changed")
 
         # Refresh the current task
         project_page_state = await self.get_state(ProjectPageState)
@@ -379,7 +389,7 @@ class TaskDetailState(rx.State):
         """
         task = await self.task
         if not task:
-            yield rx.toast.error("Task not found")
+            yield await toast_tr.error(self, "task_actions.toast.not_found")
             return
 
         # create TaskStatus enum from string
@@ -405,7 +415,7 @@ class TaskDetailState(rx.State):
         """
         task = await self.task
         if not task:
-            yield rx.toast.error("Task not found")
+            yield await toast_tr.error(self, "task_actions.toast.not_found")
             return
 
         # create TaskPriority enum from string

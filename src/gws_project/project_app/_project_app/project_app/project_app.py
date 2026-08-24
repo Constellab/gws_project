@@ -35,22 +35,17 @@ from .template.task_template_detail.task_template_detail_component import task_t
 app = register_gws_reflex_app()
 
 
-# Declare the project list page as the index page
-@rx.page(route="/", on_load=[ProjectListState.on_load])
+# Every page initialises the language first. on_load runs before the layout mounts (which
+# is where page_layout also triggers it), and the states resolve their texts and dates
+# server-side, so without this the first render would use the shared default language
+# instead of the app's.
+_LANGUAGE_FIRST = LanguageInitState.ensure_default_language
+
+
+# Declare the Home page as the index page: arriving on the app shows what the team is
+# doing, not the raw project list (which lives at /projects).
+@rx.page(route="/", on_load=[_LANGUAGE_FIRST, HomeState.on_load])
 def index():
-    """Main page displaying the list of projects.
-
-    This is the default landing page of the application.
-    """
-    return project_list_page()
-
-
-# Declare the Home page.
-# The language is initialised first, for the same reason as My work below: on_load runs
-# before the layout mounts and Home resolves its texts server-side, so it would otherwise
-# format the first render in the shared default language instead of the app's.
-@rx.page(route="/home", on_load=[LanguageInitState.ensure_default_language, HomeState.on_load])
-def home():
     """Home page: the ways into the app, then what the team has been doing recently.
 
     A derived, read-only screen: it re-reads the tasks, planning slots and activity trail
@@ -59,8 +54,15 @@ def home():
     return home_page()
 
 
+# Declare the project list page
+@rx.page(route="/projects", on_load=[_LANGUAGE_FIRST, ProjectListState.on_load])
+def project_list():
+    """Page displaying the list of the projects the current user is a member of."""
+    return project_list_page()
+
+
 # Declare the task detail page with URL parameter
-@rx.page(route="/project/task/[task_id_param]")
+@rx.page(route="/project/task/[task_id_param]", on_load=[_LANGUAGE_FIRST])
 def task_detail():
     """Task detail page displaying all information about a specific task.
 
@@ -70,7 +72,10 @@ def task_detail():
 
 
 # Declare the note detail page with URL parameter
-@rx.page(route="/project/note/[note_id_param]", on_load=[NoteDetailState.on_load])
+@rx.page(
+    route="/project/note/[note_id_param]",
+    on_load=[_LANGUAGE_FIRST, NoteDetailState.on_load],
+)
 def note_detail():
     """Note detail page displaying a single note in a full-page rich-text editor.
 
@@ -80,7 +85,7 @@ def note_detail():
 
 
 # Declare the project detail page with URL parameter
-@rx.page(route="/project/[project_id_param]")
+@rx.page(route="/project/[project_id_param]", on_load=[_LANGUAGE_FIRST])
 def project_detail():
     """Project detail page displaying all information about a specific project.
 
@@ -90,7 +95,7 @@ def project_detail():
 
 
 # Declare the company list page
-@rx.page(route="/companies", on_load=[CompanyListState.on_load])
+@rx.page(route="/companies", on_load=[_LANGUAGE_FIRST, CompanyListState.on_load])
 def company_list():
     """Company list page displaying all companies.
 
@@ -100,7 +105,7 @@ def company_list():
 
 
 # Declare the company detail page with URL parameter
-@rx.page(route="/company/[company_id_param]")
+@rx.page(route="/company/[company_id_param]", on_load=[_LANGUAGE_FIRST])
 def company_detail():
     """Company detail page displaying all information about a specific company,
     along with the list of projects linked to it.
@@ -111,7 +116,7 @@ def company_detail():
 
 
 # Declare the kanban board page
-@rx.page(route="/kanban", on_load=[KanbanState.on_load])
+@rx.page(route="/kanban", on_load=[_LANGUAGE_FIRST, KanbanState.on_load])
 def kanban():
     """Kanban board page displaying all tasks across all projects.
 
@@ -121,7 +126,7 @@ def kanban():
 
 
 # Declare the gantt chart page
-@rx.page(route="/gantt", on_load=[GanttPageState.on_load])
+@rx.page(route="/gantt", on_load=[_LANGUAGE_FIRST, GanttPageState.on_load])
 def gantt():
     """Gantt chart page displaying all projects with their root tasks.
 
@@ -130,11 +135,8 @@ def gantt():
     return gantt_page_component()
 
 
-# Declare the My work page.
-# The language is initialised first: on_load runs before the layout mounts, and My work
-# resolves its texts server-side, so it would otherwise format the first render in the
-# shared default language instead of the app's.
-@rx.page(route="/my-work", on_load=[LanguageInitState.ensure_default_language, MyWorkState.on_load])
+# Declare the My work page
+@rx.page(route="/my-work", on_load=[_LANGUAGE_FIRST, MyWorkState.on_load])
 def my_work():
     """My work page: the signed-in user's day and their remaining assigned tasks.
 
@@ -145,14 +147,14 @@ def my_work():
 
 
 # Declare the planning page
-@rx.page(route="/planning", on_load=[PlanningState.on_load])
+@rx.page(route="/planning", on_load=[_LANGUAGE_FIRST, PlanningState.on_load])
 def planning():
     """Planning page: a person x day weekly grid to schedule and confirm work."""
     return planning_page()
 
 
 # Declare the template list page
-@rx.page(route="/templates", on_load=[ProjectTemplateListState.on_load])
+@rx.page(route="/templates", on_load=[_LANGUAGE_FIRST, ProjectTemplateListState.on_load])
 def template_list():
     """Template list page displaying all project templates.
 
@@ -162,7 +164,9 @@ def template_list():
 
 
 # Declare the template detail page with URL parameter
-@rx.page(route="/template/project/[project_template_id_param]")
+@rx.page(
+    route="/template/project/[project_template_id_param]", on_load=[_LANGUAGE_FIRST]
+)
 def project_template_detail():
     """Template detail page displaying all information about a specific template.
 
@@ -174,7 +178,7 @@ def project_template_detail():
 # Declare the template detail page with URL parameter
 
 
-@rx.page(route="/template/task/[task_template_id_param]")
+@rx.page(route="/template/task/[task_template_id_param]", on_load=[_LANGUAGE_FIRST])
 def task_template_detail():
     """Template detail page displaying all information about a specific template.
 
@@ -184,7 +188,7 @@ def task_template_detail():
 
 
 # Declare the admin page
-@rx.page(route="/admin", on_load=[AdminState.on_load])
+@rx.page(route="/admin", on_load=[_LANGUAGE_FIRST, AdminState.on_load])
 def admin():
     """Admin page: language, roles, and (admin-only) global working hours."""
     return admin_page()

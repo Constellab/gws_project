@@ -2,13 +2,14 @@
 
 import reflex as rx
 from gws_project.project.project_count_dto import ProjectCountDTO
+from gws_reflex_main import translate
 
 from ..common.status_colors import StatusColors
 from .project_list_state import ProjectListState
 
 
 def _stat_card(
-    label: str,
+    label: str | rx.Var[str],
     value: rx.Var[int],
     icon_name: str,
     accent_color: str,
@@ -20,8 +21,8 @@ def _stat_card(
     already-active card clears the filter. The active card is highlighted
     with an accent-colored border.
 
-    :param label: The label text below the value
-    :type label: str
+    :param label: The label text below the value (a translated, reactive var)
+    :type label: str | rx.Var[str]
     :param value: The reactive value to display
     :type value: rx.Var[int]
     :param icon_name: The lucide icon name
@@ -94,28 +95,28 @@ def project_stats_header(project_count: rx.Var[ProjectCountDTO]) -> rx.Component
     """
     return rx.grid(
         _stat_card(
-            label="Total projects",
+            label=translate("project_list.stats.total"),
             value=project_count.total,
             icon_name="bar_chart_3",
             accent_color="var(--accent-9)",
             status_filter="",
         ),
         _stat_card(
-            label="Ongoing",
+            label=translate("project_list.stats.ongoing"),
             value=project_count.ongoing,
             icon_name="rocket",
             accent_color=StatusColors.css_var_ongoing(),
             status_filter="ACTIVE",
         ),
         _stat_card(
-            label="Completed",
+            label=translate("project_list.stats.completed"),
             value=project_count.done,
             icon_name="circle_check",
             accent_color=StatusColors.css_var_done(),
             status_filter="COMPLETED",
         ),
         _stat_card(
-            label="Not started",
+            label=translate("project_list.stats.not_started"),
             value=project_count.todo,
             icon_name="clock",
             accent_color=StatusColors.css_var_todo(),

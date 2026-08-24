@@ -67,8 +67,8 @@ def _roles_section() -> rx.Component:
         rx.table.root(
             rx.table.header(
                 rx.table.row(
-                    rx.table.column_header_cell("User"),
-                    rx.table.column_header_cell("Role"),
+                    rx.table.column_header_cell(translate("admin.roles.user_column")),
+                    rx.table.column_header_cell(translate("admin.roles.role_column")),
                 )
             ),
             rx.table.body(rx.foreach(AdminState.users, _role_row)),

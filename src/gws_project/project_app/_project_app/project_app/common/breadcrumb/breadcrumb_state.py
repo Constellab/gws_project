@@ -3,7 +3,9 @@ from dataclasses import dataclass
 import reflex as rx
 from gws_project.project.project import Project
 from gws_project.task.task import Task
+from gws_reflex_main import I18nState
 
+from .. import sidebar_translations  # noqa: F401  (side effect: registers translations)
 from ..project_app_router import ProjectAppRouter
 from ..projects.project_page_state import ProjectPageState
 
@@ -48,7 +50,13 @@ class BreadcrumbState(rx.State):
             return []
 
         # Start with base breadcrumb
-        items = [BreadcrumbItem(label="Projects", url=ProjectAppRouter.get_project_list_url())]
+        i18n = await self.get_state(I18nState)
+        items = [
+            BreadcrumbItem(
+                label=i18n.tr("sidebar.projects"),
+                url=ProjectAppRouter.get_project_list_url(),
+            )
+        ]
 
         # Build breadcrumb based on object type
         if isinstance(obj, Task):

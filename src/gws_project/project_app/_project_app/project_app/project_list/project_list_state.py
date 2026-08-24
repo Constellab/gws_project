@@ -4,11 +4,13 @@ from gws_project.company.company_dto import CompanyDTO
 from gws_project.company.company_service import CompanyService
 from gws_project.project.project_count_dto import ProjectCountDTO
 from gws_project.project.project_dto import ProjectDTO, ProjectStatus
-from gws_project.project.project_search_builder import ProjectSearchBuilder
+from gws_project.project.project_service import ProjectService
 from gws_project.user.user import User
-from gws_reflex_main import ReflexMainState
+from gws_reflex_main import I18nState, ReflexMainState
 
+from ..common.date_format import localize_project_dto
 from ..common.project_app_router import ProjectAppRouter
+from . import project_list_translations  # noqa: F401  (side effect: registers translations)
 
 
 class ProjectListState(rx.State):
@@ -89,42 +91,32 @@ class ProjectListState(rx.State):
     async def load_projects(self):
         """Load the list of projects for the current user with applied filters.
 
-        Uses ProjectSearchBuilder to apply text search and project manager filters.
+        The search itself is delegated to ProjectService, which owns the membership
+        filter: the manager and company ids come from the frontend, so they must not
+        reach a search query that is not already bounded to the user's projects.
         """
         # Check authentication before accessing data
         main_state = await self.get_state(ReflexMainState)
+        i18n = await self.get_state(I18nState)
         if not await main_state.check_authentication():
-            self.error_message = "You must be authenticated to view projects"
+            self.error_message = i18n.tr("project_list.error.not_authenticated")
             return
 
         self.is_loading = True
         self.error_message = ""
 
         try:
-            current_user = await main_state.get_and_check_current_user()
+            with await main_state.authenticate_user():
+                projects = ProjectService().search_current_user_projects(
+                    search_title=self.search_text or None,
+                    manager_id=self.selected_manager_id or None,
+                    company_id=self.selected_company_id or None,
+                )
 
-            # Build the search with filters
-            search_builder = ProjectSearchBuilder()
-
-            # Filter by user's projects (projects where user is a member)
-            search_builder.add_project_user_filter(current_user.id)
-
-            # Text search filter
-            if self.search_text:
-                search_builder.add_text_search(self.search_text)
-
-            # Project manager filter
-            if self.selected_manager_id:
-                search_builder.add_project_manager_filter(self.selected_manager_id)
-
-            # Company filter
-            if self.selected_company_id:
-                search_builder.add_company_filter(self.selected_company_id)
-
-            projects = search_builder.search_all()
-
-            # Convert projects to DTOs
-            self._all_projects = [project.to_dto() for project in projects]
+            # Convert projects to DTOs, with their dates in the active language
+            self._all_projects = [
+                localize_project_dto(project.to_dto(), i18n.lang) for project in projects
+            ]
 
             # Compute project count from the full (status-unfiltered) list
             self._compute_project_count()

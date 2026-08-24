@@ -17,6 +17,12 @@ register_translations(
             "project_detail.update_project": "Update Project",
             "project_detail.manage_users": "Manage Users",
             "project_detail.delete_project": "Delete Project",
+            "project_detail.delete_dialog.title": "Delete project",
+            "project_detail.delete_dialog.content": (
+                "Are you sure you want to delete this project? Its tasks, documents and "
+                "notes will be permanently deleted. This action cannot be undone."
+            ),
+            "project_detail.toast.deleted": "Project deleted",
             "project_detail.tasks_tab": "Tasks",
             "project_detail.description_tab": "Description",
             "project_detail.documents_tab": "Documents",
@@ -40,6 +46,12 @@ register_translations(
             "project_detail.update_project": "Modifier le projet",
             "project_detail.manage_users": "Gérer les utilisateurs",
             "project_detail.delete_project": "Supprimer le projet",
+            "project_detail.delete_dialog.title": "Supprimer le projet",
+            "project_detail.delete_dialog.content": (
+                "Voulez-vous vraiment supprimer ce projet ? Ses tâches, ses documents et "
+                "ses notes seront définitivement supprimés. Cette action est irréversible."
+            ),
+            "project_detail.toast.deleted": "Projet supprimé",
             "project_detail.tasks_tab": "Tâches",
             "project_detail.description_tab": "Description",
             "project_detail.documents_tab": "Documents",

@@ -63,8 +63,9 @@ class Project(ModelWithUser):
             description=self.description,
             start_date=self.start_date,
             end_date=self.end_date,
-            start_date_text=self.start_date.strftime("%b %d, %Y"),
-            end_date_text=self.end_date.strftime("%b %d, %Y"),
+            # Language-neutral fallbacks, localized by the app layer: see Task.to_dto.
+            start_date_text=self.start_date.isoformat(),
+            end_date_text=self.end_date.isoformat(),
             project_manager=self.project_manager.to_dto(),
             progress=self.progress,
             status=self.get_status(),

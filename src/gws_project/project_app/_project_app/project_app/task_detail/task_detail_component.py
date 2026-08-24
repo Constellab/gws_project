@@ -14,6 +14,8 @@ from ..common.documents_list.documents_list_component import documents_list_cont
 from ..common.documents_list.documents_list_state import DocumentsListState
 from ..common.page_layout import page_layout
 from ..common.progress_ring import progress_ring
+from ..common.projects.project_access_component import project_access_error_component
+from ..common.projects.project_page_state import ProjectPageState
 from ..common.tasks.task_actions_menu import task_actions_menu
 from ..common.tasks.task_components import task_icon_component
 from ..common.tasks.task_priority_chip_component import task_priority_chip
@@ -523,19 +525,25 @@ def task_detail_page() -> rx.Component:
     :rtype: rx.Component
     """
     return main_component(
-        page_layout(
-            rx.cond(
-                TaskDetailState.task,
-                detail_page_layout(
-                    main_content=main_content_area(),
-                    header_content=task_header(),
+        rx.cond(
+            # A task id in the URL may not exist, or may belong to a project the
+            # user is not a member of: say so instead of rendering an empty page.
+            ProjectPageState.access_error != "",
+            page_layout(project_access_error_component()),
+            page_layout(
+                rx.cond(
+                    TaskDetailState.task,
+                    detail_page_layout(
+                        main_content=main_content_area(),
+                        header_content=task_header(),
+                    ),
                 ),
+                right_sidebar_content=details_sidebar(),
+                header_content=breadcrumb_component(BreadcrumbState.breadcrumbs),
+                max_content_width="1200px",
+                height="100vh",
+                padding="0",
             ),
-            right_sidebar_content=details_sidebar(),
-            header_content=breadcrumb_component(BreadcrumbState.breadcrumbs),
-            max_content_width="1200px",
-            height="100vh",
-            padding="0",
         ),
         # Add the task form dialog
         task_form_dialog(),

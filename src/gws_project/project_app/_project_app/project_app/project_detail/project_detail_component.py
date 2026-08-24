@@ -14,6 +14,8 @@ from ..common.documents_list.documents_list_component import documents_list_cont
 from ..common.documents_list.documents_list_state import DocumentsListState
 from ..common.page_layout import page_layout
 from ..common.progress_ring import progress_ring
+from ..common.projects.project_access_component import project_access_error_component
+from ..common.projects.project_page_state import ProjectPageState
 from ..common.projects.project_status_chip_component import project_status_chip
 from ..move_task_dialog.move_task_dialog_component import move_task_dialog
 from ..project_form_dialog.project_form_dialog_component import project_update_dialog
@@ -441,21 +443,27 @@ def project_detail_page() -> rx.Component:
     :rtype: rx.Component
     """
     return main_component(
-        page_layout(
-            # Project details with breadcrumb and header
-            rx.cond(
-                ProjectDetailState.project,
-                detail_page_layout(
-                    main_content=main_content_area(),
-                    header_content=header(),
+        rx.cond(
+            # A project id in the URL may not exist, or may belong to a project the
+            # user is not a member of: say so instead of rendering an empty page.
+            ProjectPageState.access_error != "",
+            page_layout(project_access_error_component()),
+            page_layout(
+                # Project details with breadcrumb and header
+                rx.cond(
+                    ProjectDetailState.project,
+                    detail_page_layout(
+                        main_content=main_content_area(),
+                        header_content=header(),
+                    ),
                 ),
+                # Right sidebar with project details
+                right_sidebar_content=details_sidebar(),
+                header_content=breadcrumb_component(BreadcrumbState.breadcrumbs),
+                max_content_width="1200px",
+                height="100vh",
+                padding="0",
             ),
-            # Right sidebar with project details
-            right_sidebar_content=details_sidebar(),
-            header_content=breadcrumb_component(BreadcrumbState.breadcrumbs),
-            max_content_width="1200px",
-            height="100vh",
-            padding="0",
         ),
         # Add the update dialog
         project_update_dialog(),

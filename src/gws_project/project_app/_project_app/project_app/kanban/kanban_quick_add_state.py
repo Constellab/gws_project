@@ -3,7 +3,7 @@ from gws_project.project.project_dto import ProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task_dto import CreateTaskDTO, TaskDTO, TaskStatus
 from gws_project.task.task_service import TaskService
-from gws_reflex_main import ReflexMainState
+from gws_reflex_main import ReflexMainState, toast_tr
 
 from .kanban_state import KanbanState
 
@@ -202,7 +202,7 @@ class KanbanQuickAddState(rx.State):
             main_state = await self.get_state(ReflexMainState)
 
         if not title or not project_id:
-            yield rx.toast.error("Please enter a title and choose a project.")
+            yield await toast_tr.error(self, "kanban.quick_add.toast.missing_fields")
             return
 
         async with self:

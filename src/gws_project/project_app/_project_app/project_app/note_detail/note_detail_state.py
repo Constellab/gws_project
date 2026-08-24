@@ -4,7 +4,7 @@ from gws_project.document.document_dto import ProjectNoteDTO
 from gws_project.document.document_service import DocumentService
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task_service import TaskService
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
+from gws_reflex_main import ConfirmDialogState, I18nState, ReflexMainState, toast_tr
 
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbItem
 from ..common.project_app_router import ProjectAppRouter
@@ -74,7 +74,10 @@ class NoteDetailState(rx.State):
         :rtype: str
         """
         note = await self.note
-        return format_timestamp(note.created_at) if note else ""
+        if not note:
+            return ""
+        lang = (await self.get_state(I18nState)).lang
+        return format_timestamp(note.created_at, lang)
 
     @rx.var
     async def last_modified_at_text(self) -> str:
@@ -84,7 +87,10 @@ class NoteDetailState(rx.State):
         :rtype: str
         """
         note = await self.note
-        return format_timestamp(note.last_modified_at) if note else ""
+        if not note:
+            return ""
+        lang = (await self.get_state(I18nState)).lang
+        return format_timestamp(note.last_modified_at, lang)
 
     @rx.var
     async def note_content(self) -> RichTextDTO | None:
@@ -124,7 +130,13 @@ class NoteDetailState(rx.State):
         if not self._note:
             return []
 
-        items = [BreadcrumbItem(label="Projects", url=ProjectAppRouter.get_project_list_url())]
+        i18n = await self.get_state(I18nState)
+        items = [
+            BreadcrumbItem(
+                label=i18n.tr("sidebar.projects"),
+                url=ProjectAppRouter.get_project_list_url(),
+            )
+        ]
 
         if self._note.task_id:
             items.append(
@@ -197,7 +209,7 @@ class NoteDetailState(rx.State):
             return
 
         if not self.rename_note_name.strip():
-            yield rx.toast.error("Note name cannot be empty")
+            yield await toast_tr.error(self, "note_detail.toast.name_empty")
             return
 
         new_name = self.rename_note_name.strip()
@@ -212,9 +224,11 @@ class NoteDetailState(rx.State):
                 self._note = document_service.update_note_name(self._note.id, new_name)
 
             self.close_rename_dialog()
-            yield rx.toast.success("Note renamed successfully")
+            yield await toast_tr.success(self, "note_detail.toast.renamed")
         except Exception as e:
-            yield rx.toast.error(f"Failed to rename note: {str(e)}")
+            yield await toast_tr.error(
+                self, "note_detail.toast.rename_failed", {"error": str(e)}
+            )
         finally:
             self.is_renaming = False
 
@@ -226,10 +240,12 @@ class NoteDetailState(rx.State):
             return
 
         confirm_dialog_state = await self.get_state(ConfirmDialogState)
+        i18n = await self.get_state(I18nState)
         confirm_dialog_state.open_dialog(
-            title="Delete Note",
-            content=f"Are you sure you want to permanently delete '{self._note.name}'? "
-            "This action cannot be undone.",
+            title=i18n.tr("note_detail.delete_dialog.title"),
+            content=i18n.tr(
+                "note_detail.delete_dialog.content", {"name": self._note.name}
+            ),
             action=self._delete_note_action,
         )
 
@@ -248,7 +264,7 @@ class NoteDetailState(rx.State):
             document_service = DocumentService()
             document_service.delete_document(note_id)
 
-        yield rx.toast.success("Note deleted successfully")
+        yield await toast_tr.success(self, "note_detail.toast.deleted")
 
         # Navigate back to the parent (task or project) page.
         if task_id:
