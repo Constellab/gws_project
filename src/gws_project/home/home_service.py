@@ -14,10 +14,7 @@ from gws_project.project.project import Project
 from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
 from gws_project.task_comment.task_comment import TaskComment
-from gws_project.task_history.task_history_event import (
-    FEED_TASK_SUBJECT,
-    TaskHistoryEvent,
-)
+from gws_project.task_history.task_history_event import TaskHistoryEvent
 from gws_project.user.user import User
 
 # Icon of a comment line in the feed. Change events carry their own icon, from
@@ -183,9 +180,10 @@ class HomeService:
                 kind="event",
                 actor=actors[event.actor_id].to_dto(),
                 created_at=event.created_at,
-                # The feed wording, so a line reads "created the task" under the task's own
-                # name rather than the timeline's "created this task".
-                message=event.build_message(FEED_TASK_SUBJECT),
+                event_type=event.event_type,
+                old_value=event.old_value,
+                new_value=event.new_value,
+                is_automatic=event.is_automatic,
                 icon=event.get_icon(),
                 task_id=event.task.id,
                 task_title=event.task.title,
@@ -221,7 +219,7 @@ class HomeService:
                 kind="comment",
                 actor=actors[comment.created_by_id].to_dto(),
                 created_at=comment.created_at,
-                message=self._build_comment_message(comment),
+                comment_excerpt=self._build_comment_excerpt(comment),
                 icon=COMMENT_ICON,
                 task_id=comment.task.id,
                 task_title=comment.task.title,
@@ -242,22 +240,24 @@ class HomeService:
 
         return {user.id: user for user in User.select().where(User.id.in_(list(user_ids)))}
 
-    def _build_comment_message(self, comment: TaskComment) -> str:
+    def _build_comment_excerpt(self, comment: TaskComment) -> str | None:
         """The feed line for a comment: what was said, cut to one line.
 
         A comment is rich text; the feed is a single row of plain text, so the excerpt is
         flattened and truncated here. The full comment stays one click away, on the task.
+        Returns None for a comment with no text at all, which the app renders as a plain
+        "commented" in the reader's language.
         """
         rich_text = RichText(comment.content)
         if rich_text.is_empty():
-            return "commented"
+            return None
 
         excerpt = _MARKDOWN_MARKERS.sub("", rich_text.to_markdown())
         excerpt = " ".join(excerpt.split())
 
         if not excerpt:
-            return "commented"
+            return None
         if len(excerpt) > self._COMMENT_EXCERPT_MAX_CHARS:
             excerpt = excerpt[: self._COMMENT_EXCERPT_MAX_CHARS].rstrip() + "…"
 
-        return f"commented: {excerpt}"
+        return excerpt

@@ -20,8 +20,20 @@ from gws_project.task.task_dto import CreateTaskDTO, TaskPriority, TaskStatus, U
 from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.task_history.task_history_event_type import TaskHistoryEventType
 from gws_project.task_history.task_history_service import TaskHistoryService
+from gws_project.task_history.task_history_value import (
+    TaskHistoryTaskType,
+)
+from gws_project.task_history.task_history_value import (
+    format_date_range as format_history_date_range,
+)
 from gws_project.template.task_template import TaskTemplate
 from gws_project.user.user import User
+
+
+def _task_type_history_value(allow_subtasks: bool) -> str:
+    """The value a TYPE_CHANGED event stores for a task allowing subtasks or not."""
+    task_type = TaskHistoryTaskType.PARENT if allow_subtasks else TaskHistoryTaskType.LEAF
+    return task_type.value
 
 
 class TaskService:
@@ -397,8 +409,8 @@ class TaskService:
         TaskHistoryService().log(
             task,
             TaskHistoryEventType.STATUS_CHANGED,
-            self._format_status(old_status),
-            self._format_status(task.status),
+            old_status.value,
+            task.status.value,
         )
 
         # Update all ancestor tasks in the hierarchy (parent, grandparent, etc.)
@@ -449,8 +461,8 @@ class TaskService:
         TaskHistoryService().log(
             task,
             TaskHistoryEventType.PRIORITY_CHANGED,
-            self._format_priority(old_priority),
-            self._format_priority(task.priority),
+            old_priority.value,
+            task.priority.value,
         )
 
         # Update all ancestor tasks in the hierarchy (parent, grandparent, etc.)
@@ -516,8 +528,8 @@ class TaskService:
         TaskHistoryService().log(
             task,
             TaskHistoryEventType.TYPE_CHANGED,
-            "a normal task" if allow_subtasks else "a task with subtasks",
-            "a task with subtasks" if allow_subtasks else "a normal task",
+            _task_type_history_value(not allow_subtasks),
+            _task_type_history_value(allow_subtasks),
         )
 
         # Propagate changes up the ancestor chain
@@ -824,40 +836,6 @@ class TaskService:
 
         return User.get_by_id_and_check(user_id)
 
-    def _format_status(self, status: TaskStatus) -> str:
-        """Format a task status for display in a history event.
-
-        :param status: The status to format
-        :type status: TaskStatus
-        :return: The formatted status
-        :rtype: str
-        """
-        return status.value.title()
-
-    def _format_priority(self, priority: TaskPriority) -> str:
-        """Format a task priority for display in a history event.
-
-        :param priority: The priority to format
-        :type priority: TaskPriority
-        :return: The formatted priority
-        :rtype: str
-        """
-        return priority.value.title()
-
-    def _format_date_range(self, start_date: date | None, end_date: date | None) -> str:
-        """Format a start/end date pair for display in a history event.
-
-        :param start_date: The start date, if any
-        :type start_date: Optional[date]
-        :param end_date: The end date, if any
-        :type end_date: Optional[date]
-        :return: The formatted date range
-        :rtype: str
-        """
-        start_text = start_date.strftime("%b %d, %Y") if start_date else "—"
-        end_text = end_date.strftime("%b %d, %Y") if end_date else "—"
-        return f"{start_text} → {end_text}"
-
     def _format_user(self, user: User) -> str:
         """Format a user for display in a history event.
 
@@ -922,24 +900,24 @@ class TaskService:
             history_service.log(
                 task,
                 TaskHistoryEventType.DATES_CHANGED,
-                self._format_date_range(old_start_date, old_end_date),
-                self._format_date_range(task.start_date, task.end_date),
+                format_history_date_range(old_start_date, old_end_date),
+                format_history_date_range(task.start_date, task.end_date),
             )
 
         if task.status != old_status:
             history_service.log(
                 task,
                 TaskHistoryEventType.STATUS_CHANGED,
-                self._format_status(old_status),
-                self._format_status(task.status),
+                old_status.value,
+                task.status.value,
             )
 
         if task.priority != old_priority:
             history_service.log(
                 task,
                 TaskHistoryEventType.PRIORITY_CHANGED,
-                self._format_priority(old_priority),
-                self._format_priority(task.priority),
+                old_priority.value,
+                task.priority.value,
             )
 
         if task.assign_to.id != old_assign_to.id:
@@ -981,8 +959,8 @@ class TaskService:
             history_service.log(
                 task,
                 TaskHistoryEventType.STATUS_CHANGED,
-                self._format_status(old_status),
-                self._format_status(task.status),
+                old_status.value,
+                task.status.value,
                 is_automatic=True,
             )
 
@@ -990,8 +968,8 @@ class TaskService:
             history_service.log(
                 task,
                 TaskHistoryEventType.PRIORITY_CHANGED,
-                self._format_priority(old_priority),
-                self._format_priority(task.priority),
+                old_priority.value,
+                task.priority.value,
                 is_automatic=True,
             )
 
@@ -999,8 +977,8 @@ class TaskService:
             history_service.log(
                 task,
                 TaskHistoryEventType.DATES_CHANGED,
-                self._format_date_range(old_start_date, old_end_date),
-                self._format_date_range(task.start_date, task.end_date),
+                format_history_date_range(old_start_date, old_end_date),
+                format_history_date_range(task.start_date, task.end_date),
                 is_automatic=True,
             )
 

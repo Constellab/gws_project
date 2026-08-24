@@ -8,6 +8,7 @@ from gws_project.task.task_dto import CreateTaskDTO, TaskPriority, TaskStatus, U
 from gws_project.task.task_service import TaskService
 from gws_project.task_history.task_history_event_type import TaskHistoryEventType
 from gws_project.task_history.task_history_service import TaskHistoryService
+from gws_project.task_history.task_history_value import TaskHistoryTaskType
 from gws_project.user.project_user_sync_service import ProjectUserSyncService
 from gws_project.user.user import User
 
@@ -265,7 +266,7 @@ class TestTaskHistory(BaseTestCase):
         events = TaskHistoryService().get_events_of_task(task.id)
         type_event = events[-1]
         self.assertEqual(type_event.event_type, TaskHistoryEventType.TYPE_CHANGED)
-        self.assertEqual(type_event.new_value, "a task with subtasks")
+        self.assertEqual(type_event.new_value, TaskHistoryTaskType.PARENT.value)
 
     def test_move_task_logs_moved_event(self):
         """Moving a task to another project logs a MOVED event"""
@@ -354,8 +355,10 @@ class TestTaskHistory(BaseTestCase):
             if event.is_automatic and event.event_type == TaskHistoryEventType.STATUS_CHANGED
         ]
         self.assertEqual(len(automatic_status_events), 1)
-        self.assertEqual(automatic_status_events[0].old_value, "Todo")
-        self.assertEqual(automatic_status_events[0].new_value, "Doing")
+        # Values are stored language-neutral: the app turns them into a sentence in the
+        # reader's language (see the app's common/tasks/task_history_message.py).
+        self.assertEqual(automatic_status_events[0].old_value, TaskStatus.TODO.value)
+        self.assertEqual(automatic_status_events[0].new_value, TaskStatus.DOING.value)
 
         # The subtask's own event is a direct (non-automatic) action
         subtask_events = TaskHistoryService().get_events_of_task(subtask.id)

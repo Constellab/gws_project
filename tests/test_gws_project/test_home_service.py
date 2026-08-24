@@ -25,6 +25,7 @@ from gws_project.task.task_dto import (
 from gws_project.task.task_service import TaskService
 from gws_project.task_comment.task_comment_service import TaskCommentService
 from gws_project.task_history.task_history_event import TaskHistoryEvent
+from gws_project.task_history.task_history_event_type import TaskHistoryEventType
 from gws_project.user.project_user_sync_service import ProjectUserSyncService
 
 
@@ -125,9 +126,16 @@ class TestHomeService(BaseTestCase):
         self.assertEqual({item.task_id for item in summary.activity_items}, {their_task.id})
         self.assertNotIn(my_task.id, [item.task_id for item in summary.activity_items])
 
-        # Newest first.
-        self.assertEqual(summary.activity_items[0].message, "changed status from Todo to Doing")
-        self.assertEqual(summary.activity_items[-1].message, "created the task")
+        # Newest first. The feed carries what changed, not a sentence: the app builds it
+        # in the reader's language (see the app's common/tasks/task_history_message.py).
+        self.assertEqual(
+            summary.activity_items[0].event_type, TaskHistoryEventType.STATUS_CHANGED
+        )
+        self.assertEqual(summary.activity_items[0].old_value, TaskStatus.TODO.value)
+        self.assertEqual(summary.activity_items[0].new_value, TaskStatus.DOING.value)
+        self.assertEqual(
+            summary.activity_items[-1].event_type, TaskHistoryEventType.CREATED
+        )
 
         # Each line carries its task and project, so the feed needs no second lookup.
         item = summary.activity_items[0]
@@ -137,8 +145,8 @@ class TestHomeService(BaseTestCase):
         self.assertEqual(item.kind, "event")
         self.assertFalse(summary.activity_truncated)
 
-    def test_feed_message_names_the_task_instead_of_saying_this_task(self):
-        """The feed wording differs from the task timeline's, which says "this task"."""
+    def test_feed_carries_the_values_of_the_change(self):
+        """A feed line hands the app what changed, for it to word the sentence."""
         me = self._create_user("homewordingme@test.com")
         colleague = self._create_user("homewordingcolleague@test.com")
 
@@ -165,10 +173,15 @@ class TestHomeService(BaseTestCase):
         with self._authenticate_as(me):
             summary = HomeService().get_home_summary()
 
-        messages = [item.message for item in summary.activity_items]
-        self.assertIn('renamed the task from "Renamed task" to "New title"', messages)
-        for message in messages:
-            self.assertNotIn("this task", message)
+        renamed = next(
+            item
+            for item in summary.activity_items
+            if item.event_type == TaskHistoryEventType.TITLE_CHANGED
+        )
+        self.assertEqual(renamed.old_value, "Renamed task")
+        self.assertEqual(renamed.new_value, "New title")
+        # A title is free text: it is stored as the user wrote it, nothing to translate.
+        self.assertEqual(renamed.kind, "event")
 
     def test_automatic_events_are_excluded(self):
         """A parent recalculated from its subtasks is the system talking, not a colleague."""
@@ -205,7 +218,7 @@ class TestHomeService(BaseTestCase):
         self.assertGreater(automatic_events.count(), 0, "the cascade must have written one")
 
         for item in summary.activity_items:
-            self.assertNotIn("automatically updated from subtasks", item.message)
+            self.assertFalse(item.is_automatic)
 
     def test_comments_appear_with_an_excerpt(self):
         """A comment is a feed line too, cut down to one line of plain text."""
@@ -230,7 +243,7 @@ class TestHomeService(BaseTestCase):
         comments = [item for item in summary.activity_items if item.kind == "comment"]
         self.assertEqual(len(comments), 1)
         self.assertEqual(
-            comments[0].message, "commented: The assay came back clean, moving on."
+            comments[0].comment_excerpt, "The assay came back clean, moving on."
         )
         self.assertEqual(comments[0].actor.id, colleague.id)
         self.assertEqual(comments[0].task_title, "Commented task")
@@ -255,9 +268,9 @@ class TestHomeService(BaseTestCase):
         with self._authenticate_as(me):
             summary = HomeService().get_home_summary()
 
-        message = summary.activity_items[0].message
-        self.assertTrue(message.endswith("…"))
-        self.assertLess(len(message), 200)
+        excerpt = summary.activity_items[0].comment_excerpt
+        self.assertTrue(excerpt.endswith("…"))
+        self.assertLess(len(excerpt), 200)
 
     def test_activity_outside_my_projects_is_invisible(self):
         """The feed can never widen anyone's reach: membership bounds it."""

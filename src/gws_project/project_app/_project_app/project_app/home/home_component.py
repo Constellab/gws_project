@@ -136,7 +136,8 @@ def _activity_row(row: HomeActivityRowDTO) -> rx.Component:
     """One line of the feed: who did what, on which task, at what time.
 
     The task is named on its own line, which is why the message says "the task" rather than
-    the task timeline's "this task" (see `TaskHistoryEvent.build_message`).
+    the task timeline's "this task" (see HistorySubject in
+    common/tasks/task_history_message.py).
     """
     return rx.hstack(
         rx.box(

@@ -8,6 +8,8 @@ from gws_reflex_main import I18nState, ReflexMainState
 
 from ..common.date_format import format_time, format_weekday_date
 from ..common.project_app_router import ProjectAppRouter
+from ..common.tasks.task_history_message import HistorySubject, build_history_message
+from . import home_translations  # noqa: F401  (side effect: registers translations)
 
 
 class HomeActivityRowDTO(BaseModelDTO):
@@ -153,22 +155,48 @@ class HomeState(rx.State):
                         day_label=self._format_day_label(day, today, i18n), rows=[]
                     )
                 )
-            groups[-1].rows.append(self._to_row(item))
+            groups[-1].rows.append(self._to_row(item, i18n))
 
         return groups
 
-    @staticmethod
-    def _to_row(item: HomeActivityItemDTO) -> HomeActivityRowDTO:
+    @classmethod
+    def _to_row(cls, item: HomeActivityItemDTO, i18n: I18nState) -> HomeActivityRowDTO:
         return HomeActivityRowDTO(
             id=item.id,
             icon=item.icon,
             actor=item.actor,
-            message=item.message,
+            message=cls._build_message(item, i18n),
             task_id=item.task_id,
             task_title=item.task_title,
             project_title=item.project_title,
             time_text=format_time(item.created_at),
         )
+
+    @staticmethod
+    def _build_message(item: HomeActivityItemDTO, i18n: I18nState) -> str:
+        """What the line says, in the reader's language.
+
+        A task change goes through the same builder as the task's own Activity tab, with
+        the feed wording, so a line reads "created the task" under the task's own name
+        rather than the timeline's "created this task". A comment shows its excerpt, or
+        just says that someone commented when it has no text.
+        """
+        if item.kind == "event" and item.event_type is not None:
+            return build_history_message(
+                event_type=item.event_type,
+                old_value=item.old_value,
+                new_value=item.new_value,
+                is_automatic=item.is_automatic,
+                subject=HistorySubject.FEED,
+                i18n=i18n,
+            )
+
+        if item.comment_excerpt:
+            return i18n.tr(
+                "home.activity.commented_with", {"excerpt": item.comment_excerpt}
+            )
+
+        return i18n.tr("home.activity.commented")
 
     @staticmethod
     def _format_day_label(day: date, today: date, i18n: I18nState) -> str:

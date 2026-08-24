@@ -36,6 +36,8 @@ register_translations(
             "home.activity.truncated": "Showing the {{count}} most recent only.",
             "home.activity.today": "Today",
             "home.activity.yesterday": "Yesterday",
+            "home.activity.commented": "commented",
+            "home.activity.commented_with": "commented: {{excerpt}}",
             "home.activity.empty.title": "Nothing new from your colleagues",
             "home.activity.empty.description": (
                 "Changes and comments made by the other members of your projects show up "
@@ -72,6 +74,8 @@ register_translations(
             "home.activity.truncated": "Seules les {{count}} plus récentes sont affichées.",
             "home.activity.today": "Aujourd'hui",
             "home.activity.yesterday": "Hier",
+            "home.activity.commented": "a commenté",
+            "home.activity.commented_with": "a commenté : {{excerpt}}",
             "home.activity.empty.title": "Rien de nouveau chez vos collègues",
             "home.activity.empty.description": (
                 "Les modifications et commentaires des autres membres de vos projets "

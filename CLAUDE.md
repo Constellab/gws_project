@@ -59,8 +59,12 @@ layer, in the language of the session:
 - Dates: the `*_text` fields of `ProjectDTO`/`TaskDTO`/`ProjectTemplateDTO` carry an ISO
   fallback; the app rewrites them through `common/date_format.py`. Do not add English
   `strftime` output to a DTO.
-- The one exception is the task history: its stored `message`/`old_value`/`new_value` are
-  written in English at the time of the event, on purpose, since they are persisted rows.
+- Task history: a row stores *what* changed (`event_type`) and the values it changed
+  between, encoded language-neutral by `task_history/task_history_value.py` (an enum
+  value, an ISO date range; free text such as a title or a person's name is stored as
+  is). The sentence is built at display time by the app's
+  `common/tasks/task_history_message.py`, shared by the Activity tab and the Home feed.
+  Never store a sentence, or an English label, in a history row.
 
 ## Development best practices
 - Follow the existing code style and conventions used in the project.

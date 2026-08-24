@@ -2,6 +2,8 @@ from datetime import datetime
 
 from gws_core import BaseModelDTO, UserDTO
 
+from gws_project.task_history.task_history_event_type import TaskHistoryEventType
+
 
 class HomeActivityItemDTO(BaseModelDTO):
     """One line of the Home activity feed: something a colleague did recently.
@@ -18,10 +20,16 @@ class HomeActivityItemDTO(BaseModelDTO):
     kind: str  # "event" or "comment"
     actor: UserDTO
     created_at: datetime
-    # Pre-formatted and task-agnostic, e.g. "changed status from To do to Doing". Built by
-    # `TaskHistoryEvent.build_message(FEED_TASK_SUBJECT)` for an event, so the feed and the
-    # task's own Activity tab never drift apart in wording.
-    message: str
+    # What the line says is not built here: for an event the app turns these ingredients
+    # into a sentence in the reader's language, with the same builder the task's own
+    # Activity tab uses, so the two never drift apart in wording.
+    event_type: TaskHistoryEventType | None = None  # kind == "event" only
+    old_value: str | None = None
+    new_value: str | None = None
+    is_automatic: bool = False
+    # kind == "comment" only: the comment cut down to one line, or None when it has no
+    # text at all (the app then says just that someone commented).
+    comment_excerpt: str | None = None
     icon: str
     task_id: str
     task_title: str

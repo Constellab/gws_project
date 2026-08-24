@@ -13,6 +13,7 @@ from ..common.projects.project_page_state import ProjectPageState
 from ..common.tasks import (
     task_actions_translations,  # noqa: F401  (side effect: registers translations)
 )
+from ..common.tasks.task_history_message import HistorySubject, build_history_message
 from .activity_item_dto import ActivityItemDTO
 
 
@@ -114,7 +115,8 @@ class TaskActivityState(rx.State):
         :return: List of activity items
         :rtype: List[ActivityItemDTO]
         """
-        lang = (await self.get_state(I18nState)).lang
+        i18n = await self.get_state(I18nState)
+        lang = i18n.lang
 
         items = [
             ActivityItemDTO(
@@ -123,7 +125,14 @@ class TaskActivityState(rx.State):
                 sort_key=event.created_at,
                 actor=event.actor,
                 created_at_text=format_datetime(event.created_at, lang),
-                message=event.message,
+                message=build_history_message(
+                    event_type=event.event_type,
+                    old_value=event.old_value,
+                    new_value=event.new_value,
+                    is_automatic=event.is_automatic,
+                    subject=HistorySubject.TIMELINE,
+                    i18n=i18n,
+                ),
                 icon=event.icon,
                 is_automatic=event.is_automatic,
             )

@@ -120,6 +120,11 @@ format_datetime(value, lang)      # + " 14:32"  (also format_timestamp)
 format_weekday_date(day, lang)    # "Thursday 21 August" / "jeudi 21 août"
 ```
 
+History lines follow the same principle one step further: the backend hands over
+`event_type` plus language-neutral values, and `common/tasks/task_history_message.py`
+builds the sentence (`HistorySubject.TIMELINE` on a task's Activity tab,
+`HistorySubject.FEED` on Home, which names the task on its own line).
+
 A model's `to_dto()` fills `*_text` with an ISO fallback because it knows nothing about the
 session: every state that sends a Project/Task/ProjectTemplate DTO to the frontend passes it
 through the matching `localize_*_dto`. Never call `strftime` with an English format for
