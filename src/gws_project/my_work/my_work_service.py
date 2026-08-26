@@ -94,21 +94,6 @@ class MyWorkService:
 
         return self.get_my_work(day)
 
-    def complete_task(self, task_id: str) -> None:
-        """Mark one of the signed-in user's tasks as done.
-
-        Delegates to `TaskService.update_status`, which already carries the project role
-        check, the history event and the parent recalculation - the history must never be
-        written from here.
-        """
-        user = self._get_current_user()
-        task = TaskService().get_task(task_id)
-
-        if task.assign_to.id != user.id:
-            raise BadRequestException("Only the assignee of a task can complete it from My work.")
-
-        TaskService().update_status(task_id, TaskStatus.DONE)
-
     def add_to_my_day(self, task_id: str, day: date | None = None) -> MyDaySlotDTO:
         """Ask the Planning for a slot on `day`, at the first free time range.
 

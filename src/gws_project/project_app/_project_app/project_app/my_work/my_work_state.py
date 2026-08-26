@@ -11,7 +11,6 @@ from ..common.date_format import (
     format_day_month,
     format_short_weekday_time,
     format_time,
-    format_weekday_date,
 )
 from ..common.my_day_list.my_day_list import MyDayItemDTO
 from ..common.project_app_router import ProjectAppRouter
@@ -98,17 +97,6 @@ class MyWorkState(rx.State):
         self._apply(my_work, i18n)
 
     @rx.event
-    async def handle_complete(self, task_id: str):
-        """Tick a task off from "The rest": straight to done."""
-        main_state = await self.get_state(ReflexMainState)
-
-        with await main_state.authenticate_user():
-            MyWorkService().complete_task(task_id)
-
-        await self._reload()
-        yield await toast_tr.success(self, "my_work.toast.completed")
-
-    @rx.event
     async def handle_add_to_my_day(self, task_id: str):
         """Ask the Planning for a slot at the first free time range of the working day."""
         if not self.can_add_to_day:
@@ -143,7 +131,9 @@ class MyWorkState(rx.State):
 
     def _apply(self, my_work: MyWorkDTO, i18n: I18nState) -> None:
         """Turn the service's DTO into the page's pre-formatted vars."""
-        self.day_label = format_weekday_date(my_work.day, i18n.lang, with_year=True)
+        # The page always reads today (the state never passes a day to the service), so the
+        # heading names it as such rather than spelling out the date.
+        self.day_label = i18n.tr("my_work.day.today")
         self.planned_label = self._format_planned(my_work.planned_minutes, i18n)
         self.over_capacity_note = (
             i18n.tr(

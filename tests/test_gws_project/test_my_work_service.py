@@ -20,8 +20,6 @@ from gws_project.project.project_service import ProjectService
 from gws_project.task.task import Task
 from gws_project.task.task_dto import CreateTaskDTO, TaskPriority, TaskStatus
 from gws_project.task.task_service import TaskService
-from gws_project.task_history.task_history_event_type import TaskHistoryEventType
-from gws_project.task_history.task_history_service import TaskHistoryService
 from gws_project.user.project_user_sync_service import ProjectUserSyncService
 
 
@@ -469,42 +467,6 @@ class TestMyWorkService(BaseTestCase):
             day_slots = MyWorkService().get_my_work(self.TEST_DAY).day_slots
 
         self.assertEqual([slot.task_id for slot in day_slots], [blocker.id])
-
-    def test_complete_task_marks_it_done_and_journals_the_change(self):
-        """Ticking a task off delegates to TaskService, which writes the history event."""
-        user = self._create_user("myworkcomplete@test.com")
-
-        with self._authenticate_as(user):
-            project = self._create_project("Complete Project")
-            task = self._create_task(project, "To complete", user.id)
-
-            MyWorkService().complete_task(task.id)
-
-            reloaded = Task.get_by_id_and_check(task.id)
-            event_types = [
-                event.event_type
-                for event in TaskHistoryService().get_events_of_task(task.id)
-            ]
-            rest_ids = [t.task_id for t in MyWorkService().get_my_work(self.TEST_DAY).rest_tasks]
-
-        self.assertEqual(reloaded.status, TaskStatus.DONE)
-        self.assertIn(TaskHistoryEventType.STATUS_CHANGED, event_types)
-        self.assertNotIn(task.id, rest_ids)
-
-    def test_complete_task_refuses_someone_elses_task(self):
-        """My work only ever acts on my own commitments."""
-        owner = self._create_user("myworkcompleteowner@test.com")
-        other = self._create_user("myworkcompleteother@test.com")
-
-        with self._authenticate_as(owner):
-            project = self._create_project("Complete Refuse Project")
-            ProjectService(TestMockSpaceService()).add_user_to_project(
-                project.id, other.id, ProjectUserRole.USER
-            )
-            task = self._create_task(project, "Owner's task", owner.id)
-
-        with self._authenticate_as(other), self.assertRaises(BadRequestException):
-            MyWorkService().complete_task(task.id)
 
     def test_the_view_is_strictly_personal(self):
         """A project member - whatever their role - never sees another member's work here."""

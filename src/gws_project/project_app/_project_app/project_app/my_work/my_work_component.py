@@ -69,23 +69,8 @@ def _my_day_section() -> rx.Component:
 
 
 def _rest_row(item: MyRestItemDTO) -> rx.Component:
-    """One task of "The rest": tick it off, schedule it, or open it."""
+    """One task of "The rest": schedule it, or open it."""
     return rx.hstack(
-        rx.tooltip(
-            rx.checkbox(
-                # Ticking a task here sends it straight to Done, as the screen offers no
-                # other status change.
-                #
-                # Pinned to False so the box is controlled rather than keeping its own
-                # state: rx.foreach reconciles rows by position and emits no React key, so
-                # an uncontrolled box would stay ticked and hand its tick to whichever task
-                # slides up into the row that just completed.
-                checked=False,
-                on_change=lambda _: MyWorkState.handle_complete(item.task_id),
-                size="2",
-            ),
-            content=translate("my_work.rest.complete"),
-        ),
         rx.vstack(
             rx.cond(
                 item.parent_task_title != "",
