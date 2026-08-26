@@ -14,26 +14,24 @@ from .project_app_router import ProjectAppRouter
 from .sidebar_footer_component import sidebar_footer_component
 
 
-def _sub_menu_items(*items: rx.Component) -> rx.Component:
-    """Group menu items as an indented sub-list under their parent entry.
+def _menu_separator() -> rx.Component:
+    """A rule between two groups of menu entries.
 
-    :param items: The menu item components to nest (use menu_item_component)
-    :type items: rx.Component
-    :return: The indented sub-menu component
+    The navigation is grouped rather than nested: every entry sits at the same level and
+    the rules are what mark where one group ends, so no entry reads as subordinate to
+    another.
+
+    :return: The separator component
     :rtype: rx.Component
     """
-    return rx.vstack(
-        *items,
-        width="100%",
-        spacing="1",
-        align_items="start",
-        padding_left="1.25rem",
-    )
+    # width is explicit: the menu list aligns its items to the start, which would
+    # otherwise shrink the rule to its content width (nothing) and make it invisible.
+    return rx.divider(width="100%", margin_y="0.25rem")
 
 
 def sidebar_content() -> rx.Component:
-    """Create the sidebar content with logo, navigation links, and a bottom
-    footer showing the current user and a link to the Settings page.
+    """Create the sidebar content with logo, navigation links grouped by separator
+    rules, and a bottom footer showing the current user and a link to the Settings page.
 
     :return: The sidebar content component
     :rtype: rx.Component
@@ -45,6 +43,7 @@ def sidebar_content() -> rx.Component:
             menu_item_component(
                 "house", translate("sidebar.home"), ProjectAppRouter.get_home_url()
             ),
+            _menu_separator(),
             menu_item_component(
                 "folder",
                 translate("sidebar.projects"),
@@ -52,12 +51,12 @@ def sidebar_content() -> rx.Component:
                 # Also covers /project/<id> and /project/task/<id>
                 additional_active_route_prefixes=["/project"],
             ),
-            _sub_menu_items(
-                menu_item_component("kanban", translate("sidebar.kanban"), "/kanban"),
-                menu_item_component("calendar-days", translate("sidebar.planning"), "/planning"),
-                menu_item_component("gantt_chart", translate("sidebar.gantt"), "/gantt"),
-            ),
+            menu_item_component("kanban", translate("sidebar.kanban"), "/kanban"),
+            menu_item_component("calendar-days", translate("sidebar.planning"), "/planning"),
+            menu_item_component("gantt_chart", translate("sidebar.gantt"), "/gantt"),
+            _menu_separator(),
             menu_item_component("list-checks", translate("sidebar.my_work"), "/my-work"),
+            _menu_separator(),
             menu_item_component(
                 "building-2",
                 translate("sidebar.companies"),
