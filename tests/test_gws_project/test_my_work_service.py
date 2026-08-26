@@ -66,7 +66,7 @@ class TestMyWorkService(BaseTestCase):
             SaveProjectDTO(
                 name=name,
                 start_date=datetime(2020, 1, 1),
-                end_date=datetime(2030, 12, 31),
+                due_date=datetime(2030, 12, 31),
             )
         )
 
@@ -75,7 +75,7 @@ class TestMyWorkService(BaseTestCase):
         project: Project,
         title: str,
         assign_to_id: str,
-        end_date: date | None = None,
+        due_date: date | None = None,
         priority: TaskPriority = TaskPriority.MEDIUM,
         status: TaskStatus = TaskStatus.TODO,
         allow_subtasks: bool = False,
@@ -85,7 +85,7 @@ class TestMyWorkService(BaseTestCase):
             CreateTaskDTO(
                 title=title,
                 start_date=None,
-                end_date=end_date,
+                due_date=due_date,
                 status=status,
                 priority=priority,
                 allow_subtasks=allow_subtasks,
@@ -98,14 +98,14 @@ class TestMyWorkService(BaseTestCase):
         parent_task: Task,
         title: str,
         assign_to_id: str,
-        end_date: date | None = None,
+        due_date: date | None = None,
     ) -> Task:
         return TaskService().create_sub_task(
             parent_task.id,
             CreateTaskDTO(
                 title=title,
                 start_date=None,
-                end_date=end_date,
+                due_date=due_date,
                 assign_to_id=assign_to_id,
             ),
         )
@@ -225,23 +225,23 @@ class TestMyWorkService(BaseTestCase):
             project = self._create_project("Sort Project")
             undated = self._create_task(project, "Undated", user.id)
             overdue = self._create_task(
-                project, "Overdue", user.id, end_date=self.TEST_DAY - timedelta(days=3)
+                project, "Overdue", user.id, due_date=self.TEST_DAY - timedelta(days=3)
             )
             due_later = self._create_task(
-                project, "Due later", user.id, end_date=self.TEST_DAY + timedelta(days=10)
+                project, "Due later", user.id, due_date=self.TEST_DAY + timedelta(days=10)
             )
             due_soon_low = self._create_task(
                 project,
                 "Due soon low",
                 user.id,
-                end_date=self.TEST_DAY + timedelta(days=2),
+                due_date=self.TEST_DAY + timedelta(days=2),
                 priority=TaskPriority.LOW,
             )
             due_soon_high = self._create_task(
                 project,
                 "Due soon high",
                 user.id,
-                end_date=self.TEST_DAY + timedelta(days=2),
+                due_date=self.TEST_DAY + timedelta(days=2),
                 priority=TaskPriority.HIGH,
             )
 
@@ -284,7 +284,7 @@ class TestMyWorkService(BaseTestCase):
         with self._authenticate_as(user):
             project = self._create_project("After Due Project")
             task = self._create_task(
-                project, "Late task", user.id, end_date=self.TEST_DAY - timedelta(days=1)
+                project, "Late task", user.id, due_date=self.TEST_DAY - timedelta(days=1)
             )
             self._create_slot(
                 task, user.id, datetime.combine(self.TEST_DAY, datetime.min.time()).replace(hour=9)

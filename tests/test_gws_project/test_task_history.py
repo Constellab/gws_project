@@ -43,7 +43,7 @@ class TestTaskHistory(BaseTestCase):
         project_dto = SaveProjectDTO(
             name="Test Project",
             start_date=datetime(2025, 1, 1),
-            end_date=datetime(2025, 12, 31),
+            due_date=datetime(2025, 12, 31),
         )
         return project_service.create_project(project_dto)
 
@@ -72,7 +72,7 @@ class TestTaskHistory(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Root Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             assign_to_id=current_user.id,
         )
         task = task_service.create_root_task(project.id, task_dto)
@@ -94,7 +94,7 @@ class TestTaskHistory(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Original Title",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             status=TaskStatus.TODO,
             priority=TaskPriority.MEDIUM,
             assign_to_id=current_user.id,
@@ -105,7 +105,7 @@ class TestTaskHistory(BaseTestCase):
         update_dto = UpdateTaskDTO(
             title="Updated Title",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             status=TaskStatus.TODO,
             priority=TaskPriority.MEDIUM,
         )
@@ -131,7 +131,7 @@ class TestTaskHistory(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             status=TaskStatus.TODO,
             priority=TaskPriority.MEDIUM,
             assign_to_id=current_user.id,
@@ -141,7 +141,7 @@ class TestTaskHistory(BaseTestCase):
         update_dto = UpdateTaskDTO(
             title="Task",
             start_date=date(2025, 2, 5),
-            end_date=date(2025, 2, 25),
+            due_date=date(2025, 2, 25),
             status=TaskStatus.DOING,
             priority=TaskPriority.HIGH,
         )
@@ -171,7 +171,7 @@ class TestTaskHistory(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             assign_to_id=current_user.id,
         )
         task = task_service.create_root_task(project.id, task_dto)
@@ -195,7 +195,7 @@ class TestTaskHistory(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             status=TaskStatus.TODO,
             allow_subtasks=False,
             assign_to_id=current_user.id,
@@ -226,7 +226,7 @@ class TestTaskHistory(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             priority=TaskPriority.MEDIUM,
             assign_to_id=current_user.id,
         )
@@ -255,7 +255,7 @@ class TestTaskHistory(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             allow_subtasks=False,
             assign_to_id=current_user.id,
         )
@@ -280,7 +280,7 @@ class TestTaskHistory(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             assign_to_id=current_user.id,
         )
         task = task_service.create_root_task(source_project.id, task_dto)
@@ -304,7 +304,7 @@ class TestTaskHistory(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             assign_to_id=current_user.id,
         )
         task = task_service.create_root_task(project.id, task_dto)
@@ -328,7 +328,7 @@ class TestTaskHistory(BaseTestCase):
         parent_dto = CreateTaskDTO(
             title="Parent",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
             assign_to_id=current_user.id,
@@ -338,7 +338,7 @@ class TestTaskHistory(BaseTestCase):
         subtask_dto = CreateTaskDTO(
             title="Subtask",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 15),
+            due_date=date(2025, 3, 15),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )

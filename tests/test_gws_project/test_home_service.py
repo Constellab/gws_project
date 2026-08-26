@@ -68,7 +68,7 @@ class TestHomeService(BaseTestCase):
             SaveProjectDTO(
                 name=name,
                 start_date=datetime(2020, 1, 1),
-                end_date=datetime(2030, 12, 31),
+                due_date=datetime(2030, 12, 31),
             )
         )
 
@@ -77,7 +77,7 @@ class TestHomeService(BaseTestCase):
         project: Project,
         title: str,
         assign_to_id: str,
-        end_date: date | None = None,
+        due_date: date | None = None,
         allow_subtasks: bool = False,
     ) -> Task:
         return TaskService().create_root_task(
@@ -85,7 +85,7 @@ class TestHomeService(BaseTestCase):
             CreateTaskDTO(
                 title=title,
                 start_date=None,
-                end_date=end_date,
+                due_date=due_date,
                 assign_to_id=assign_to_id,
                 allow_subtasks=allow_subtasks,
             ),
@@ -164,7 +164,7 @@ class TestHomeService(BaseTestCase):
                 UpdateTaskDTO(
                     title="New title",
                     start_date=None,
-                    end_date=None,
+                    due_date=None,
                     status=TaskStatus.TODO,
                     priority=TaskPriority.MEDIUM,
                 ),
@@ -201,7 +201,7 @@ class TestHomeService(BaseTestCase):
                 CreateTaskDTO(
                     title="Subtask",
                     start_date=None,
-                    end_date=None,
+                    due_date=None,
                     assign_to_id=colleague.id,
                 ),
             )
@@ -460,7 +460,7 @@ class TestHomeService(BaseTestCase):
             project = self._create_project("Quick Access Project")
             scheduled = self._create_task(project, "Scheduled today", me.id)
             self._create_task(project, "Waiting", me.id)
-            self._create_task(project, "Late", me.id, end_date=today - timedelta(days=3))
+            self._create_task(project, "Late", me.id, due_date=today - timedelta(days=3))
 
             PlanningSlotService().create_slot(
                 CreatePlanningSlotDTO(

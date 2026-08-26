@@ -423,7 +423,7 @@ export default function ConstellabRedesign() {
                                 <DetailRow label="Progress"><ProgressRing progress={selectedTask.progress} size={44} /></DetailRow>
                                 <div style={{ height: 1, background: P[90] }} />
                                 <DetailRow label="Start date"><span style={{ fontSize: 13, fontWeight: 600, color: P[10] }}>{selectedTask.dates[0]}</span></DetailRow>
-                                <DetailRow label="End date"><span style={{ fontSize: 13, fontWeight: 600, color: P[10] }}>{selectedTask.dates[1]}</span></DetailRow>
+                                <DetailRow label="Due date"><span style={{ fontSize: 13, fontWeight: 600, color: P[10] }}>{selectedTask.dates[1]}</span></DetailRow>
                                 <div style={{ height: 1, background: P[90] }} />
                                 <DetailRow label="Created by"><Avatar initials={selectedTask.createdBy.initials} color={selectedTask.createdBy.color} size={26} /><span style={{ fontSize: 13, fontWeight: 600, color: P[10] }}>{selectedTask.createdBy.name}</span></DetailRow>
                                 <DetailRow label="Created at"><span style={{ fontSize: 13, fontWeight: 600, color: P[10] }}>{selectedTask.createdAt}</span></DetailRow>

@@ -55,7 +55,7 @@ class TestPlanningSlotService(BaseTestCase):
         project_dto = SaveProjectDTO(
             name="Test Project",
             start_date=datetime(2025, 1, 1),
-            end_date=datetime(2025, 12, 31),
+            due_date=datetime(2025, 12, 31),
         )
         return project_service.create_project(project_dto)
 
@@ -64,7 +64,7 @@ class TestPlanningSlotService(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Test Task",
             start_date=None,
-            end_date=None,
+            due_date=None,
             assign_to_id=assign_to_id or current_user.id,
         )
         return TaskService().create_root_task(project.id, task_dto)
@@ -180,7 +180,7 @@ class TestPlanningSlotService(BaseTestCase):
         project_dto = SaveProjectDTO(
             name="Company Project",
             start_date=datetime(2025, 1, 1),
-            end_date=datetime(2025, 12, 31),
+            due_date=datetime(2025, 12, 31),
             company_id=company.id,
         )
         project_with_company = project_service.create_project(project_dto)

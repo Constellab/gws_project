@@ -151,7 +151,7 @@ class GanttPageState(rx.State):
         """
         if self.show_completed:
             return self.projects_with_tasks
-        # Match on id: projects missing a start or end date are absent from the payload
+        # Match on id: projects missing a start or due date are absent from the payload
         # entirely, so the two lists are not positionally aligned.
         done_ids = {
             project.id for project in self.gantt_data.projects if project.status == GanttStatus.DONE

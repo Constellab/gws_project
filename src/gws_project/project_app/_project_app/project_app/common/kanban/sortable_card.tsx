@@ -142,7 +142,7 @@ export const SortableCard = React.memo(function SortableCard({ id, card, onCardC
             </p>
           )}
           {/* Footer with separator */}
-          {(card.assignee || card.start_date || card.end_date) && (
+          {(card.assignee || card.start_date || card.due_date) && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -151,15 +151,15 @@ export const SortableCard = React.memo(function SortableCard({ id, card, onCardC
               paddingTop: '10px',
               borderTop: '1px solid var(--gray-4)',
             }}>
-              {(card.start_date || card.end_date) ? (
+              {(card.start_date || card.due_date) ? (
                 <span style={{
                   fontSize: '11px',
                   color: 'var(--gray-9)',
                   fontWeight: 500,
                 }}>
                   {card.start_date && formatDate(card.start_date)}
-                  {card.start_date && card.end_date && ' → '}
-                  {card.end_date && formatDate(card.end_date)}
+                  {card.start_date && card.due_date && ' → '}
+                  {card.due_date && formatDate(card.due_date)}
                 </span>
               ) : <span />}
               {card.assignee && (

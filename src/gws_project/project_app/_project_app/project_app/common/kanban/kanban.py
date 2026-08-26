@@ -41,7 +41,7 @@ class CardDTO(BaseModelDTO):
         is_leaf: Whether the task is a leaf task (no children)
         project_name: Optional project name
         start_date: Optional start date (ISO format string)
-        end_date: Optional end date (ISO format string)
+        due_date: Optional due date (ISO format string)
     """
     id: str
     title: str
@@ -53,7 +53,7 @@ class CardDTO(BaseModelDTO):
     is_leaf: bool = True
     project_name: str | None = None
     start_date: str | None = None
-    end_date: str | None = None
+    due_date: str | None = None
 
 
 class ColumnDTO(BaseModelDTO):

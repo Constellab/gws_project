@@ -312,7 +312,7 @@ class KanbanState(rx.State):
             is_leaf=not task.allow_subtasks,
             project_name=project_name,
             start_date=task.start_date.isoformat() if task.start_date else None,
-            end_date=task.end_date.isoformat() if task.end_date else None,
+            due_date=task.due_date.isoformat() if task.due_date else None,
         )
 
     @rx.event(background=True)  # type: ignore

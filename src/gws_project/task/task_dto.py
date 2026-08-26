@@ -22,7 +22,7 @@ class TaskPriority(Enum):
 class CreateTaskDTO(BaseModelDTO):
     title: str
     start_date: date | None
-    end_date: date | None
+    due_date: date | None
     status: TaskStatus | None = TaskStatus.TODO
     priority: TaskPriority | None = TaskPriority.MEDIUM
     allow_subtasks: bool = False
@@ -37,7 +37,7 @@ class CreateSubTaskDTO(BaseModelDTO):
 class UpdateTaskDTO(BaseModelDTO):
     title: str
     start_date: date | None
-    end_date: date | None
+    due_date: date | None
     status: TaskStatus | None
     priority: TaskPriority | None
     assign_to_id: str | None = None
@@ -48,11 +48,11 @@ class TaskDTO(ModelDTO):
     title: str
     description: RichTextDTO | None
     start_date: date | None
-    end_date: date | None
+    due_date: date | None
     # Pre-formatted server-side so the frontend never parses/reformats these dates
     # itself. Empty string when the corresponding date is None.
     start_date_text: str
-    end_date_text: str
+    due_date_text: str
     status: TaskStatus
     priority: TaskPriority
     allow_subtasks: bool

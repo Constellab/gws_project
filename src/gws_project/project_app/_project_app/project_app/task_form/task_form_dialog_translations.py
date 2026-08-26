@@ -27,7 +27,7 @@ register_translations(
             "task_form.task_type.single": "📋 Single task",
             "task_form.task_type.with_subtasks": "📁 Task with subtasks",
             "task_form.start_date.label": "Start Date",
-            "task_form.end_date.label": "End Date",
+            "task_form.due_date.label": "Due Date",
             "task_form.status.label": "Status*",
             "task_form.priority.label": "Priority*",
             "task_form.auto_calc_message": (
@@ -63,7 +63,7 @@ register_translations(
             "task_form.task_type.single": "📋 Tâche simple",
             "task_form.task_type.with_subtasks": "📁 Tâche avec sous-tâches",
             "task_form.start_date.label": "Date de début",
-            "task_form.end_date.label": "Date de fin",
+            "task_form.due_date.label": "Date d'échéance",
             "task_form.status.label": "Statut*",
             "task_form.priority.label": "Priorité*",
             "task_form.auto_calc_message": (

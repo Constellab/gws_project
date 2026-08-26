@@ -45,7 +45,7 @@ class TestProjectCount(BaseTestCase):
             SaveProjectDTO(
                 name="Draft Project",
                 start_date=datetime(2099, 1, 1),
-                end_date=datetime(2099, 12, 31),
+                due_date=datetime(2099, 12, 31),
             )
         )
 
@@ -60,7 +60,7 @@ class TestProjectCount(BaseTestCase):
             SaveProjectDTO(
                 name="Active Project",
                 start_date=datetime(2020, 1, 1),
-                end_date=datetime(2099, 12, 31),
+                due_date=datetime(2099, 12, 31),
             )
         )
 
@@ -75,7 +75,7 @@ class TestProjectCount(BaseTestCase):
             SaveProjectDTO(
                 name="Completed Project",
                 start_date=datetime(2020, 1, 1),
-                end_date=datetime(2020, 12, 31),
+                due_date=datetime(2020, 12, 31),
             )
         )
         # Set progress to 100 to mark as completed
@@ -99,7 +99,7 @@ class TestProjectCount(BaseTestCase):
             SaveProjectDTO(
                 name="Count Test Project",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
             )
         )
 
@@ -115,7 +115,7 @@ class TestProjectCount(BaseTestCase):
             CreateTaskDTO(
                 title="Root Task 1",
                 start_date=date(2025, 1, 1),
-                end_date=date(2025, 6, 30),
+                due_date=date(2025, 6, 30),
                 allow_subtasks=True,
             ),
         )
@@ -124,7 +124,7 @@ class TestProjectCount(BaseTestCase):
             CreateTaskDTO(
                 title="Root Task 2",
                 start_date=date(2025, 7, 1),
-                end_date=date(2025, 12, 31),
+                due_date=date(2025, 12, 31),
             ),
         )
 
@@ -138,7 +138,7 @@ class TestProjectCount(BaseTestCase):
             CreateTaskDTO(
                 title="Subtask 1.1",
                 start_date=date(2025, 1, 1),
-                end_date=date(2025, 3, 31),
+                due_date=date(2025, 3, 31),
             ),
         )
 
@@ -156,7 +156,7 @@ class TestProjectCount(BaseTestCase):
             SaveProjectDTO(
                 name="Task Count Test Project",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
             )
         )
 
@@ -166,7 +166,7 @@ class TestProjectCount(BaseTestCase):
             CreateTaskDTO(
                 title="Parent Task",
                 start_date=date(2025, 1, 1),
-                end_date=date(2025, 12, 31),
+                due_date=date(2025, 12, 31),
                 allow_subtasks=True,
             ),
         )
@@ -183,7 +183,7 @@ class TestProjectCount(BaseTestCase):
             CreateTaskDTO(
                 title="Subtask 1",
                 start_date=date(2025, 1, 1),
-                end_date=date(2025, 6, 30),
+                due_date=date(2025, 6, 30),
                 allow_subtasks=True,
             ),
         )
@@ -192,7 +192,7 @@ class TestProjectCount(BaseTestCase):
             CreateTaskDTO(
                 title="Subtask 2",
                 start_date=date(2025, 7, 1),
-                end_date=date(2025, 12, 31),
+                due_date=date(2025, 12, 31),
             ),
         )
 
@@ -206,7 +206,7 @@ class TestProjectCount(BaseTestCase):
             CreateTaskDTO(
                 title="Nested Subtask 1.1",
                 start_date=date(2025, 1, 1),
-                end_date=date(2025, 3, 31),
+                due_date=date(2025, 3, 31),
             ),
         )
 

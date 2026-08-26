@@ -143,21 +143,21 @@ def _single_task_fields() -> rx.Component:
                             width="100%",
                             default_value=TaskFormDialogState.form_start_date,
                             min=TaskFormDialogState.get_min_start_date,
-                            max=TaskFormDialogState.get_max_end_date,
+                            max=TaskFormDialogState.get_max_due_date,
                         ),
                         width="100%",
                         spacing="1"
                     ),
 
                     rx.vstack(
-                        rx.text(translate("task_form.end_date.label"), size="2", weight="bold"),
+                        rx.text(translate("task_form.due_date.label"), size="2", weight="bold"),
                         rx.input(
                             type="date",
-                            name="end_date",
+                            name="due_date",
                             width="100%",
-                            default_value=TaskFormDialogState.form_end_date,
+                            default_value=TaskFormDialogState.form_due_date,
                             min=TaskFormDialogState.get_min_start_date,
-                            max=TaskFormDialogState.get_max_end_date,
+                            max=TaskFormDialogState.get_max_due_date,
                         ),
                         width="100%",
                         spacing="1"
@@ -229,7 +229,7 @@ def _template_fields() -> rx.Component:
                 width="100%",
                 default_value=TaskFormDialogState.form_start_date,
                 min=TaskFormDialogState.get_min_start_date,
-                max=TaskFormDialogState.get_max_end_date,
+                max=TaskFormDialogState.get_max_due_date,
             ),
             width="100%",
             spacing="1"

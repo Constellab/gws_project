@@ -100,7 +100,10 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         Returns:
             The parsed SaveCompanyDTO (only `name` is required)
         """
-        i18n = await self.get_state(I18nState)
+        # submit_form is a background event, so `self` is a StateProxy here and
+        # sibling state can only be reached while the state lock is held.
+        async with self:
+            i18n = await self.get_state(I18nState)
 
         name = form_data.get("name", "").strip()
         if not name:
@@ -147,11 +150,17 @@ class CompanyFormDialogState(FormDialogState, rx.State):
                 project_form_state = await self.get_state(ProjectFormDialogState)
                 await project_form_state.add_newly_created_company(created_company.to_dto())
 
-            yield await toast_tr.success(self, "company_form_dialog.toast.created")
+            # toast_tr resolves I18nState via get_state, so it needs the lock held.
+            async with self:
+                toast = await toast_tr.success(self, "company_form_dialog.toast.created")
+            yield toast
         else:
             from ..common.company_app_router import CompanyAppRouter
 
-            yield await toast_tr.success(self, "company_form_dialog.toast.created")
+            # toast_tr resolves I18nState via get_state, so it needs the lock held.
+            async with self:
+                toast = await toast_tr.success(self, "company_form_dialog.toast.created")
+            yield toast
             yield rx.redirect(CompanyAppRouter.get_company_detail_url(created_company.id))
 
     async def _update(self, form_data: dict):
@@ -175,7 +184,10 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         async with self:
             await company_page_state.refresh_object()
 
-        yield await toast_tr.success(self, "company_form_dialog.toast.updated")
+        # toast_tr resolves I18nState via get_state, so it needs the lock held.
+        async with self:
+            toast = await toast_tr.success(self, "company_form_dialog.toast.updated")
+        yield toast
 
     @rx.event
     async def handle_logo_upload(self, files: list[rx.UploadFile]):

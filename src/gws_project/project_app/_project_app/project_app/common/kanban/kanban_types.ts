@@ -9,7 +9,7 @@ export interface Card {
   is_leaf?: boolean;
   project_name?: string;
   start_date?: string;
-  end_date?: string;
+  due_date?: string;
 }
 
 export interface Column {

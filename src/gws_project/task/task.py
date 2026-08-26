@@ -36,7 +36,7 @@ class Task(ModelWithUser):
     title = TypedCharField(max_length=255)
     description = TypedRichTextDbField()
     start_date = NullableDateField()
-    end_date = NullableDateField()
+    due_date = NullableDateField()
     status = TypedEnumField(choices=TaskStatus, max_length=20, default=TaskStatus.TODO)
     priority = TypedEnumField(choices=TaskPriority, max_length=10, default=TaskPriority.MEDIUM)
     allow_subtasks = TypedBooleanField(default=False)
@@ -130,11 +130,11 @@ class Task(ModelWithUser):
         return False
 
     def _calculate_dates_from_subtasks(self) -> bool:
-        """Calculate and set the task start and end dates based on its subtasks.
+        """Calculate and set the task start and due dates based on its subtasks.
 
         Sets:
         - Start date: earliest start date of all subtasks (or project start date if no subtasks)
-        - End date: latest end date of all subtasks (or project end date if no subtasks)
+        - Due date: latest due date of all subtasks (or project due date if no subtasks)
 
         :return: True if any date was changed, False otherwise
         :rtype: bool
@@ -144,23 +144,23 @@ class Task(ModelWithUser):
         if not subtasks:
             # Use project dates if no subtasks
             new_start_date = self.project.start_date
-            new_end_date = self.project.end_date
+            new_due_date = self.project.due_date
         else:
             # Calculate start date: earliest start date from subtasks
             start_dates = [subtask.start_date for subtask in subtasks if subtask.start_date]
             new_start_date = min(start_dates) if start_dates else self.project.start_date
 
-            # Calculate end date: latest end date from subtasks
-            end_dates = [subtask.end_date for subtask in subtasks if subtask.end_date]
-            new_end_date = max(end_dates) if end_dates else self.project.end_date
+            # Calculate due date: latest due date from subtasks
+            due_dates = [subtask.due_date for subtask in subtasks if subtask.due_date]
+            new_due_date = max(due_dates) if due_dates else self.project.due_date
 
         # Check if dates changed
         dates_changed = False
         if self.start_date != new_start_date:
             self.start_date = new_start_date
             dates_changed = True
-        if self.end_date != new_end_date:
-            self.end_date = new_end_date
+        if self.due_date != new_due_date:
+            self.due_date = new_due_date
             dates_changed = True
 
         return dates_changed
@@ -364,12 +364,12 @@ class Task(ModelWithUser):
             title=self.title,
             description=self.description,
             start_date=self.start_date,
-            end_date=self.end_date,
+            due_date=self.due_date,
             # Language-neutral fallbacks: the display text is rebuilt in the user's
             # language by the app layer (common/date_format.localize_task_dto), which a
             # model cannot do since it knows nothing about the session's language.
             start_date_text=self.start_date.isoformat() if self.start_date else "",
-            end_date_text=self.end_date.isoformat() if self.end_date else "",
+            due_date_text=self.due_date.isoformat() if self.due_date else "",
             status=self.status,
             priority=self.priority,
             allow_subtasks=self.allow_subtasks,

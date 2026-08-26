@@ -48,7 +48,7 @@ class TestProjectSecurityService(BaseTestCase):
             SaveProjectDTO(
                 name=name,
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
             )
         )
 
@@ -142,7 +142,7 @@ class TestProjectSecurityService(BaseTestCase):
             CreateTaskDTO(
                 title="Task",
                 start_date=datetime(2025, 2, 1),
-                end_date=datetime(2025, 2, 10),
+                due_date=datetime(2025, 2, 10),
             ),
         )
         outsider, _ = self._create_user("outsider-task@example.com")
@@ -164,7 +164,7 @@ class TestProjectSecurityService(BaseTestCase):
             CreateTaskDTO(
                 title="Task",
                 start_date=datetime(2025, 2, 1),
-                end_date=datetime(2025, 2, 10),
+                due_date=datetime(2025, 2, 10),
             ),
         )
         member, project_member = self._create_user("member-task@example.com")
@@ -191,7 +191,7 @@ class TestProjectSecurityService(BaseTestCase):
             CreateTaskDTO(
                 title="Task",
                 start_date=datetime(2025, 2, 1),
-                end_date=datetime(2025, 2, 10),
+                due_date=datetime(2025, 2, 10),
             ),
         )
         outsider, _ = self._create_user("outsider-service@example.com")

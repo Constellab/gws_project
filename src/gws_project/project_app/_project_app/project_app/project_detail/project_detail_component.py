@@ -368,7 +368,7 @@ def details_sidebar() -> rx.Component:
                 ),
                 rx.text("→", size="2", color="gray"),
                 rx.text(
-                    ProjectDetailState.project.end_date_text,
+                    ProjectDetailState.project.due_date_text,
                     size="2",
                     weight="bold",
                     color="var(--accent-9)",

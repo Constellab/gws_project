@@ -210,13 +210,13 @@ class KanbanQuickAddState(rx.State):
 
         try:
             status = TaskStatus[column_id]
-            # start_date/end_date are typed as optional but have no default, so pydantic
+            # start_date/due_date are typed as optional but have no default, so pydantic
             # requires them to be passed explicitly; None defers to the project's own
             # dates (see TaskService._build_task_from_dto).
             task_dto = CreateTaskDTO(
                 title=title,
                 start_date=None,
-                end_date=None,
+                due_date=None,
                 status=status,
                 allow_subtasks=False,
             )

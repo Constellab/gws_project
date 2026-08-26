@@ -71,7 +71,10 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
         Returns:
             True if validation succeeds, False otherwise (error toast is shown)
         """
-        i18n = await self.get_state(I18nState)
+        # submit_form is a background event, so `self` is a StateProxy here and
+        # sibling state can only be reached while the state lock is held.
+        async with self:
+            i18n = await self.get_state(I18nState)
 
         # Get values from form data
         group_id = form_data.get("group_id", "").strip()
@@ -127,7 +130,10 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
         await self._reload_project_detail()
 
         # Show success message
-        yield await toast_tr.success(self, "project_user_form.toast.added")
+        # toast_tr resolves I18nState via get_state, so it needs the lock held.
+        async with self:
+            toast = await toast_tr.success(self, "project_user_form.toast.added")
+        yield toast
 
     async def _update(self, form_data: dict):
         """Update an existing project group's role.
@@ -156,7 +162,10 @@ class ProjectUserFormDialogState(FormDialogState, rx.State):
         await self._reload_project_detail()
 
         # Show success message
-        yield await toast_tr.success(self, "project_user_form.toast.role_updated")
+        # toast_tr resolves I18nState via get_state, so it needs the lock held.
+        async with self:
+            toast = await toast_tr.success(self, "project_user_form.toast.role_updated")
+        yield toast
 
     async def _clear_form_state(self):
         """Clear all form state after successful operation."""

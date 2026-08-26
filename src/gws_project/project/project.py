@@ -28,7 +28,7 @@ class Project(ModelWithUser):
     title = TypedCharField(max_length=255)
     description = TypedRichTextDbField()
     start_date = TypedDateField(index=True)
-    end_date = TypedDateField(index=True)
+    due_date = TypedDateField(index=True)
     project_manager = TypedForeignKeyField(User)
     # DEPRECATED - unused at runtime. Id of the Space folder that mirrored this
     # project before documents moved to local storage. Kept only for the
@@ -62,10 +62,10 @@ class Project(ModelWithUser):
             title=self.title,
             description=self.description,
             start_date=self.start_date,
-            end_date=self.end_date,
+            due_date=self.due_date,
             # Language-neutral fallbacks, localized by the app layer: see Task.to_dto.
             start_date_text=self.start_date.isoformat(),
-            end_date_text=self.end_date.isoformat(),
+            due_date_text=self.due_date.isoformat(),
             project_manager=self.project_manager.to_dto(),
             progress=self.progress,
             status=self.get_status(),

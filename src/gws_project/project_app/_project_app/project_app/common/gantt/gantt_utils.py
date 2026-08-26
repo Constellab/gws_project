@@ -26,7 +26,7 @@ def _as_date(value: date | datetime | None) -> date | None:
 
 
 def resolve_status(end: date | None, progress: int, today: date) -> str:
-    """Resolve the Gantt status of an item from its end date and progress.
+    """Resolve the Gantt status of an item from its due date and progress.
 
     Finished wins over late: a project completed after its deadline is done, not late.
 
@@ -77,7 +77,7 @@ def get_full_name(user: UserDTO | None) -> str:
 def _build_task(task: TaskDTO, today: date) -> GanttTaskDTO | None:
     """Convert a root task into a Gantt bar, or None when it cannot be plotted.
 
-    A bar needs both ends, so tasks missing a start or end date are dropped here; they remain
+    A bar needs both ends, so tasks missing a start or due date are dropped here; they remain
     visible in the task list and kanban views.
 
     :param task: The task to convert
@@ -88,7 +88,7 @@ def _build_task(task: TaskDTO, today: date) -> GanttTaskDTO | None:
     :rtype: GanttTaskDTO | None
     """
     start = _as_date(task.start_date)
-    end = _as_date(task.end_date)
+    end = _as_date(task.due_date)
     if start is None or end is None:
         return None
 
@@ -125,7 +125,7 @@ def build_gantt_data_from_projects(
     for project_data in projects_with_tasks:
         project = project_data.project
         start = _as_date(project.start_date)
-        end = _as_date(project.end_date)
+        end = _as_date(project.due_date)
         if start is None or end is None:
             continue
 

@@ -24,7 +24,7 @@ class TestMigrationViewerRole(BaseTestCase):
             SaveProjectDTO(
                 name="Viewer Migration Project",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
             )
         )
         member = ProjectUser.get_by_project(project.id)[0]

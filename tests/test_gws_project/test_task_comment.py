@@ -54,7 +54,7 @@ class TestTaskComment(BaseTestCase):
         project_dto = SaveProjectDTO(
             name="Test Project",
             start_date=datetime(2025, 1, 1),
-            end_date=datetime(2025, 12, 31),
+            due_date=datetime(2025, 12, 31),
         )
         return project_service.create_project(project_dto)
 
@@ -101,7 +101,7 @@ class TestTaskComment(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             assign_to_id=current_user.id,
         )
         return task_service.create_root_task(project.id, task_dto).id

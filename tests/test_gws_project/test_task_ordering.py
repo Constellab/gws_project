@@ -41,13 +41,13 @@ class TestTaskOrdering(BaseTestCase):
         return TaskTemplateService()
 
     def _create_project(
-        self, name: str, start_date: date = date(2025, 1, 1), end_date: date = date(2025, 12, 31)
+        self, name: str, start_date: date = date(2025, 1, 1), due_date: date = date(2025, 12, 31)
     ) -> Project:
         return self._get_project_service().create_project(
             SaveProjectDTO(
                 name=name,
                 start_date=datetime.combine(start_date, datetime.min.time()),
-                end_date=datetime.combine(end_date, datetime.min.time()),
+                due_date=datetime.combine(due_date, datetime.min.time()),
             )
         )
 
@@ -58,10 +58,10 @@ class TestTaskOrdering(BaseTestCase):
         parent_task_id: str | None = None,
         allow_subtasks: bool = False,
         start_date: date | None = date(2025, 2, 1),
-        end_date: date | None = date(2025, 2, 10),
+        due_date: date | None = date(2025, 2, 10),
     ) -> Task:
         task_dto = CreateTaskDTO(
-            title=title, start_date=start_date, end_date=end_date, allow_subtasks=allow_subtasks
+            title=title, start_date=start_date, due_date=due_date, allow_subtasks=allow_subtasks
         )
         task_service = self._get_task_service()
         if parent_task_id:
@@ -100,9 +100,9 @@ class TestTaskOrdering(BaseTestCase):
     def test_root_tasks_with_same_start_date_keep_creation_order(self):
         """Root tasks sharing the same start_date are listed in the order they were created"""
         project = self._create_project("Ordering Root Tasks")
-        first = self._create_task(project, "First", start_date=date(2025, 3, 1), end_date=date(2025, 3, 5))
-        second = self._create_task(project, "Second", start_date=date(2025, 3, 1), end_date=date(2025, 3, 5))
-        third = self._create_task(project, "Third", start_date=date(2025, 3, 1), end_date=date(2025, 3, 5))
+        first = self._create_task(project, "First", start_date=date(2025, 3, 1), due_date=date(2025, 3, 5))
+        second = self._create_task(project, "Second", start_date=date(2025, 3, 1), due_date=date(2025, 3, 5))
+        third = self._create_task(project, "Third", start_date=date(2025, 3, 1), due_date=date(2025, 3, 5))
 
         tasks = Task.get_root_tasks_of_project(project.id)
 
@@ -114,11 +114,11 @@ class TestTaskOrdering(BaseTestCase):
         parent = self._create_task(project, "Parent", allow_subtasks=True)
         first = self._create_task(
             project, "First", parent_task_id=parent.id,
-            start_date=date(2025, 3, 1), end_date=date(2025, 3, 5),
+            start_date=date(2025, 3, 1), due_date=date(2025, 3, 5),
         )
         second = self._create_task(
             project, "Second", parent_task_id=parent.id,
-            start_date=date(2025, 3, 1), end_date=date(2025, 3, 5),
+            start_date=date(2025, 3, 1), due_date=date(2025, 3, 5),
         )
 
         subtasks = Task.get_subtasks_of_task(parent.id)
@@ -128,8 +128,8 @@ class TestTaskOrdering(BaseTestCase):
     def test_tasks_with_different_start_dates_still_sorted_by_date(self):
         """Tasks with distinct dates are sorted by date regardless of creation order"""
         project = self._create_project("Ordering By Date")
-        later = self._create_task(project, "Later", start_date=date(2025, 6, 1), end_date=date(2025, 6, 5))
-        earlier = self._create_task(project, "Earlier", start_date=date(2025, 3, 1), end_date=date(2025, 3, 5))
+        later = self._create_task(project, "Later", start_date=date(2025, 6, 1), due_date=date(2025, 6, 5))
+        earlier = self._create_task(project, "Earlier", start_date=date(2025, 3, 1), due_date=date(2025, 3, 5))
 
         tasks = Task.get_root_tasks_of_project(project.id)
 
@@ -139,9 +139,9 @@ class TestTaskOrdering(BaseTestCase):
         """Tasks with no start_date are pushed to the end of the list, after every
         dated task, regardless of creation order"""
         project = self._create_project("Ordering Undated Last")
-        undated = self._create_task(project, "Undated", start_date=None, end_date=None)
+        undated = self._create_task(project, "Undated", start_date=None, due_date=None)
         dated = self._create_task(
-            project, "Dated", start_date=date(2025, 6, 1), end_date=date(2025, 6, 5)
+            project, "Dated", start_date=date(2025, 6, 1), due_date=date(2025, 6, 5)
         )
 
         tasks = Task.get_root_tasks_of_project(project.id)
@@ -251,5 +251,5 @@ class TestTaskOrdering(BaseTestCase):
         self.assertEqual(len(root_tasks), 1)
         task = root_tasks[0]
         self.assertIsNone(task.start_date)
-        self.assertIsNone(task.end_date)
+        self.assertIsNone(task.due_date)
         self.assertEqual(task.status, TaskStatus.TODO)

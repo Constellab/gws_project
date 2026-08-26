@@ -149,7 +149,10 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
         Raises:
             Exception: If validation fails
         """
-        i18n = await self.get_state(I18nState)
+        # submit_form is a background event, so `self` is a StateProxy here and
+        # sibling state can only be reached while the state lock is held.
+        async with self:
+            i18n = await self.get_state(I18nState)
 
         # Get values from form data
         title = form_data.get("title", "").strip()
@@ -355,7 +358,10 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
                 )
 
             # Show success toast
-            yield await toast_tr.success(self, "task_template_form_dialog.created_toast")
+            # toast_tr resolves I18nState via get_state, so it needs the lock held.
+            async with self:
+                toast = await toast_tr.success(self, "task_template_form_dialog.created_toast")
+            yield toast
 
         elif self._form_mode == TaskTemplateFormMode.CREATE_SUB.value:
             # Create the subtask template
@@ -366,7 +372,10 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
                 )
 
             # Show success toast
-            yield await toast_tr.success(self, "task_template_form_dialog.created_sub_toast")
+            # toast_tr resolves I18nState via get_state, so it needs the lock held.
+            async with self:
+                toast = await toast_tr.success(self, "task_template_form_dialog.created_sub_toast")
+            yield toast
 
         if self._callback_after_close:
             await self._callback_after_close(task_template)
@@ -399,7 +408,10 @@ class TaskTemplateFormDialogState(FormDialogState, rx.State):
             )
 
         # Show success toast
-        yield await toast_tr.success(self, "task_template_form_dialog.updated_toast")
+        # toast_tr resolves I18nState via get_state, so it needs the lock held.
+        async with self:
+            toast = await toast_tr.success(self, "task_template_form_dialog.updated_toast")
+        yield toast
 
         # Invoke callback if provided
         if self._callback_after_close:

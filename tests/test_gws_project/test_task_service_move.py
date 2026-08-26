@@ -38,13 +38,13 @@ class TestTaskServiceMove(BaseTestCase):
         return TaskService()
 
     def _create_project(
-        self, name: str, start_date: date = date(2025, 1, 1), end_date: date = date(2025, 12, 31)
+        self, name: str, start_date: date = date(2025, 1, 1), due_date: date = date(2025, 12, 31)
     ) -> Project:
         return self._get_project_service().create_project(
             SaveProjectDTO(
                 name=name,
                 start_date=datetime.combine(start_date, datetime.min.time()),
-                end_date=datetime.combine(end_date, datetime.min.time()),
+                due_date=datetime.combine(due_date, datetime.min.time()),
             )
         )
 
@@ -79,7 +79,7 @@ class TestTaskServiceMove(BaseTestCase):
         parent_task_id: str | None = None,
         allow_subtasks: bool = False,
         start_date: date | None = date(2025, 2, 1),
-        end_date: date | None = date(2025, 2, 10),
+        due_date: date | None = date(2025, 2, 10),
         assign_to_id: str | None = None,
     ) -> Task:
         """Create a task. A task must be created with allow_subtasks=True to be
@@ -87,7 +87,7 @@ class TestTaskServiceMove(BaseTestCase):
         task_dto = CreateTaskDTO(
             title=title,
             start_date=start_date,
-            end_date=end_date,
+            due_date=due_date,
             allow_subtasks=allow_subtasks,
             assign_to_id=assign_to_id,
         )
@@ -293,10 +293,10 @@ class TestTaskServiceMove(BaseTestCase):
         task_service = self._get_task_service()
         project_a = self._create_project("Date Bounds A")
         project_b = self._create_project(
-            "Date Bounds B", start_date=date(2025, 6, 1), end_date=date(2025, 6, 30)
+            "Date Bounds B", start_date=date(2025, 6, 1), due_date=date(2025, 6, 30)
         )
         task = self._create_task(
-            project_a, "Task", start_date=date(2025, 2, 1), end_date=date(2025, 2, 10)
+            project_a, "Task", start_date=date(2025, 2, 1), due_date=date(2025, 2, 10)
         )
 
         with self.assertRaises(BadRequestException) as context:
@@ -308,10 +308,10 @@ class TestTaskServiceMove(BaseTestCase):
         task_service = self._get_task_service()
         project_a = self._create_project("Date Bounds Ok A")
         project_b = self._create_project(
-            "Date Bounds Ok B", start_date=date(2025, 6, 1), end_date=date(2025, 6, 30)
+            "Date Bounds Ok B", start_date=date(2025, 6, 1), due_date=date(2025, 6, 30)
         )
         task = self._create_task(
-            project_a, "Task", start_date=date(2025, 6, 5), end_date=date(2025, 6, 10)
+            project_a, "Task", start_date=date(2025, 6, 5), due_date=date(2025, 6, 10)
         )
 
         moved = task_service.move_task(task.id, project_b.id, None)
@@ -323,14 +323,14 @@ class TestTaskServiceMove(BaseTestCase):
         task_service = self._get_task_service()
         project_a = self._create_project("No Dates Bounds A")
         project_b = self._create_project(
-            "No Dates Bounds B", start_date=date(2025, 6, 1), end_date=date(2025, 6, 30)
+            "No Dates Bounds B", start_date=date(2025, 6, 1), due_date=date(2025, 6, 30)
         )
-        task = self._create_task(project_a, "Task", start_date=None, end_date=None)
+        task = self._create_task(project_a, "Task", start_date=None, due_date=None)
 
         moved = task_service.move_task(task.id, project_b.id, None)
         self.assertEqual(moved.project.id, project_b.id)
         self.assertIsNone(moved.start_date)
-        self.assertIsNone(moved.end_date)
+        self.assertIsNone(moved.due_date)
 
     def test_move_parent_task_to_root_skips_date_bounds_check(self):
         """A task with subtasks moved to become a root task is NOT date-checked against the
@@ -338,12 +338,12 @@ class TestTaskServiceMove(BaseTestCase):
         task_service = self._get_task_service()
         project_a = self._create_project("Parent Date Bounds A")
         project_b = self._create_project(
-            "Parent Date Bounds B", start_date=date(2025, 6, 1), end_date=date(2025, 6, 30)
+            "Parent Date Bounds B", start_date=date(2025, 6, 1), due_date=date(2025, 6, 30)
         )
         parent = self._create_task(project_a, "Parent", allow_subtasks=True)
         self._create_task(
             project_a, "Child", parent_task_id=parent.id,
-            start_date=date(2025, 1, 1), end_date=date(2025, 1, 10),
+            start_date=date(2025, 1, 1), due_date=date(2025, 1, 10),
         )
 
         # The parent's auto-calculated dates (Jan) fall outside project_b's bounds (June),

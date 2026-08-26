@@ -43,7 +43,7 @@ class TestDocumentService(BaseTestCase):
             SaveProjectDTO(
                 name="Doc Test Project",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
             )
         )
 
@@ -54,7 +54,7 @@ class TestDocumentService(BaseTestCase):
             CreateTaskDTO(
                 title="Doc Test Task",
                 start_date=date(2025, 2, 1),
-                end_date=date(2025, 2, 28),
+                due_date=date(2025, 2, 28),
             ),
         )
 
@@ -219,7 +219,7 @@ class TestDocumentService(BaseTestCase):
             CreateTaskDTO(
                 title="Parent",
                 start_date=date(2025, 2, 1),
-                end_date=date(2025, 2, 28),
+                due_date=date(2025, 2, 28),
                 allow_subtasks=True,
             ),
         )
@@ -228,7 +228,7 @@ class TestDocumentService(BaseTestCase):
             CreateTaskDTO(
                 title="Child",
                 start_date=date(2025, 2, 1),
-                end_date=date(2025, 2, 15),
+                due_date=date(2025, 2, 15),
             ),
         )
 

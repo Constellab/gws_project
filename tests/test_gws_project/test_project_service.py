@@ -67,7 +67,7 @@ class TestProjectService(BaseTestCase):
         project_dto = SaveProjectDTO(
             name="Test Project",
             start_date=datetime(2025, 1, 1),
-            end_date=datetime(2025, 12, 31),
+            due_date=datetime(2025, 12, 31),
         )
 
         project = project_service.create_project(project_dto)
@@ -76,7 +76,7 @@ class TestProjectService(BaseTestCase):
         self.assertIsNotNone(project)
         self.assertEqual(project.title, "Test Project")
         self.assertEqual(project.start_date, datetime(2025, 1, 1))
-        self.assertEqual(project.end_date, datetime(2025, 12, 31))
+        self.assertEqual(project.due_date, datetime(2025, 12, 31))
         self.assertEqual(project.project_manager.id, current_user.id)
 
         # Verify that the current user is added as owner
@@ -87,7 +87,7 @@ class TestProjectService(BaseTestCase):
         update_dto = SaveProjectDTO(
             name="Updated Project Name",
             start_date=datetime(2025, 2, 1),
-            end_date=datetime(2025, 11, 30),
+            due_date=datetime(2025, 11, 30),
         )
 
         updated_project = project_service.update_project(project.id, update_dto)
@@ -96,7 +96,7 @@ class TestProjectService(BaseTestCase):
         self.assertEqual(updated_project.id, project.id)
         self.assertEqual(updated_project.title, "Updated Project Name")
         self.assertEqual(updated_project.start_date, datetime(2025, 2, 1))
-        self.assertEqual(updated_project.end_date, datetime(2025, 11, 30))
+        self.assertEqual(updated_project.due_date, datetime(2025, 11, 30))
 
         # ========== Test 3: add_user_to_project ==========
         # Create a second user for testing
@@ -137,7 +137,7 @@ class TestProjectService(BaseTestCase):
         task.title = "Test Task"
         task.description = RichText().to_dto()
         task.start_date = datetime(2025, 3, 1)
-        task.end_date = datetime(2025, 3, 15)
+        task.due_date = datetime(2025, 3, 15)
         task.status = TaskStatus.TODO
         task.priority = TaskPriority.MEDIUM
         task.assign_to = second_user
@@ -190,7 +190,7 @@ class TestProjectService(BaseTestCase):
             SaveProjectDTO(
                 name="Group Project",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
             )
         )
 
@@ -242,7 +242,7 @@ class TestProjectService(BaseTestCase):
             SaveProjectDTO(
                 name="Solo Owner Project",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
             )
         )
 
@@ -268,18 +268,18 @@ class TestProjectService(BaseTestCase):
         """Test create_project with invalid date range"""
         project_service = self._get_project_service()
 
-        # Test with start date after end date
+        # Test with start date after due date
         invalid_project_dto = SaveProjectDTO(
             name="Invalid Date Project",
             start_date=datetime(2025, 12, 31),
-            end_date=datetime(2025, 1, 1),
+            due_date=datetime(2025, 1, 1),
         )
 
         with self.assertRaises(BadRequestException) as context:
             project_service.create_project(invalid_project_dto)
 
         self.assertIn("start date", str(context.exception).lower())
-        self.assertIn("end date", str(context.exception).lower())
+        self.assertIn("due date", str(context.exception).lower())
 
     def test_create_project_from_template(self):
         """Test creating a project from a template"""
@@ -385,9 +385,9 @@ class TestProjectService(BaseTestCase):
         self.assertIsNotNone(project)
         self.assertEqual(project.title, "My New Project")
         self.assertEqual(project.start_date, datetime(2025, 1, 1))
-        # End date is calculated from template (not from actual created tasks)
+        # Due date is calculated from template (not from actual created tasks)
         # Max template: dev task at offset 5, duration 10 = 5+10-1 = 14 days total = Jan 15
-        self.assertEqual(project.end_date, datetime(2025, 1, 15))
+        self.assertEqual(project.due_date, datetime(2025, 1, 15))
         self.assertEqual(project.project_manager.id, project_manager.id)
         self.assert_json(project.description.to_json_dict(), template.description.to_json_dict())
 
@@ -416,9 +416,9 @@ class TestProjectService(BaseTestCase):
 
         # Verify planning task
         # Note: Parent task dates are calculated from subtasks
-        # The subtask is 3 days, so end date will be 1+3-1 = Jan 3
+        # The subtask is 3 days, so due date will be 1+3-1 = Jan 3
         self.assertEqual(planning_created.start_date, date(2025, 1, 1))
-        self.assertEqual(planning_created.end_date, date(2025, 1, 3))
+        self.assertEqual(planning_created.due_date, date(2025, 1, 3))
         self.assertEqual(planning_created.priority, TaskPriority.HIGH)
         self.assertEqual(planning_created.allow_subtasks, True)
         # Should be assigned to project_manager via role mapping
@@ -431,7 +431,7 @@ class TestProjectService(BaseTestCase):
         # The subtask starts on day 5 and is 7 days, so 6+(7-1) = Jan 12
         # Priority is inherited from highest subtask priority (HIGH)
         self.assertEqual(development_created.start_date, date(2025, 1, 6))
-        self.assertEqual(development_created.end_date, date(2025, 1, 12))
+        self.assertEqual(development_created.due_date, date(2025, 1, 12))
         self.assertEqual(development_created.priority, TaskPriority.HIGH)  # From subtask
         self.assertEqual(development_created.allow_subtasks, True)
         # Should be assigned to developer via role mapping

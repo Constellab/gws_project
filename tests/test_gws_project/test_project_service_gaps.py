@@ -42,7 +42,7 @@ class TestProjectServiceGaps(BaseTestCase):
             SaveProjectDTO(
                 name=name,
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
             )
         )
 
@@ -70,7 +70,7 @@ class TestProjectServiceGaps(BaseTestCase):
         task_dto = CreateTaskDTO(
             title=title,
             start_date=datetime(2025, 2, 1),
-            end_date=datetime(2025, 2, 10),
+            due_date=datetime(2025, 2, 10),
             allow_subtasks=allow_subtasks,
         )
         task_service = self._get_task_service()
@@ -134,7 +134,7 @@ class TestProjectServiceGaps(BaseTestCase):
             SaveProjectDTO(
                 name="Manager Project",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
                 project_manager_id=manager.id,
             ),
         )
@@ -153,7 +153,7 @@ class TestProjectServiceGaps(BaseTestCase):
                 SaveProjectDTO(
                     name="Manager Not Member Project",
                     start_date=datetime(2025, 1, 1),
-                    end_date=datetime(2025, 12, 31),
+                    due_date=datetime(2025, 12, 31),
                     project_manager_id=outsider.id,
                 ),
             )

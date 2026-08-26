@@ -44,13 +44,13 @@ class TestProjectServiceAddTasksFromTemplate(BaseTestCase):
         return TaskTemplateService()
 
     def _create_project(
-        self, name: str, start_date: date = date(2025, 1, 1), end_date: date = date(2025, 12, 31)
+        self, name: str, start_date: date = date(2025, 1, 1), due_date: date = date(2025, 12, 31)
     ) -> Project:
         return self._get_project_service().create_project(
             SaveProjectDTO(
                 name=name,
                 start_date=datetime.combine(start_date, datetime.min.time()),
-                end_date=datetime.combine(end_date, datetime.min.time()),
+                due_date=datetime.combine(due_date, datetime.min.time()),
             )
         )
 
@@ -111,9 +111,9 @@ class TestProjectServiceAddTasksFromTemplate(BaseTestCase):
         first = next(task for task in created if task.title == "First")
         second = next(task for task in created if task.title == "Second")
         self.assertEqual(first.start_date, date(2025, 3, 1))
-        self.assertEqual(first.end_date, date(2025, 3, 3))
+        self.assertEqual(first.due_date, date(2025, 3, 3))
         self.assertEqual(second.start_date, date(2025, 3, 6))
-        self.assertEqual(second.end_date, date(2025, 3, 7))
+        self.assertEqual(second.due_date, date(2025, 3, 7))
 
         # The tasks now exist as root tasks of the (still same) project
         root_tasks = Task.get_root_tasks_of_project(project.id)
@@ -150,7 +150,7 @@ class TestProjectServiceAddTasksFromTemplate(BaseTestCase):
         project = self._create_project(
             "Add From Template Different Dates",
             start_date=date(2025, 1, 1),
-            end_date=date(2025, 12, 31),
+            due_date=date(2025, 12, 31),
         )
         template = self._create_project_template("Different Dates Template")
         self._create_task_template(template, "Task", start_date_offset=0, duration_days=2)
@@ -162,7 +162,7 @@ class TestProjectServiceAddTasksFromTemplate(BaseTestCase):
         created = project_service.add_tasks_from_template(project.id, add_dto)
 
         self.assertEqual(created[0].start_date, date(2025, 6, 1))
-        self.assertEqual(created[0].end_date, date(2025, 6, 2))
+        self.assertEqual(created[0].due_date, date(2025, 6, 2))
 
     def test_add_tasks_from_template_role_mapping_assigns_users(self):
         """Role-mapped users are assigned to the corresponding tasks and added to the project"""
@@ -203,12 +203,12 @@ class TestProjectServiceAddTasksFromTemplate(BaseTestCase):
         """A leaf root task whose computed dates fall outside the project's bounds is refused"""
         project_service = self._get_project_service()
         project = self._create_project(
-            "Add From Template Bounds", start_date=date(2025, 1, 1), end_date=date(2025, 1, 31)
+            "Add From Template Bounds", start_date=date(2025, 1, 1), due_date=date(2025, 1, 31)
         )
         template = self._create_project_template("Bounds Template")
         self._create_task_template(template, "Task", start_date_offset=0, duration_days=3)
 
-        # This start_date pushes the task's dates past the project's end_date
+        # This start_date pushes the task's dates past the project's due_date
         add_dto = AddTasksFromTemplateDTO(
             project_template_id=template.id, start_date=datetime(2025, 6, 1)
         )
@@ -246,7 +246,7 @@ class TestProjectServiceAddTasksFromTemplate(BaseTestCase):
         project = self._create_project(
             "Add From Template Future Backlog",
             start_date=today,
-            end_date=today + timedelta(days=120),
+            due_date=today + timedelta(days=120),
         )
         template = self._create_project_template("Future Backlog Template")
         self._create_task_template(template, "Future Task", start_date_offset=30, duration_days=5)
@@ -267,7 +267,7 @@ class TestProjectServiceAddTasksFromTemplate(BaseTestCase):
         project = self._create_project(
             "Add From Template Today Todo",
             start_date=today,
-            end_date=today + timedelta(days=60),
+            due_date=today + timedelta(days=60),
         )
         template = self._create_project_template("Today Todo Template")
         self._create_task_template(template, "Today Task", start_date_offset=0, duration_days=5)
@@ -285,7 +285,7 @@ class TestProjectServiceAddTasksFromTemplate(BaseTestCase):
         """Adding tasks from a template never changes the existing project's own dates"""
         project_service = self._get_project_service()
         project = self._create_project(
-            "Add From Template Keeps Dates", start_date=date(2025, 1, 1), end_date=date(2025, 12, 31)
+            "Add From Template Keeps Dates", start_date=date(2025, 1, 1), due_date=date(2025, 12, 31)
         )
         template = self._create_project_template("Keeps Dates Template")
         self._create_task_template(template, "Task", start_date_offset=0, duration_days=3)
@@ -297,4 +297,4 @@ class TestProjectServiceAddTasksFromTemplate(BaseTestCase):
 
         refreshed_project = Project.get_by_id(project.id)
         self.assertEqual(refreshed_project.start_date, date(2025, 1, 1))
-        self.assertEqual(refreshed_project.end_date, date(2025, 12, 31))
+        self.assertEqual(refreshed_project.due_date, date(2025, 12, 31))

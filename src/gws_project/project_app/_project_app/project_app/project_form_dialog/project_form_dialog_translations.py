@@ -13,7 +13,7 @@ register_translations(
             "project_form_dialog.name_label": "Project Name*",
             "project_form_dialog.error.name_required": "The project name is required",
             "project_form_dialog.error.start_date_required": "The start date is required",
-            "project_form_dialog.error.end_date_required": "The end date is required",
+            "project_form_dialog.error.due_date_required": "The due date is required",
             "project_form_dialog.error.missing_roles": (
                 "Please assign users to all roles. Missing: {{roles}}"
             ),
@@ -28,7 +28,7 @@ register_translations(
             "project_form_dialog.template_label": "Project Template (Optional)",
             "project_form_dialog.template_placeholder": "Select a template (optional)",
             "project_form_dialog.start_date_label": "Start Date*",
-            "project_form_dialog.end_date_label": "End Date*",
+            "project_form_dialog.due_date_label": "Due Date*",
             "project_form_dialog.role_assignments_label": "Role Assignments",
             "project_form_dialog.role_assignments_description": (
                 "Assign a user to each role. These users will be added to the "
@@ -44,7 +44,7 @@ register_translations(
             "project_form_dialog.name_label": "Nom du projet*",
             "project_form_dialog.error.name_required": "Le nom du projet est obligatoire",
             "project_form_dialog.error.start_date_required": "La date de début est obligatoire",
-            "project_form_dialog.error.end_date_required": "La date de fin est obligatoire",
+            "project_form_dialog.error.due_date_required": "La date d'échéance est obligatoire",
             "project_form_dialog.error.missing_roles": (
                 "Attribuez un utilisateur à chaque rôle. Manquants : {{roles}}"
             ),
@@ -59,7 +59,7 @@ register_translations(
             "project_form_dialog.template_label": "Modèle de projet (facultatif)",
             "project_form_dialog.template_placeholder": "Sélectionner un modèle (facultatif)",
             "project_form_dialog.start_date_label": "Date de début*",
-            "project_form_dialog.end_date_label": "Date de fin*",
+            "project_form_dialog.due_date_label": "Date d'échéance*",
             "project_form_dialog.role_assignments_label": "Attribution des rôles",
             "project_form_dialog.role_assignments_description": (
                 "Attribuez un utilisateur à chaque rôle. Ces utilisateurs seront "

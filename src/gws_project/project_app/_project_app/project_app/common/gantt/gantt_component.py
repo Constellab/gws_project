@@ -44,7 +44,7 @@ def _to_camel(name: str) -> str:
 class GanttChart(rx.Component):
     """Portfolio Gantt chart: projects grouped by status on a pixels-per-day timeline.
 
-    Rows are grouped En retard / En cours / Terminé and sorted by end date. The left column
+    Rows are grouped En retard / En cours / Terminé and sorted by due date. The left column
     and the two-row time axis are frozen; the chart re-centres on today whenever the zoom
     changes or ``recenter_token`` is bumped.
     """

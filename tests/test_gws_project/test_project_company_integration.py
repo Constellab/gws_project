@@ -42,7 +42,7 @@ class TestProjectCompanyIntegration(BaseTestCase):
             SaveProjectDTO(
                 name=name,
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
                 company_id=company_id,
             )
         )
@@ -88,7 +88,7 @@ class TestProjectCompanyIntegration(BaseTestCase):
             SaveProjectDTO(
                 name=project.title,
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
                 company_id=company.id,
             ),
         )
@@ -110,7 +110,7 @@ class TestProjectCompanyIntegration(BaseTestCase):
             SaveProjectDTO(
                 name=project.title,
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
             ),
         )
 
@@ -159,11 +159,11 @@ class TestProjectCompanyIntegration(BaseTestCase):
 
         task_service.create_root_task(
             project_with_company.id,
-            CreateTaskDTO(title="Task In Company Project", start_date=date(2025, 1, 1), end_date=date(2025, 1, 5)),
+            CreateTaskDTO(title="Task In Company Project", start_date=date(2025, 1, 1), due_date=date(2025, 1, 5)),
         )
         task_service.create_root_task(
             project_without_company.id,
-            CreateTaskDTO(title="Task In Other Project", start_date=date(2025, 1, 1), end_date=date(2025, 1, 5)),
+            CreateTaskDTO(title="Task In Other Project", start_date=date(2025, 1, 1), due_date=date(2025, 1, 5)),
         )
 
         search_builder = TaskSearchBuilder()

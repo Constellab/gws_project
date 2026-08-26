@@ -450,41 +450,46 @@ def details_sidebar() -> rx.Component:
             align="start",
             width="100%",
         ),
-        # Dates section
-        rx.vstack(
-            _sidebar_section_label(translate("task_detail.sidebar.dates")),
-            rx.hstack(
-                rx.text(
-                    rx.cond(
-                        TaskDetailState.task.start_date_text,
-                        TaskDetailState.task.start_date_text,
-                        "—",
+        # Dates section - hidden entirely for an undated task, so the label
+        # never sits above an empty box.
+        rx.cond(
+            (TaskDetailState.task.start_date_text != "")
+            | (TaskDetailState.task.due_date_text != ""),
+            rx.vstack(
+                _sidebar_section_label(translate("task_detail.sidebar.dates")),
+                rx.hstack(
+                    rx.text(
+                        rx.cond(
+                            TaskDetailState.task.start_date_text,
+                            TaskDetailState.task.start_date_text,
+                            "—",
+                        ),
+                        size="2",
+                        weight="bold",
+                        color="var(--accent-9)",
                     ),
-                    size="2",
-                    weight="bold",
-                    color="var(--accent-9)",
-                ),
-                rx.text("→", size="2", color="gray"),
-                rx.text(
-                    rx.cond(
-                        TaskDetailState.task.end_date_text,
-                        TaskDetailState.task.end_date_text,
-                        "—",
+                    rx.text("→", size="2", color="gray"),
+                    rx.text(
+                        rx.cond(
+                            TaskDetailState.task.due_date_text,
+                            TaskDetailState.task.due_date_text,
+                            "—",
+                        ),
+                        size="2",
+                        weight="bold",
+                        color="var(--accent-9)",
                     ),
-                    size="2",
-                    weight="bold",
-                    color="var(--accent-9)",
+                    background="var(--accent-2)",
+                    border_radius="12px",
+                    padding="12px 14px",
+                    align="center",
+                    spacing="3",
+                    width="100%",
                 ),
-                background="var(--accent-2)",
-                border_radius="12px",
-                padding="12px 14px",
-                align="center",
-                spacing="3",
+                spacing="2",
+                align_items="start",
                 width="100%",
             ),
-            spacing="2",
-            align_items="start",
-            width="100%",
         ),
         # Divider + metadata section
         rx.vstack(

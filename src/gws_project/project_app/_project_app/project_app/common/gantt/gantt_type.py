@@ -46,7 +46,7 @@ class GanttProjectDTO(GanttTaskDTO):
         id: Project id, used to route on click and to key the expanded state
         owner: Project manager initials, e.g. ``MB``
         owner_name: Full manager name, used in the bar tooltip
-        late_days: Days past the end date when late, else 0
+        late_days: Days past the due date when late, else 0
         tasks: Root tasks that have both dates set
     """
 

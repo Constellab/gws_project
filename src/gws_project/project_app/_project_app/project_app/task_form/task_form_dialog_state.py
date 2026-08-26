@@ -56,7 +56,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
     # Form field default values
     form_title: str = ""
     form_start_date: str = ""
-    form_end_date: str = ""
+    form_due_date: str = ""
     form_status: str = TaskStatus.TODO.value
     form_priority: str = TaskPriority.MEDIUM.value
     form_allow_subtasks: bool = False
@@ -126,7 +126,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
             # Update mode - populate from task
             self.form_title = task.title
             self.form_start_date = task.start_date.strftime('%Y-%m-%d') if task.start_date else ""
-            self.form_end_date = task.end_date.strftime('%Y-%m-%d') if task.end_date else ""
+            self.form_due_date = task.due_date.strftime('%Y-%m-%d') if task.due_date else ""
             self.form_status = task.status.value if hasattr(task.status, 'value') else task.status
             self.form_priority = task.priority.value if hasattr(task.priority, 'value') else task.priority
             self.form_allow_subtasks = task.allow_subtasks
@@ -136,7 +136,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
             # Create mode - clear/default values
             self.form_title = ""
             self.form_start_date = ""
-            self.form_end_date = ""
+            self.form_due_date = ""
             self.form_status = TaskStatus.TODO.value
             self.form_priority = TaskPriority.MEDIUM.value
             self.form_allow_subtasks = False
@@ -161,7 +161,10 @@ class TaskFormDialogState(FormDialogState, rx.State):
         Raises:
             Exception: If validation fails
         """
-        i18n = await self.get_state(I18nState)
+        # submit_form is a background event, so `self` is a StateProxy here and
+        # sibling state can only be reached while the state lock is held.
+        async with self:
+            i18n = await self.get_state(I18nState)
 
         # Get values from form data
         title = form_data.get('title', '').strip()
@@ -181,13 +184,13 @@ class TaskFormDialogState(FormDialogState, rx.State):
 
             # Dates are optional - parse to None when the field was left empty
             start_date_str = form_data.get('start_date', '').strip()
-            end_date_str = form_data.get('end_date', '').strip()
+            due_date_str = form_data.get('due_date', '').strip()
 
             result['start_date'] = (
                 datetime.fromisoformat(start_date_str).date() if start_date_str else None
             )
-            result['end_date'] = (
-                datetime.fromisoformat(end_date_str).date() if end_date_str else None
+            result['due_date'] = (
+                datetime.fromisoformat(due_date_str).date() if due_date_str else None
             )
 
             priority_str = form_data.get('priority', TaskPriority.MEDIUM.value)
@@ -336,7 +339,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         return CreateTaskDTO(
             title=common_fields['title'],
             start_date=common_fields.get('start_date'),
-            end_date=common_fields.get('end_date'),
+            due_date=common_fields.get('due_date'),
             status=common_fields.get('status'),
             priority=common_fields.get('priority'),
             allow_subtasks=allow_subtasks,
@@ -361,7 +364,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         return UpdateTaskDTO(
             title=common_fields['title'],
             start_date=common_fields.get('start_date'),
-            end_date=common_fields.get('end_date'),
+            due_date=common_fields.get('due_date'),
             priority=common_fields.get('priority'),
             status=common_fields.get('status'),
             assign_to_id=common_fields.get('assign_to_id')
@@ -402,7 +405,10 @@ class TaskFormDialogState(FormDialogState, rx.State):
                 task = task_service.create_root_task(self._project.id, task_dto)
 
             # Show success toast
-            yield await toast_tr.success(self, "task_form.toast.task_created")
+            # toast_tr resolves I18nState via get_state, so it needs the lock held.
+            async with self:
+                toast = await toast_tr.success(self, "task_form.toast.task_created")
+            yield toast
 
         elif self._form_mode == TaskFormMode.CREATE_SUB.value:
             # Create the subtask
@@ -411,7 +417,10 @@ class TaskFormDialogState(FormDialogState, rx.State):
                 task = task_service.create_sub_task(self._parent_task_id, task_dto)
 
             # Show success toast
-            yield await toast_tr.success(self, "task_form.toast.subtask_created")
+            # toast_tr resolves I18nState via get_state, so it needs the lock held.
+            async with self:
+                toast = await toast_tr.success(self, "task_form.toast.subtask_created")
+            yield toast
 
         if self._callback_after_close:
             await self._callback_after_close(task)
@@ -429,7 +438,9 @@ class TaskFormDialogState(FormDialogState, rx.State):
         Yields:
             Reflex events (rx.toast)
         """
-        i18n = await self.get_state(I18nState)
+        # Same as above: reached from the background submit_form event.
+        async with self:
+            i18n = await self.get_state(I18nState)
 
         start_date_str = form_data.get('start_date', '').strip()
         if not start_date_str:
@@ -453,7 +464,10 @@ class TaskFormDialogState(FormDialogState, rx.State):
             project_service = ProjectService()
             created_tasks = project_service.add_tasks_from_template(self._project.id, add_dto)
 
-        yield await toast_tr.success(self, "task_form.toast.tasks_added_from_template")
+        # toast_tr resolves I18nState via get_state, so it needs the lock held.
+        async with self:
+            toast = await toast_tr.success(self, "task_form.toast.tasks_added_from_template")
+        yield toast
 
         if self._callback_after_close:
             for task in created_tasks:
@@ -485,7 +499,10 @@ class TaskFormDialogState(FormDialogState, rx.State):
             task = task_service.update_task(self._editing_task.id, task_dto)
 
         # Show success toast
-        yield await toast_tr.success(self, "task_form.toast.task_updated")
+        # toast_tr resolves I18nState via get_state, so it needs the lock held.
+        async with self:
+            toast = await toast_tr.success(self, "task_form.toast.task_updated")
+        yield toast
 
         # Invoke callback if provided
         if self._callback_after_close:
@@ -500,7 +517,7 @@ class TaskFormDialogState(FormDialogState, rx.State):
         self.users = []
         self.form_title = ""
         self.form_start_date = ""
-        self.form_end_date = ""
+        self.form_due_date = ""
         self.form_status = TaskStatus.TODO.value
         self.form_priority = TaskPriority.MEDIUM.value
         self.form_allow_subtasks = False
@@ -539,12 +556,12 @@ class TaskFormDialogState(FormDialogState, rx.State):
         return ""
 
     @rx.var
-    async def get_max_end_date(self) -> str:
-        """Get the maximum end date allowed for the task based on the project end date.
+    async def get_max_due_date(self) -> str:
+        """Get the maximum due date allowed for the task based on the project due date.
 
         Returns:
-            Maximum end date in 'YYYY-MM-DD' format
+            Maximum due date in 'YYYY-MM-DD' format
         """
         if self._project:
-            return self._project.end_date.strftime('%Y-%m-%d')
+            return self._project.due_date.strftime('%Y-%m-%d')
         return ""

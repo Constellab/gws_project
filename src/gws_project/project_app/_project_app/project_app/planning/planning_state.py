@@ -110,17 +110,17 @@ class PlanningState(rx.State):
     def _monday_of(self, day: date) -> date:
         return day - timedelta(days=day.weekday())
 
-    def _due_status(self, end_date: date | None) -> str | None:
+    def _due_status(self, due_date: date | None) -> str | None:
         """Urgency of a task's due date, relative to the real current date (not
         necessarily the week currently displayed in the grid)."""
-        if end_date is None:
+        if due_date is None:
             return None
         today = date.today()
-        if end_date < today:
+        if due_date < today:
             return "overdue"
         current_week_start = self._monday_of(today)
         current_week_end = current_week_start + timedelta(days=6)
-        if current_week_start <= end_date <= current_week_end:
+        if current_week_start <= due_date <= current_week_end:
             return "this_week"
         return None
 
@@ -215,11 +215,11 @@ class PlanningState(rx.State):
                     is_scheduled=task.id in scheduled_task_ids,
                     due_date_text=(
                         f"{i18n.tr('planning.due_prefix')} "
-                        f"{format_day_month(task.end_date, i18n.lang)}"
-                        if task.end_date
+                        f"{format_day_month(task.due_date, i18n.lang)}"
+                        if task.due_date
                         else None
                     ),
-                    due_status=self._due_status(task.end_date),
+                    due_status=self._due_status(task.due_date),
                 )
                 for task in tasks
             ]

@@ -154,17 +154,17 @@ def _form_content() -> rx.Component:
                 width="100%",
                 spacing="1",
             ),
-            # End Date (hidden when template is selected)
+            # Due Date (hidden when template is selected)
             rx.cond(
                 ProjectFormDialogState.selected_template_id == "",
                 rx.vstack(
-                    rx.text(translate("project_form_dialog.end_date_label"), size="2", weight="bold"),
+                    rx.text(translate("project_form_dialog.due_date_label"), size="2", weight="bold"),
                     rx.input(
                         type="date",
-                        name="end_date",
+                        name="due_date",
                         required=True,
                         width="100%",
-                        default_value=ProjectFormDialogState.form_end_date,
+                        default_value=ProjectFormDialogState.form_due_date,
                     ),
                     width="100%",
                     spacing="1",

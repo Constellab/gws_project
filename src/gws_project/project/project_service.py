@@ -227,16 +227,16 @@ class ProjectService:
 
         return result
 
-    def _validate_project_dates(self, start_date, end_date) -> None:
-        """Validate that project start date is before end date.
+    def _validate_project_dates(self, start_date, due_date) -> None:
+        """Validate that project start date is before due date.
 
         :param start_date: Project start date
-        :param end_date: Project end date
-        :raises BadRequestException: If start date is after end date
+        :param due_date: Project due date
+        :raises BadRequestException: If start date is after due date
         """
-        if start_date > end_date:
+        if start_date > due_date:
             raise BadRequestException(
-                f"Project start date ({start_date.strftime('%d-%m-%Y')}) cannot be after end date ({end_date.strftime('%d-%m-%Y')})."
+                f"Project start date ({start_date.strftime('%d-%m-%Y')}) cannot be after due date ({due_date.strftime('%d-%m-%Y')})."
             )
 
     @ProjectDbManager.transaction()
@@ -253,7 +253,7 @@ class ProjectService:
         current_user = CurrentUserService.get_and_check_current_user()
 
         # Validate project dates
-        self._validate_project_dates(project_dto.start_date, project_dto.end_date)
+        self._validate_project_dates(project_dto.start_date, project_dto.due_date)
 
         # Create the project model from DTO
         project_manager = (
@@ -267,7 +267,7 @@ class ProjectService:
             project_dto.description or RichText().to_dto()
         )  # Initialize with empty rich text
         project.start_date = project_dto.start_date
-        project.end_date = project_dto.end_date
+        project.due_date = project_dto.due_date
         project.project_manager = project_manager
         project.company = (
             Company.get_by_id_and_check(project_dto.company_id) if project_dto.company_id else None
@@ -301,12 +301,12 @@ class ProjectService:
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
         # Validate project dates
-        self._validate_project_dates(project_dto.start_date, project_dto.end_date)
+        self._validate_project_dates(project_dto.start_date, project_dto.due_date)
 
         # Update the project fields from DTO
         project.title = project_dto.name
         project.start_date = project_dto.start_date
-        project.end_date = project_dto.end_date
+        project.due_date = project_dto.due_date
         project.company = (
             Company.get_by_id_and_check(project_dto.company_id) if project_dto.company_id else None
         )
@@ -551,7 +551,7 @@ class ProjectService:
         """Create a project from a project template.
 
         This method creates a new project with all tasks from the template.
-        The end_date is automatically calculated based on the template tasks.
+        The due_date is automatically calculated based on the template tasks.
         Tasks are created with dates calculated from their start_date_offset and duration_days.
 
         :param project_template_id: The ID of the project template to use
@@ -568,8 +568,8 @@ class ProjectService:
         # Get all root task templates for this project template
         root_task_templates = TaskTemplate.get_root_tasks_of_template(project_template_id)
 
-        # Calculate the project end_date based on template tasks
-        end_date = self._calculate_project_end_date_from_template(
+        # Calculate the project due_date based on template tasks
+        due_date = self._calculate_project_due_date_from_template(
             project_dto.start_date, root_task_templates
         )
 
@@ -577,7 +577,7 @@ class ProjectService:
         save_project_dto = SaveProjectDTO(
             name=project_dto.name,
             start_date=project_dto.start_date,
-            end_date=end_date,
+            due_date=due_date,
             project_manager_id=project_dto.project_manager_id,
             description=project_template.description,
             company_id=project_dto.company_id,
@@ -647,19 +647,19 @@ class ProjectService:
             for root_task_template in root_task_templates
         ]
 
-    def _calculate_project_end_date_from_template(
+    def _calculate_project_due_date_from_template(
         self, project_start_date, task_templates: list[TaskTemplate]
     ):
-        """Calculate the project end date based on all task templates.
+        """Calculate the project due date based on all task templates.
 
         Recursively processes all task templates (including subtasks) to find
-        the maximum end date.
+        the maximum due date.
 
         :param project_start_date: The project start date
         :type project_start_date: datetime.date
         :param task_templates: List of task templates to process
         :type task_templates: List[TaskTemplate]
-        :return: The calculated end date for the project
+        :return: The calculated due date for the project
         :rtype: datetime.date
         """
         max_end_offset = 0
@@ -682,6 +682,6 @@ class ProjectService:
         for task_template in task_templates:
             process_task_template(task_template)
 
-        # Calculate end date (subtract 1 day because duration includes the start day)
-        end_date = project_start_date + timedelta(days=max(max_end_offset - 1, 0))
-        return end_date
+        # Calculate due date (subtract 1 day because duration includes the start day)
+        due_date = project_start_date + timedelta(days=max(max_end_offset - 1, 0))
+        return due_date

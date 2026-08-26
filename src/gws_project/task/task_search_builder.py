@@ -63,11 +63,11 @@ class TaskSearchBuilder(SearchBuilder):
 
         A task is included if any of these conditions are true:
         1. Task start_date falls within the filter range (start_date <= task.start_date <= end_date)
-        2. Task end_date falls within the filter range (start_date <= task.end_date <= end_date)
-        3. Task dates wrap/encompass the entire filter range (task.start_date <= start_date AND task.end_date >= end_date)
+        2. Task due_date falls within the filter range (start_date <= task.due_date <= end_date)
+        3. Task dates wrap/encompass the entire filter range (task.start_date <= start_date AND task.due_date >= end_date)
 
         Examples:
-        - Filter: Jan 5-10, Task: Jan 1-7 -> Included (task end_date Jan 7 is between Jan 5-10)
+        - Filter: Jan 5-10, Task: Jan 1-7 -> Included (task due_date Jan 7 is between Jan 5-10)
         - Filter: Jan 5-10, Task: Jan 8-12 -> Included (task start_date Jan 8 is between Jan 5-10)
         - Filter: Jan 5-10, Task: Jan 1-15 -> Included (task wraps the filter range)
         - Filter: Jan 5-10, Task: Jan 11-15 -> Excluded (no overlap)
@@ -79,12 +79,12 @@ class TaskSearchBuilder(SearchBuilder):
         """
         # Include tasks where:
         # 1. Task start_date is within filter range
-        # 2. Task end_date is within filter range
+        # 2. Task due_date is within filter range
         # 3. Task wraps the filter range
         self.add_expression(
             ((Task.start_date >= start_date) & (Task.start_date <= end_date)) |  # start_date in range
-            ((Task.end_date >= start_date) & (Task.end_date <= end_date)) |      # end_date in range
-            ((Task.start_date <= start_date) & (Task.end_date >= end_date))      # task wraps range
+            ((Task.due_date >= start_date) & (Task.due_date <= end_date)) |      # due_date in range
+            ((Task.start_date <= start_date) & (Task.due_date >= end_date))      # task wraps range
         )
         return self
 

@@ -43,11 +43,11 @@ class ProjectSearchBuilder(SearchBuilder):
 
         A project is included if any of these conditions are true:
         1. Project start_date falls within the filter range (start_date <= project.start_date <= end_date)
-        2. Project end_date falls within the filter range (start_date <= project.end_date <= end_date)
-        3. Project dates wrap/encompass the entire filter range (project.start_date <= start_date AND project.end_date >= end_date)
+        2. Project due_date falls within the filter range (start_date <= project.due_date <= end_date)
+        3. Project dates wrap/encompass the entire filter range (project.start_date <= start_date AND project.due_date >= end_date)
 
         Examples:
-        - Filter: Jan 5-10, Project: Jan 1-7 -> Included (project end_date Jan 7 is between Jan 5-10)
+        - Filter: Jan 5-10, Project: Jan 1-7 -> Included (project due_date Jan 7 is between Jan 5-10)
         - Filter: Jan 5-10, Project: Jan 8-12 -> Included (project start_date Jan 8 is between Jan 5-10)
         - Filter: Jan 5-10, Project: Jan 1-15 -> Included (project wraps the filter range)
         - Filter: Jan 5-10, Project: Jan 11-15 -> Excluded (no overlap)
@@ -59,11 +59,11 @@ class ProjectSearchBuilder(SearchBuilder):
         """
         # Include projects where:
         # 1. Project start_date is within filter range
-        # 2. Project end_date is within filter range
+        # 2. Project due_date is within filter range
         # 3. Project wraps the filter range
         self.add_expression(
             ((Project.start_date >= start_date) & (Project.start_date <= end_date))  # start_date in range
-            | ((Project.end_date >= start_date) & (Project.end_date <= end_date))  # end_date in range
-            | ((Project.start_date <= start_date) & (Project.end_date >= end_date))  # project wraps range
+            | ((Project.due_date >= start_date) & (Project.due_date <= end_date))  # due_date in range
+            | ((Project.start_date <= start_date) & (Project.due_date >= end_date))  # project wraps range
         )
         return self

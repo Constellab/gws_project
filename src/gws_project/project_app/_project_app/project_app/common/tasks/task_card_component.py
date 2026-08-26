@@ -73,28 +73,33 @@ def _task_card(task: TaskDTO) -> rx.Component:
                             ),
                             trim="both",
                         ),
-                        rx.hstack(
-                            rx.text(
-                                rx.cond(
-                                    task.start_date_text,
-                                    task.start_date_text,
-                                    "—",
+                        # An undated task shows no date line at all: "— → —" is
+                        # noise, not information. One date still renders its range.
+                        rx.cond(
+                            (task.start_date_text != "") | (task.due_date_text != ""),
+                            rx.hstack(
+                                rx.text(
+                                    rx.cond(
+                                        task.start_date_text,
+                                        task.start_date_text,
+                                        "—",
+                                    ),
+                                    size="1",
+                                    color="var(--gray-9)",
                                 ),
-                                size="1",
-                                color="var(--gray-9)",
-                            ),
-                            rx.text("→", size="1", color="var(--gray-7)"),
-                            rx.text(
-                                rx.cond(
-                                    task.end_date_text,
-                                    task.end_date_text,
-                                    "—",
+                                rx.text("→", size="1", color="var(--gray-7)"),
+                                rx.text(
+                                    rx.cond(
+                                        task.due_date_text,
+                                        task.due_date_text,
+                                        "—",
+                                    ),
+                                    size="1",
+                                    color="var(--gray-9)",
                                 ),
-                                size="1",
-                                color="var(--gray-9)",
+                                spacing="1",
+                                align="center",
                             ),
-                            spacing="1",
-                            align="center",
                         ),
                         spacing="1",
                         align_items="start",

@@ -45,7 +45,7 @@ class ProjectUserDTO(BaseModelDTO):
 class SaveProjectDTO(BaseModelDTO):
     name: str
     start_date: datetime
-    end_date: datetime
+    due_date: datetime
     project_manager_id: str | None = None
     description: RichTextDTO | None = None
     company_id: str | None = None
@@ -83,10 +83,10 @@ class ProjectDTO(ModelDTO):
     title: str
     description: RichTextDTO | None
     start_date: datetime
-    end_date: datetime
+    due_date: datetime
     # Pre-formatted server-side so the frontend never parses/reformats these dates itself.
     start_date_text: str
-    end_date_text: str
+    due_date_text: str
     project_manager: UserDTO
     progress: int
     status: ProjectStatus

@@ -200,7 +200,7 @@ class TaskService:
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.USER)
 
         # Validate task dates are within project dates
-        self._validate_task_dates_within_project(project, task_dto.start_date, task_dto.end_date)
+        self._validate_task_dates_within_project(project, task_dto.start_date, task_dto.due_date)
 
         # Create the task model from DTO using common method
         task = self._build_task_from_dto(task_dto, project, parent_task=None)
@@ -288,7 +288,7 @@ class TaskService:
         # Snapshot current values to know exactly what changed once the task is saved
         old_title = task.title
         old_start_date = task.start_date
-        old_end_date = task.end_date
+        old_due_date = task.due_date
         old_status = task.status
         old_priority = task.priority
         old_assign_to = task.assign_to
@@ -297,13 +297,13 @@ class TaskService:
         if task.is_leaf_task():
             # For root tasks, validate against project dates
             self._validate_task_dates_within_project(
-                task.project, task_dto.start_date, task_dto.end_date
+                task.project, task_dto.start_date, task_dto.due_date
             )
 
             # Update the task fields from DTO (the form always resends the full desired
             # state, so a missing date here means the user cleared it)
             task.start_date = task_dto.start_date
-            task.end_date = task_dto.end_date
+            task.due_date = task_dto.due_date
             if task_dto.status:
                 task.set_status(task_dto.status)
             if task_dto.priority:
@@ -322,7 +322,7 @@ class TaskService:
             task,
             old_title=old_title,
             old_start_date=old_start_date,
-            old_end_date=old_end_date,
+            old_due_date=old_due_date,
             old_status=old_status,
             old_priority=old_priority,
             old_assign_to=old_assign_to,
@@ -624,7 +624,7 @@ class TaskService:
         # A leaf task becoming a root task must respect the destination project's date bounds
         # (parent tasks have their dates auto-calculated from subtasks, so no check for them)
         if new_parent_task is None and task.is_leaf_task():
-            self._validate_task_dates_within_project(new_project, task.start_date, task.end_date)
+            self._validate_task_dates_within_project(new_project, task.start_date, task.due_date)
 
     @ProjectDbManager.transaction()
     def move_task(
@@ -784,7 +784,7 @@ class TaskService:
         self._recalculate_parent_info(task)
 
     def _validate_task_dates_within_project(
-        self, project: Project, task_start_date: date | None, task_end_date: date | None
+        self, project: Project, task_start_date: date | None, task_due_date: date | None
     ) -> None:
         """Validate that task dates are within project dates.
 
@@ -794,25 +794,25 @@ class TaskService:
         :type project: Project
         :param task_start_date: Task start date, if set
         :type task_start_date: Optional[date]
-        :param task_end_date: Task end date, if set
-        :type task_end_date: Optional[date]
+        :param task_due_date: Task due date, if set
+        :type task_due_date: Optional[date]
         :raises BadRequestException: If dates are outside project bounds
         """
         if task_start_date is not None and task_start_date < project.start_date:
             raise BadRequestException(
                 f"Task start date ({task_start_date}) cannot be before project start date ({project.start_date})."
             )
-        if task_end_date is not None and task_end_date > project.end_date:
+        if task_due_date is not None and task_due_date > project.due_date:
             raise BadRequestException(
-                f"Task end date ({task_end_date}) cannot be after project end date ({project.end_date})."
+                f"Task due date ({task_due_date}) cannot be after project due date ({project.due_date})."
             )
         if (
             task_start_date is not None
-            and task_end_date is not None
-            and task_start_date > task_end_date
+            and task_due_date is not None
+            and task_start_date > task_due_date
         ):
             raise BadRequestException(
-                f"Task start date ({task_start_date}) cannot be after its end date ({task_end_date})."
+                f"Task start date ({task_start_date}) cannot be after its due date ({task_due_date})."
             )
 
     def _validate_assign_to_in_project(self, project_id: str, user_id: str | None) -> User:
@@ -866,7 +866,7 @@ class TaskService:
         task: Task,
         old_title: str,
         old_start_date: date | None,
-        old_end_date: date | None,
+        old_due_date: date | None,
         old_status: TaskStatus,
         old_priority: TaskPriority,
         old_assign_to: User,
@@ -882,8 +882,8 @@ class TaskService:
         :type old_title: str
         :param old_start_date: The start date before the update
         :type old_start_date: Optional[date]
-        :param old_end_date: The end date before the update
-        :type old_end_date: Optional[date]
+        :param old_due_date: The due date before the update
+        :type old_due_date: Optional[date]
         :param old_status: The status before the update
         :type old_status: TaskStatus
         :param old_priority: The priority before the update
@@ -896,12 +896,12 @@ class TaskService:
         if task.title != old_title:
             history_service.log(task, TaskHistoryEventType.TITLE_CHANGED, old_title, task.title)
 
-        if task.start_date != old_start_date or task.end_date != old_end_date:
+        if task.start_date != old_start_date or task.due_date != old_due_date:
             history_service.log(
                 task,
                 TaskHistoryEventType.DATES_CHANGED,
-                format_history_date_range(old_start_date, old_end_date),
-                format_history_date_range(task.start_date, task.end_date),
+                format_history_date_range(old_start_date, old_due_date),
+                format_history_date_range(task.start_date, task.due_date),
             )
 
         if task.status != old_status:
@@ -934,7 +934,7 @@ class TaskService:
         old_status: TaskStatus,
         old_priority: TaskPriority,
         old_start_date: date | None,
-        old_end_date: date | None,
+        old_due_date: date | None,
     ) -> None:
         """Log a history event for each field automatically recalculated on a parent task.
 
@@ -950,8 +950,8 @@ class TaskService:
         :type old_priority: TaskPriority
         :param old_start_date: The start date before the recalculation
         :type old_start_date: Optional[date]
-        :param old_end_date: The end date before the recalculation
-        :type old_end_date: Optional[date]
+        :param old_due_date: The due date before the recalculation
+        :type old_due_date: Optional[date]
         """
         history_service = TaskHistoryService()
 
@@ -973,12 +973,12 @@ class TaskService:
                 is_automatic=True,
             )
 
-        if task.start_date != old_start_date or task.end_date != old_end_date:
+        if task.start_date != old_start_date or task.due_date != old_due_date:
             history_service.log(
                 task,
                 TaskHistoryEventType.DATES_CHANGED,
-                format_history_date_range(old_start_date, old_end_date),
-                format_history_date_range(task.start_date, task.end_date),
+                format_history_date_range(old_start_date, old_due_date),
+                format_history_date_range(task.start_date, task.due_date),
                 is_automatic=True,
             )
 
@@ -1013,7 +1013,7 @@ class TaskService:
 
         # Set dates (optional - a task may have no dates, only a start, only an end, or both)
         task.start_date = task_dto.start_date
-        task.end_date = task_dto.end_date
+        task.due_date = task_dto.due_date
 
         # Set status and priority with defaults
         task.set_status(task_dto.status or TaskStatus.TODO)
@@ -1050,7 +1050,7 @@ class TaskService:
         This method recursively updates the entire ancestor chain up to the root task.
         For each ancestor task, it automatically calculates:
         - Start date: earliest start date of all subtasks (or project start date if no subtasks)
-        - End date: latest end date of all subtasks (or project end date if no subtasks)
+        - Due date: latest due date of all subtasks (or project due date if no subtasks)
         - Status: based on subtask statuses (or TODO if no subtasks)
         - Priority: highest priority among all subtasks (or MEDIUM if no subtasks)
         - Progress: average progress of all subtasks
@@ -1067,7 +1067,7 @@ class TaskService:
             old_status = parent_task.status
             old_priority = parent_task.priority
             old_start_date = parent_task.start_date
-            old_end_date = parent_task.end_date
+            old_due_date = parent_task.due_date
 
             # Update from subtasks (calculates dates, status, priority, and progress)
             has_changes = parent_task.update_from_subtasks()
@@ -1078,7 +1078,7 @@ class TaskService:
                 parent_task.save()
 
                 self._log_automatic_recalculation(
-                    parent_task, old_status, old_priority, old_start_date, old_end_date
+                    parent_task, old_status, old_priority, old_start_date, old_due_date
                 )
 
             # Recursively update the parent's parent (if it exists)
@@ -1104,13 +1104,13 @@ class TaskService:
             old_status = task.status
             old_priority = task.priority
             old_start_date = task.start_date
-            old_end_date = task.end_date
+            old_due_date = task.due_date
 
             has_changes = task.update_from_subtasks()
             if has_changes:
                 task.save()
                 self._log_automatic_recalculation(
-                    task, old_status, old_priority, old_start_date, old_end_date
+                    task, old_status, old_priority, old_start_date, old_due_date
                 )
 
         if task.parent_task:
@@ -1197,14 +1197,14 @@ class TaskService:
         :rtype: Task
         """
         # Calculate task dates based on template offsets. No offset means no dates at
-        # all (duration alone can't anchor an end date without a start).
+        # all (duration alone can't anchor a due date without a start).
         task_start_date = (
             project_start_date + timedelta(days=task_template.start_date_offset)
             if task_template.start_date_offset is not None
             else None
         )
         # Subtract 1 because duration includes the start day
-        task_end_date = (
+        task_due_date = (
             task_start_date + timedelta(days=max(task_template.duration_days - 1, 0))
             if task_start_date is not None and task_template.duration_days is not None
             else None
@@ -1236,7 +1236,7 @@ class TaskService:
         task_dto = CreateTaskDTO(
             title=task_template.title,
             start_date=task_start_date,
-            end_date=task_end_date,
+            due_date=task_due_date,
             status=initial_status,
             priority=task_template.priority,
             allow_subtasks=task_template.allow_subtasks,

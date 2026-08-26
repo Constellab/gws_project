@@ -249,7 +249,7 @@ def localize_task_dto(dto: TaskDTO, lang: str) -> TaskDTO:
     """Fill a TaskDTO's date texts in the active language.
 
     `Task.to_dto()` cannot know the language of the session, so it leaves ISO fallbacks
-    in `start_date_text`/`end_date_text`. Every state that sends tasks to the frontend
+    in `start_date_text`/`due_date_text`. Every state that sends tasks to the frontend
     passes them through here (mutates and returns the DTO, so it can be used inline in a
     comprehension).
 
@@ -261,7 +261,7 @@ def localize_task_dto(dto: TaskDTO, lang: str) -> TaskDTO:
     :rtype: TaskDTO
     """
     dto.start_date_text = format_date(dto.start_date, lang)
-    dto.end_date_text = format_date(dto.end_date, lang)
+    dto.due_date_text = format_date(dto.due_date, lang)
     return dto
 
 
@@ -296,5 +296,5 @@ def localize_project_dto(dto: ProjectDTO, lang: str) -> ProjectDTO:
     :rtype: ProjectDTO
     """
     dto.start_date_text = format_date(dto.start_date, lang)
-    dto.end_date_text = format_date(dto.end_date, lang)
+    dto.due_date_text = format_date(dto.due_date, lang)
     return dto

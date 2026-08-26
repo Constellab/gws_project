@@ -39,7 +39,7 @@ class TestMigrationHistoryValues(BaseTestCase):
             SaveProjectDTO(
                 name="History Migration Project",
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
             )
         )
         return TaskService().create_root_task(
@@ -47,7 +47,7 @@ class TestMigrationHistoryValues(BaseTestCase):
             CreateTaskDTO(
                 title="Task",
                 start_date=date(2025, 2, 1),
-                end_date=date(2025, 2, 28),
+                due_date=date(2025, 2, 28),
                 assign_to_id=CurrentUserService.get_and_check_current_user().id,
             ),
         )

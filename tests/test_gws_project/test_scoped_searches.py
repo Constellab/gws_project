@@ -44,7 +44,7 @@ class TestScopedSearches(BaseTestCase):
             SaveProjectDTO(
                 name=name,
                 start_date=datetime(2025, 1, 1),
-                end_date=datetime(2025, 12, 31),
+                due_date=datetime(2025, 12, 31),
             )
         )
 
@@ -54,7 +54,7 @@ class TestScopedSearches(BaseTestCase):
             CreateTaskDTO(
                 title=title,
                 start_date=date(2025, 1, 2),
-                end_date=date(2025, 1, 10),
+                due_date=date(2025, 1, 10),
             ),
         )
 

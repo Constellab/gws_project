@@ -27,7 +27,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
     # Form field default values
     form_name: str = ""
     form_start_date: str = ""
-    form_end_date: str = ""
+    form_due_date: str = ""
     form_project_manager_id: str = ""
     form_company_id: str = ""
 
@@ -141,7 +141,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
 
         # set data to format 'YYYY-MM-DD' for date input
         self.form_start_date = project.start_date.strftime("%Y-%m-%d")
-        self.form_end_date = project.end_date.strftime("%Y-%m-%d")
+        self.form_due_date = project.due_date.strftime("%Y-%m-%d")
 
         # Set project manager
         self.form_project_manager_id = project.project_manager.id
@@ -170,17 +170,20 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         """Validate and parse form data into a SaveProjectDTO.
 
         Args:
-            form_data: Dictionary containing form fields (name, start_date, end_date, project_manager_id)
+            form_data: Dictionary containing form fields (name, start_date, due_date, project_manager_id)
 
         Returns:
             SaveProjectDTO if validation succeeds, None otherwise (error toast is shown)
         """
-        i18n = await self.get_state(I18nState)
+        # submit_form is a background event, so `self` is a StateProxy here and
+        # sibling state can only be reached while the state lock is held.
+        async with self:
+            i18n = await self.get_state(I18nState)
 
         # Get values from form data
         name = form_data.get("name", "").strip()
         start_date_str = form_data.get("start_date", "").strip()
-        end_date_str = form_data.get("end_date", "").strip()
+        due_date_str = form_data.get("due_date", "").strip()
         project_manager_id = form_data.get("project_manager_id", "").strip() or None
 
         # Validate required fields
@@ -190,18 +193,18 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         if not start_date_str:
             raise Exception(i18n.tr("project_form_dialog.error.start_date_required"))
 
-        if not end_date_str:
-            raise Exception(i18n.tr("project_form_dialog.error.end_date_required"))
+        if not due_date_str:
+            raise Exception(i18n.tr("project_form_dialog.error.due_date_required"))
 
         # Parse dates from string to datetime
         start_date = datetime.fromisoformat(start_date_str)
-        end_date = datetime.fromisoformat(end_date_str)
+        due_date = datetime.fromisoformat(due_date_str)
 
         # Create and return the SaveProjectDTO
         return SaveProjectDTO(
             name=name,
             start_date=start_date,
-            end_date=end_date,
+            due_date=due_date,
             project_manager_id=project_manager_id,
             # Read directly from state (kept in sync via on_change) rather than form_data:
             # rx.select is not a native <select>, so its value isn't reliably part of the
@@ -213,7 +216,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         """Create a new project using the form data.
 
         Args:
-            form_data: Dictionary containing form fields (name, start_date, end_date)
+            form_data: Dictionary containing form fields (name, start_date, due_date)
 
         Yields:
             Reflex events (rx.toast, rx.redirect)
@@ -240,7 +243,10 @@ class ProjectFormDialogState(FormDialogState, rx.State):
                 created_project = project_service.create_project(project_dto)
 
         # Show success toast
-        yield await toast_tr.success(self, "project_form_dialog.toast.created")
+        # toast_tr resolves I18nState via get_state, so it needs the lock held.
+        async with self:
+            toast = await toast_tr.success(self, "project_form_dialog.toast.created")
+        yield toast
 
         # Redirect to the project detail page
         yield rx.redirect(ProjectAppRouter.get_project_detail_url(created_project.id))
@@ -259,7 +265,10 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         name = form_data.get("name", "").strip()
         start_date_str = form_data.get("start_date", "").strip()
 
-        i18n = await self.get_state(I18nState)
+        # submit_form is a background event, so `self` is a StateProxy here and
+        # sibling state can only be reached while the state lock is held.
+        async with self:
+            i18n = await self.get_state(I18nState)
 
         # Validate required fields
         if not name:
@@ -303,7 +312,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         """Update an existing project using the form data.
 
         Args:
-            form_data: Dictionary containing form fields (name, start_date, end_date)
+            form_data: Dictionary containing form fields (name, start_date, due_date)
 
         Yields:
             Reflex events (rx.toast)
@@ -331,7 +340,10 @@ class ProjectFormDialogState(FormDialogState, rx.State):
             await project_page_state.refresh_object()
 
         # Show success toast
-        yield await toast_tr.success(self, "project_form_dialog.toast.updated")
+        # toast_tr resolves I18nState via get_state, so it needs the lock held.
+        async with self:
+            toast = await toast_tr.success(self, "project_form_dialog.toast.updated")
+        yield toast
 
     @rx.event
     async def add_newly_created_company(self, company: CompanyDTO):
@@ -349,7 +361,7 @@ class ProjectFormDialogState(FormDialogState, rx.State):
         self._editing_project = None
         self.form_name = ""
         self.form_start_date = ""
-        self.form_end_date = ""
+        self.form_due_date = ""
         self.form_project_manager_id = ""
         self.form_company_id = ""
         self.is_update_mode = False

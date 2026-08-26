@@ -52,7 +52,10 @@ class ProjectTemplateFormDialogState(FormDialogState, rx.State):
 
         # Validate required fields
         if not name:
-            i18n = await self.get_state(I18nState)
+            # submit_form is a background event, so `self` is a StateProxy here and
+            # sibling state can only be reached while the state lock is held.
+            async with self:
+                i18n = await self.get_state(I18nState)
             raise Exception(i18n.tr("project_template_form_dialog.name_required"))
 
         # Create and return the appropriate DTO
@@ -84,7 +87,10 @@ class ProjectTemplateFormDialogState(FormDialogState, rx.State):
             template_service.create_project_template(template_dto)
 
         # Show success toast
-        yield await toast_tr.success(self, "project_template_form_dialog.created_toast")
+        # toast_tr resolves I18nState via get_state, so it needs the lock held.
+        async with self:
+            toast = await toast_tr.success(self, "project_template_form_dialog.created_toast")
+        yield toast
 
         # Redirect to the template list page
         yield rx.redirect(ProjectAppRouter.get_project_template_list_url())
@@ -116,7 +122,10 @@ class ProjectTemplateFormDialogState(FormDialogState, rx.State):
             )
 
         # Show success toast
-        yield await toast_tr.success(self, "project_template_form_dialog.updated_toast")
+        # toast_tr resolves I18nState via get_state, so it needs the lock held.
+        async with self:
+            toast = await toast_tr.success(self, "project_template_form_dialog.updated_toast")
+        yield toast
 
     async def _clear_form_state(self):
         """Clear all form state after successful operation."""

@@ -223,7 +223,7 @@ class MyWorkService:
 
     def _to_day_slot_dto(self, slot: PlanningSlot, user: User, day: date) -> MyDaySlotDTO:
         task = slot.task
-        due_date = task.end_date
+        due_date = task.due_date
 
         return MyDaySlotDTO(
             slot_id=slot.id,
@@ -249,7 +249,7 @@ class MyWorkService:
         next_slot_start: datetime | None,
         day: date,
     ) -> MyRestTaskDTO:
-        due_date = task.end_date
+        due_date = task.due_date
 
         return MyRestTaskDTO(
             task_id=task.id,

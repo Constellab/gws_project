@@ -103,14 +103,14 @@ to white past 55% progress. Every bar carries a native `title` tooltip.
 
 ## Grouping
 
-Groups are ordered **En retard → En cours → Terminé**, and projects are sorted by end date
+Groups are ordered **En retard → En cours → Terminé**, and projects are sorted by due date
 ascending inside each group — what falls due next is what needs attention. Empty groups are
 not rendered, and `Terminé` disappears entirely when "show completed" is off.
 
 Grouping and sorting are done in the chart, not the backend: they are presentation concerns
 that must follow the "show completed" toggle without a round trip. The page's header counters
 therefore re-derive the same rule in `GanttPageState.visible_projects` — match projects **by
-id**, since projects missing a start or end date never reach the payload at all and the two
+id**, since projects missing a start or due date never reach the payload at all and the two
 lists are not positionally aligned.
 
 ## Gotchas

@@ -185,7 +185,7 @@ def _row(project: ProjectDTO) -> rx.Component:
                 rx.hstack(
                     rx.text("→", size="2", color="var(--gray-9)"),
                     rx.text(
-                        project.end_date_text,
+                        project.due_date_text,
                         size="2",
                         color="var(--gray-9)",
                     ),

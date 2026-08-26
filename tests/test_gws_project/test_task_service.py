@@ -53,7 +53,7 @@ class TestTaskService(BaseTestCase):
         project_dto = SaveProjectDTO(
             name="Test Project",
             start_date=datetime(2025, 1, 1),
-            end_date=datetime(2025, 12, 31),
+            due_date=datetime(2025, 12, 31),
         )
         return project_service.create_project(project_dto)
 
@@ -81,7 +81,7 @@ class TestTaskService(BaseTestCase):
         root_task_dto = CreateTaskDTO(
             title="Test Root Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             status=TaskStatus.TODO,
             priority=TaskPriority.HIGH,
             allow_subtasks=True,
@@ -96,7 +96,7 @@ class TestTaskService(BaseTestCase):
         self.assertEqual(created_task.title, "Test Root Task")
         self.assertIsNotNone(created_task.description)  # Should have RichTextDTO
         self.assertEqual(created_task.start_date, date(2025, 2, 1))
-        self.assertEqual(created_task.end_date, date(2025, 2, 28))
+        self.assertEqual(created_task.due_date, date(2025, 2, 28))
         self.assertEqual(created_task.status, TaskStatus.TODO)
         self.assertEqual(created_task.priority, TaskPriority.HIGH)
         self.assertTrue(created_task.allow_subtasks)
@@ -117,7 +117,7 @@ class TestTaskService(BaseTestCase):
         invalid_dto = CreateTaskDTO(
             title="Invalid Task",
             start_date=date(2024, 12, 31),  # Before project start
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             assign_to_id=current_user.id,
         )
 
@@ -125,25 +125,25 @@ class TestTaskService(BaseTestCase):
             task_service.create_root_task(project.id, invalid_dto)
         self.assertIn("start date", str(context.exception))
 
-        # Test end date after project end date
+        # Test due date after project due date
         invalid_dto.start_date = date(2025, 2, 1)
-        invalid_dto.end_date = date(2026, 1, 1)  # After project end
+        invalid_dto.due_date = date(2026, 1, 1)  # After project end
 
         with self.assertRaises(BadRequestException) as context:
             task_service.create_root_task(project.id, invalid_dto)
-        self.assertIn("end date", str(context.exception))
+        self.assertIn("due date", str(context.exception))
 
-        # Test start date after end date
+        # Test start date after due date
         invalid_dto.start_date = date(2025, 3, 1)
-        invalid_dto.end_date = date(2025, 2, 28)
+        invalid_dto.due_date = date(2025, 2, 28)
 
         with self.assertRaises(BadRequestException) as context:
             task_service.create_root_task(project.id, invalid_dto)
         self.assertIn("start date", str(context.exception))
 
     def test_create_root_task_optional_dates(self):
-        """Test that a task's start_date/end_date are genuinely optional: no dates,
-        only a start date, or only an end date, all with no fallback to the project's
+        """Test that a task's start_date/due_date are genuinely optional: no dates,
+        only a start date, or only a due date, all with no fallback to the project's
         dates."""
         task_service = self._get_task_service()
         project_service = self._get_project_service()
@@ -155,34 +155,34 @@ class TestTaskService(BaseTestCase):
         no_dates_dto = CreateTaskDTO(
             title="No Dates Task",
             start_date=None,
-            end_date=None,
+            due_date=None,
             assign_to_id=current_user.id,
         )
         no_dates_task = task_service.create_root_task(project.id, no_dates_dto)
         self.assertIsNone(no_dates_task.start_date)
-        self.assertIsNone(no_dates_task.end_date)
+        self.assertIsNone(no_dates_task.due_date)
 
         # Only a start date
         start_only_dto = CreateTaskDTO(
             title="Start Only Task",
             start_date=date(2025, 2, 1),
-            end_date=None,
+            due_date=None,
             assign_to_id=current_user.id,
         )
         start_only_task = task_service.create_root_task(project.id, start_only_dto)
         self.assertEqual(start_only_task.start_date, date(2025, 2, 1))
-        self.assertIsNone(start_only_task.end_date)
+        self.assertIsNone(start_only_task.due_date)
 
-        # Only an end date
+        # Only a due date
         end_only_dto = CreateTaskDTO(
             title="End Only Task",
             start_date=None,
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             assign_to_id=current_user.id,
         )
         end_only_task = task_service.create_root_task(project.id, end_only_dto)
         self.assertIsNone(end_only_task.start_date)
-        self.assertEqual(end_only_task.end_date, date(2025, 2, 28))
+        self.assertEqual(end_only_task.due_date, date(2025, 2, 28))
 
     def test_create_root_task_partial_dates_still_validated(self):
         """Test that when only one date is set, it is still validated against the
@@ -193,38 +193,38 @@ class TestTaskService(BaseTestCase):
         project = self._create_test_project(project_service)
         current_user = CurrentUserService.get_and_check_current_user()
 
-        # Start date before project start, no end date: should still raise
+        # Start date before project start, no due date: should still raise
         invalid_dto = CreateTaskDTO(
             title="Invalid Start Only",
             start_date=date(2024, 12, 31),
-            end_date=None,
+            due_date=None,
             assign_to_id=current_user.id,
         )
         with self.assertRaises(BadRequestException) as context:
             task_service.create_root_task(project.id, invalid_dto)
         self.assertIn("start date", str(context.exception))
 
-        # End date after project end, no start date: should still raise
+        # Due date after project due date, no start date: should still raise
         invalid_dto2 = CreateTaskDTO(
             title="Invalid End Only",
             start_date=None,
-            end_date=date(2026, 1, 1),
+            due_date=date(2026, 1, 1),
             assign_to_id=current_user.id,
         )
         with self.assertRaises(BadRequestException) as context:
             task_service.create_root_task(project.id, invalid_dto2)
-        self.assertIn("end date", str(context.exception))
+        self.assertIn("due date", str(context.exception))
 
         # A single valid date within bounds and no other date: should succeed
         valid_dto = CreateTaskDTO(
             title="Valid Start Only",
             start_date=date(2025, 2, 1),
-            end_date=None,
+            due_date=None,
             assign_to_id=current_user.id,
         )
         valid_task = task_service.create_root_task(project.id, valid_dto)
         self.assertEqual(valid_task.start_date, date(2025, 2, 1))
-        self.assertIsNone(valid_task.end_date)
+        self.assertIsNone(valid_task.due_date)
 
     def test_create_root_task_user_not_in_project(self):
         """Test create_root_task with user not in project"""
@@ -235,7 +235,7 @@ class TestTaskService(BaseTestCase):
         external_user = self._create_test_user("external@example.com")
 
         root_task_dto = CreateTaskDTO(
-            title="Test Task", start_date=date(2025, 2, 1), end_date=date(2025, 2, 28), assign_to_id=external_user.id
+            title="Test Task", start_date=date(2025, 2, 1), due_date=date(2025, 2, 28), assign_to_id=external_user.id
         )
 
         with self.assertRaises(BadRequestException):
@@ -253,7 +253,7 @@ class TestTaskService(BaseTestCase):
         root_task_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             allow_subtasks=True,
             assign_to_id=current_user.id,
         )
@@ -263,7 +263,7 @@ class TestTaskService(BaseTestCase):
         sub_task_dto = CreateTaskDTO(
             title="Test Sub Task",
             start_date=date(2025, 2, 5),
-            end_date=date(2025, 2, 15),
+            due_date=date(2025, 2, 15),
             status=TaskStatus.DOING,
             priority=TaskPriority.LOW,
             assign_to_id=current_user.id,
@@ -277,7 +277,7 @@ class TestTaskService(BaseTestCase):
         self.assertEqual(created_subtask.title, "Test Sub Task")
         self.assertIsNotNone(created_subtask.description)  # Should have RichTextDTO
         self.assertEqual(created_subtask.start_date, date(2025, 2, 5))
-        self.assertEqual(created_subtask.end_date, date(2025, 2, 15))
+        self.assertEqual(created_subtask.due_date, date(2025, 2, 15))
         self.assertEqual(created_subtask.status, TaskStatus.DOING)
         self.assertEqual(created_subtask.priority, TaskPriority.LOW)
         self.assertFalse(created_subtask.allow_subtasks)  # Subtasks cannot have subtasks
@@ -298,14 +298,14 @@ class TestTaskService(BaseTestCase):
         root_task_dto = CreateTaskDTO(
             title="No Subtasks Parent",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             allow_subtasks=False,
             assign_to_id=current_user.id,
         )
         root_task = task_service.create_root_task(project.id, root_task_dto)
 
         sub_task_dto = CreateTaskDTO(
-            title="Test Sub Task", start_date=date(2025, 2, 5), end_date=date(2025, 2, 15), assign_to_id=current_user.id
+            title="Test Sub Task", start_date=date(2025, 2, 5), due_date=date(2025, 2, 15), assign_to_id=current_user.id
         )
 
         # Test failure when parent doesn't allow subtasks
@@ -325,7 +325,7 @@ class TestTaskService(BaseTestCase):
         root_task_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             allow_subtasks=True,
             assign_to_id=current_user.id,
         )
@@ -335,7 +335,7 @@ class TestTaskService(BaseTestCase):
         subtask_dto = CreateTaskDTO(
             title="Extending Subtask",
             start_date=date(2025, 1, 15),  # Before parent start
-            end_date=date(2025, 3, 15),  # After parent end
+            due_date=date(2025, 3, 15),  # After parent end
             assign_to_id=current_user.id,
         )
 
@@ -344,12 +344,12 @@ class TestTaskService(BaseTestCase):
 
         # Verify subtask was created with the specified dates
         self.assertEqual(created_subtask.start_date, date(2025, 1, 15))
-        self.assertEqual(created_subtask.end_date, date(2025, 3, 15))
+        self.assertEqual(created_subtask.due_date, date(2025, 3, 15))
 
         # Verify parent task dates were automatically updated to encompass subtask
         refreshed_parent = Task.get_by_id(root_task.id)
         self.assertEqual(refreshed_parent.start_date, date(2025, 1, 15))
-        self.assertEqual(refreshed_parent.end_date, date(2025, 3, 15))
+        self.assertEqual(refreshed_parent.due_date, date(2025, 3, 15))
 
     def test_update_task(self):
         """Test update_task method"""
@@ -363,7 +363,7 @@ class TestTaskService(BaseTestCase):
         root_task_dto = CreateTaskDTO(
             title="Original Title",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             priority=TaskPriority.MEDIUM,
             assign_to_id=current_user.id,
         )
@@ -373,7 +373,7 @@ class TestTaskService(BaseTestCase):
         update_dto = UpdateTaskDTO(
             title="Updated Title",
             start_date=date(2025, 2, 5),
-            end_date=date(2025, 2, 25),
+            due_date=date(2025, 2, 25),
             status=TaskStatus.TODO,
             priority=TaskPriority.HIGH,
         )
@@ -385,7 +385,7 @@ class TestTaskService(BaseTestCase):
         self.assertEqual(updated_task.id, created_task.id)
         self.assertEqual(updated_task.title, "Updated Title")
         self.assertEqual(updated_task.start_date, date(2025, 2, 5))
-        self.assertEqual(updated_task.end_date, date(2025, 2, 25))
+        self.assertEqual(updated_task.due_date, date(2025, 2, 25))
         self.assertEqual(updated_task.priority, TaskPriority.HIGH)
 
     def test_update_task_can_clear_dates(self):
@@ -400,7 +400,7 @@ class TestTaskService(BaseTestCase):
         root_task_dto = CreateTaskDTO(
             title="Task With Dates",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             assign_to_id=current_user.id,
         )
         created_task = task_service.create_root_task(project.id, root_task_dto)
@@ -408,14 +408,14 @@ class TestTaskService(BaseTestCase):
         clear_dto = UpdateTaskDTO(
             title="Task With Dates",
             start_date=None,
-            end_date=None,
+            due_date=None,
             status=TaskStatus.TODO,
             priority=TaskPriority.MEDIUM,
         )
         updated_task = task_service.update_task(created_task.id, clear_dto)
 
         self.assertIsNone(updated_task.start_date)
-        self.assertIsNone(updated_task.end_date)
+        self.assertIsNone(updated_task.due_date)
 
     def test_update_assign_to(self):
         """Test update_assign_to method"""
@@ -431,7 +431,7 @@ class TestTaskService(BaseTestCase):
 
         # Create a task
         root_task_dto = CreateTaskDTO(
-            title="Test Task", start_date=date(2025, 2, 1), end_date=date(2025, 2, 28), assign_to_id=current_user.id
+            title="Test Task", start_date=date(2025, 2, 1), due_date=date(2025, 2, 28), assign_to_id=current_user.id
         )
         created_task = task_service.create_root_task(project.id, root_task_dto)
 
@@ -458,7 +458,7 @@ class TestTaskService(BaseTestCase):
         root_task_dto = CreateTaskDTO(
             title="Test Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             status=TaskStatus.TODO,
             allow_subtasks=False,
             assign_to_id=current_user.id,
@@ -473,7 +473,7 @@ class TestTaskService(BaseTestCase):
         task_with_subtasks_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             allow_subtasks=True,
             assign_to_id=current_user.id,
         )
@@ -495,7 +495,7 @@ class TestTaskService(BaseTestCase):
         root_task_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             allow_subtasks=True,
             assign_to_id=current_user.id,
         )
@@ -503,7 +503,7 @@ class TestTaskService(BaseTestCase):
 
         # Create a subtask
         sub_task_dto = CreateTaskDTO(
-            title="Sub Task", start_date=date(2025, 2, 5), end_date=date(2025, 2, 15), assign_to_id=current_user.id
+            title="Sub Task", start_date=date(2025, 2, 5), due_date=date(2025, 2, 15), assign_to_id=current_user.id
         )
         sub_task = task_service.create_sub_task(root_task.id, sub_task_dto)
 
@@ -533,14 +533,14 @@ class TestTaskService(BaseTestCase):
         root_task_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             allow_subtasks=True,
             assign_to_id=current_user.id,
         )
         root_task = task_service.create_root_task(project.id, root_task_dto)
 
         sub_task_dto = CreateTaskDTO(
-            title="Sub Task", start_date=date(2025, 2, 5), end_date=date(2025, 2, 15), assign_to_id=current_user.id
+            title="Sub Task", start_date=date(2025, 2, 5), due_date=date(2025, 2, 15), assign_to_id=current_user.id
         )
         sub_task = task_service.create_sub_task(root_task.id, sub_task_dto)
 
@@ -573,7 +573,7 @@ class TestTaskService(BaseTestCase):
         root_task_dto = CreateTaskDTO(
             title="Main Development Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             priority=TaskPriority.HIGH,
             allow_subtasks=True,
             assign_to_id=current_user.id,
@@ -584,7 +584,7 @@ class TestTaskService(BaseTestCase):
         subtask1_dto = CreateTaskDTO(
             title="Database Setup",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 10),
+            due_date=date(2025, 3, 10),
             priority=TaskPriority.HIGH,
             assign_to_id=current_user.id,
         )
@@ -593,7 +593,7 @@ class TestTaskService(BaseTestCase):
         subtask2_dto = CreateTaskDTO(
             title="API Development",
             start_date=date(2025, 3, 11),
-            end_date=date(2025, 3, 20),
+            due_date=date(2025, 3, 20),
             priority=TaskPriority.MEDIUM,
             assign_to_id=second_user.id,
         )
@@ -603,7 +603,7 @@ class TestTaskService(BaseTestCase):
         update_dto = UpdateTaskDTO(
             title="Enhanced Development Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 30),
+            due_date=date(2025, 3, 30),
             status=TaskStatus.TODO,
             priority=TaskPriority.MEDIUM,
         )
@@ -648,7 +648,7 @@ class TestTaskService(BaseTestCase):
         parent_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
             assign_to_id=current_user.id,
@@ -659,7 +659,7 @@ class TestTaskService(BaseTestCase):
         subtask_dto = CreateTaskDTO(
             title="Subtask 1",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 15),
+            due_date=date(2025, 3, 15),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -691,7 +691,7 @@ class TestTaskService(BaseTestCase):
         parent_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
             assign_to_id=current_user.id,
@@ -702,7 +702,7 @@ class TestTaskService(BaseTestCase):
         subtask1_dto = CreateTaskDTO(
             title="Subtask 1",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 10),
+            due_date=date(2025, 3, 10),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -711,7 +711,7 @@ class TestTaskService(BaseTestCase):
         subtask2_dto = CreateTaskDTO(
             title="Subtask 2",
             start_date=date(2025, 3, 11),
-            end_date=date(2025, 3, 15),
+            due_date=date(2025, 3, 15),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -755,7 +755,7 @@ class TestTaskService(BaseTestCase):
         parent_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
             assign_to_id=current_user.id,
@@ -766,7 +766,7 @@ class TestTaskService(BaseTestCase):
         subtask1_dto = CreateTaskDTO(
             title="Subtask 1",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 8),
+            due_date=date(2025, 3, 8),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -775,7 +775,7 @@ class TestTaskService(BaseTestCase):
         subtask2_dto = CreateTaskDTO(
             title="Subtask 2",
             start_date=date(2025, 3, 9),
-            end_date=date(2025, 3, 12),
+            due_date=date(2025, 3, 12),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -784,7 +784,7 @@ class TestTaskService(BaseTestCase):
         subtask3_dto = CreateTaskDTO(
             title="Subtask 3",
             start_date=date(2025, 3, 13),
-            end_date=date(2025, 3, 16),
+            due_date=date(2025, 3, 16),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -830,7 +830,7 @@ class TestTaskService(BaseTestCase):
         parent_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
             assign_to_id=current_user.id,
@@ -841,7 +841,7 @@ class TestTaskService(BaseTestCase):
         subtask1_dto = CreateTaskDTO(
             title="Subtask 1",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 10),
+            due_date=date(2025, 3, 10),
             status=TaskStatus.BACKLOG,
             assign_to_id=current_user.id,
         )
@@ -850,7 +850,7 @@ class TestTaskService(BaseTestCase):
         subtask2_dto = CreateTaskDTO(
             title="Subtask 2",
             start_date=date(2025, 3, 11),
-            end_date=date(2025, 3, 15),
+            due_date=date(2025, 3, 15),
             status=TaskStatus.BACKLOG,
             assign_to_id=current_user.id,
         )
@@ -878,7 +878,7 @@ class TestTaskService(BaseTestCase):
         parent_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
             assign_to_id=current_user.id,
@@ -889,7 +889,7 @@ class TestTaskService(BaseTestCase):
         backlog_subtask_dto = CreateTaskDTO(
             title="Backlog Subtask",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 8),
+            due_date=date(2025, 3, 8),
             status=TaskStatus.BACKLOG,
             assign_to_id=current_user.id,
         )
@@ -898,7 +898,7 @@ class TestTaskService(BaseTestCase):
         doing_subtask_dto = CreateTaskDTO(
             title="Doing Subtask",
             start_date=date(2025, 3, 9),
-            end_date=date(2025, 3, 12),
+            due_date=date(2025, 3, 12),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -934,7 +934,7 @@ class TestTaskService(BaseTestCase):
         parent_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
             assign_to_id=current_user.id,
@@ -947,7 +947,7 @@ class TestTaskService(BaseTestCase):
             subtask_dto = CreateTaskDTO(
                 title=f"Subtask {i + 1}",
                 start_date=date(2025, 3, 5 + i * 3),
-                end_date=date(2025, 3, 7 + i * 3),
+                due_date=date(2025, 3, 7 + i * 3),
                 status=TaskStatus.TODO,
                 assign_to_id=current_user.id,
             )
@@ -985,7 +985,7 @@ class TestTaskService(BaseTestCase):
         root_task_dto = CreateTaskDTO(
             title="Leaf Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 15),
+            due_date=date(2025, 3, 15),
             status=TaskStatus.TODO,
             allow_subtasks=False,
             assign_to_id=current_user.id,
@@ -1008,7 +1008,7 @@ class TestTaskService(BaseTestCase):
         parent_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             status=TaskStatus.DOING,
             allow_subtasks=True,
             assign_to_id=current_user.id,
@@ -1034,7 +1034,7 @@ class TestTaskService(BaseTestCase):
         done_dto = CreateTaskDTO(
             title="Done Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 10),
+            due_date=date(2025, 3, 10),
             status=TaskStatus.DONE,
             assign_to_id=current_user.id,
         )
@@ -1048,7 +1048,7 @@ class TestTaskService(BaseTestCase):
         todo_dto = CreateTaskDTO(
             title="New Todo Task",
             start_date=date(2025, 3, 11),
-            end_date=date(2025, 3, 20),
+            due_date=date(2025, 3, 20),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -1072,7 +1072,7 @@ class TestTaskService(BaseTestCase):
             CreateTaskDTO(
                 title="Only Task",
                 start_date=date(2025, 3, 1),
-                end_date=date(2025, 3, 10),
+                due_date=date(2025, 3, 10),
                 status=TaskStatus.DONE,
                 assign_to_id=current_user.id,
             ),
@@ -1093,7 +1093,7 @@ class TestTaskService(BaseTestCase):
         parent_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             allow_subtasks=True,
             assign_to_id=current_user.id,
         )
@@ -1103,7 +1103,7 @@ class TestTaskService(BaseTestCase):
         subtask1_dto = CreateTaskDTO(
             title="Subtask 1",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 10),
+            due_date=date(2025, 3, 10),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -1112,7 +1112,7 @@ class TestTaskService(BaseTestCase):
         subtask2_dto = CreateTaskDTO(
             title="Subtask 2",
             start_date=date(2025, 3, 11),
-            end_date=date(2025, 3, 15),
+            due_date=date(2025, 3, 15),
             status=TaskStatus.DONE,
             assign_to_id=current_user.id,
         )
@@ -1121,7 +1121,7 @@ class TestTaskService(BaseTestCase):
         subtask3_dto = CreateTaskDTO(
             title="Subtask 3",
             start_date=date(2025, 3, 16),
-            end_date=date(2025, 3, 20),
+            due_date=date(2025, 3, 20),
             status=TaskStatus.DONE,
             assign_to_id=current_user.id,
         )
@@ -1183,7 +1183,7 @@ class TestTaskService(BaseTestCase):
         root1_dto = CreateTaskDTO(
             title="Backend Development",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 28),
+            due_date=date(2025, 2, 28),
             allow_subtasks=True,
             assign_to_id=current_user.id,
         )
@@ -1193,7 +1193,7 @@ class TestTaskService(BaseTestCase):
         subtask1_1_dto = CreateTaskDTO(
             title="Database Schema",
             start_date=date(2025, 2, 1),
-            end_date=date(2025, 2, 10),
+            due_date=date(2025, 2, 10),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -1202,7 +1202,7 @@ class TestTaskService(BaseTestCase):
         subtask1_2_dto = CreateTaskDTO(
             title="API Endpoints",
             start_date=date(2025, 2, 11),
-            end_date=date(2025, 2, 20),
+            due_date=date(2025, 2, 20),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -1212,7 +1212,7 @@ class TestTaskService(BaseTestCase):
         root2_dto = CreateTaskDTO(
             title="Frontend Development",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             allow_subtasks=True,
             assign_to_id=current_user.id,
         )
@@ -1222,7 +1222,7 @@ class TestTaskService(BaseTestCase):
         subtask2_1_dto = CreateTaskDTO(
             title="UI Components",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 15),
+            due_date=date(2025, 3, 15),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -1231,7 +1231,7 @@ class TestTaskService(BaseTestCase):
         subtask2_2_dto = CreateTaskDTO(
             title="State Management",
             start_date=date(2025, 3, 16),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -1302,7 +1302,7 @@ class TestTaskService(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Leaf Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 15),
+            due_date=date(2025, 3, 15),
             status=TaskStatus.DOING,
             priority=TaskPriority.HIGH,
             allow_subtasks=False,
@@ -1322,14 +1322,14 @@ class TestTaskService(BaseTestCase):
         self.assertEqual(updated_task.status, TaskStatus.TODO)
         self.assertEqual(updated_task.priority, TaskPriority.MEDIUM)
         self.assertEqual(updated_task.start_date, project.start_date.date())
-        self.assertEqual(updated_task.end_date, project.end_date.date())
+        self.assertEqual(updated_task.due_date, project.due_date.date())
         self.assertEqual(updated_task.progress, 0)
 
         # Verify subtask creation now works
         sub_dto = CreateTaskDTO(
             title="New Subtask",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 10),
+            due_date=date(2025, 3, 10),
             assign_to_id=current_user.id,
         )
         subtask = task_service.create_sub_task(updated_task.id, sub_dto)
@@ -1346,7 +1346,7 @@ class TestTaskService(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             status=TaskStatus.TODO,
             allow_subtasks=True,
             assign_to_id=current_user.id,
@@ -1376,7 +1376,7 @@ class TestTaskService(BaseTestCase):
         parent_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             allow_subtasks=True,
             assign_to_id=current_user.id,
         )
@@ -1386,7 +1386,7 @@ class TestTaskService(BaseTestCase):
         sub_dto = CreateTaskDTO(
             title="Subtask",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 10),
+            due_date=date(2025, 3, 10),
             assign_to_id=current_user.id,
         )
         task_service.create_sub_task(parent_task.id, sub_dto)
@@ -1410,7 +1410,7 @@ class TestTaskService(BaseTestCase):
         task_dto = CreateTaskDTO(
             title="Leaf Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 15),
+            due_date=date(2025, 3, 15),
             allow_subtasks=False,
             assign_to_id=current_user.id,
         )
@@ -1433,7 +1433,7 @@ class TestTaskService(BaseTestCase):
         parent_dto = CreateTaskDTO(
             title="Parent Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             allow_subtasks=True,
             assign_to_id=current_user.id,
         )
@@ -1442,7 +1442,7 @@ class TestTaskService(BaseTestCase):
         sub_dto = CreateTaskDTO(
             title="Subtask",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 10),
+            due_date=date(2025, 3, 10),
             assign_to_id=current_user.id,
         )
         subtask = task_service.create_sub_task(parent.id, sub_dto)
@@ -1474,7 +1474,7 @@ class TestTaskService(BaseTestCase):
         grandparent_dto = CreateTaskDTO(
             title="Grandparent",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 31),
+            due_date=date(2025, 3, 31),
             allow_subtasks=True,
             assign_to_id=current_user.id,
         )
@@ -1484,7 +1484,7 @@ class TestTaskService(BaseTestCase):
         child_dto = CreateTaskDTO(
             title="Child (leaf)",
             start_date=date(2025, 3, 5),
-            end_date=date(2025, 3, 15),
+            due_date=date(2025, 3, 15),
             allow_subtasks=False,
             assign_to_id=current_user.id,
         )
@@ -1499,7 +1499,7 @@ class TestTaskService(BaseTestCase):
         grandchild_dto = CreateTaskDTO(
             title="Grandchild",
             start_date=date(2025, 3, 6),
-            end_date=date(2025, 3, 10),
+            due_date=date(2025, 3, 10),
             assign_to_id=current_user.id,
         )
         grandchild = task_service.create_sub_task(child.id, grandchild_dto)
@@ -1544,7 +1544,7 @@ class TestTaskSearchBuilder(BaseTestCase):
         project_dto = SaveProjectDTO(
             name="Test Project",
             start_date=datetime(2025, 1, 1),
-            end_date=datetime(2025, 12, 31),
+            due_date=datetime(2025, 12, 31),
         )
         return project_service.create_project(project_dto)
 
@@ -1559,7 +1559,7 @@ class TestTaskSearchBuilder(BaseTestCase):
         backlog_dto = CreateTaskDTO(
             title="Backlog Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 5),
+            due_date=date(2025, 3, 5),
             status=TaskStatus.BACKLOG,
             assign_to_id=current_user.id,
         )
@@ -1568,7 +1568,7 @@ class TestTaskSearchBuilder(BaseTestCase):
         todo_dto = CreateTaskDTO(
             title="Todo Task",
             start_date=date(2025, 3, 6),
-            end_date=date(2025, 3, 10),
+            due_date=date(2025, 3, 10),
             status=TaskStatus.TODO,
             assign_to_id=current_user.id,
         )
@@ -1593,7 +1593,7 @@ class TestTaskSearchBuilder(BaseTestCase):
         backlog_dto = CreateTaskDTO(
             title="Backlog Task",
             start_date=date(2025, 3, 1),
-            end_date=date(2025, 3, 5),
+            due_date=date(2025, 3, 5),
             status=TaskStatus.BACKLOG,
             assign_to_id=current_user.id,
         )
