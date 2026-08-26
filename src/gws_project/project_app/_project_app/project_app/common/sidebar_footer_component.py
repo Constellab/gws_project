@@ -1,4 +1,4 @@
-"""Bottom-of-sidebar block: current user summary + link to the Admin page."""
+"""Bottom-of-sidebar block: current user summary + link to the Settings page."""
 
 import reflex as rx
 from gws_reflex_main import translate, user_profile_picture
@@ -8,7 +8,7 @@ from .sidebar_footer_state import SidebarFooterState
 
 
 def sidebar_footer_component() -> rx.Component:
-    """Create the sidebar footer with the current user's info and an Admin link.
+    """Create the sidebar footer with the current user's info and a Settings link.
 
     :return: The sidebar footer component
     :rtype: rx.Component
@@ -39,7 +39,7 @@ def sidebar_footer_component() -> rx.Component:
                 rx.spacer(),
                 rx.link(
                     rx.icon("settings", size=18, color="var(--gray-9)"),
-                    href=ProjectAppRouter.get_admin_url(),
+                    href=ProjectAppRouter.get_settings_url(),
                 ),
                 spacing="2",
                 align="center",

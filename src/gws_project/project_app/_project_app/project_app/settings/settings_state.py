@@ -6,11 +6,11 @@ from gws_project.user.user import User
 from gws_project.user.user_app_role import AppRole
 from gws_reflex_main import ReflexMainState, toast_tr
 
-from .admin_dto import UserRowDTO
+from .settings_dto import UserRowDTO
 
 
-class AdminState(rx.State):
-    """State for the Admin page: language (I18nState is used directly by the
+class SettingsState(rx.State):
+    """State for the Settings page: language (I18nState is used directly by the
     component), roles (list + change, open to everyone), and the app-wide
     working hours settings (admin-only)."""
 
@@ -65,7 +65,7 @@ class AdminState(rx.State):
         if self.is_admin:
             self._load_working_hours()
 
-        yield await toast_tr.success(self, "admin.roles.updated")
+        yield await toast_tr.success(self, "settings.roles.updated")
 
     def _load_working_hours(self):
         settings = WorkingHoursService.get_settings()
@@ -113,13 +113,13 @@ class AdminState(rx.State):
     async def save_working_hours(self):
         """Save the app-wide working hours settings. Admin-only."""
         if not self.is_admin:
-            yield await toast_tr.error(self, "admin.working_hours.unauthorized")
+            yield await toast_tr.error(self, "settings.working_hours.unauthorized")
             return
 
         try:
             weekly_hours = float(self.weekly_hours)
         except ValueError:
-            yield await toast_tr.error(self, "admin.working_hours.invalid_weekly_hours")
+            yield await toast_tr.error(self, "settings.working_hours.invalid_weekly_hours")
             return
 
         main_state = await self.get_state(ReflexMainState)
@@ -139,4 +139,4 @@ class AdminState(rx.State):
             WorkingHoursService.update_settings(dto, current_user.id)
 
         self._load_working_hours()
-        yield await toast_tr.success(self, "admin.working_hours.saved")
+        yield await toast_tr.success(self, "settings.working_hours.saved")

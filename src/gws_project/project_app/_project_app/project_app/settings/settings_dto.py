@@ -3,7 +3,7 @@ from gws_project.user.user_app_role import AppRole
 
 
 class UserRowDTO(BaseModelDTO):
-    """A user row for the Admin page's Roles section: identity + app role."""
+    """A user row for the Settings page's Roles section: identity + app role."""
 
     user: UserDTO
     role: AppRole

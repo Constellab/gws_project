@@ -13,7 +13,7 @@ option, and the app only offers the two languages of `SUPPORTED_LANGS`.
 Formatting happens server-side, on the real Python date, and reaches the frontend as a
 plain string (see `timestamp_text_component.format_timestamp` for why client-side
 parsing was ruled out). A state therefore formats with the language of the session at
-load time; the language toggle lives on the Admin page, so any other page is (re)loaded
+load time; the language toggle lives on the Settings page, so any other page is (re)loaded
 after a language change and picks the new language up.
 """
 

@@ -33,7 +33,7 @@ def _sub_menu_items(*items: rx.Component) -> rx.Component:
 
 def sidebar_content() -> rx.Component:
     """Create the sidebar content with logo, navigation links, and a bottom
-    footer showing the current user and a link to the Admin page.
+    footer showing the current user and a link to the Settings page.
 
     :return: The sidebar content component
     :rtype: rx.Component

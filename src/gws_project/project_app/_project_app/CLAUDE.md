@@ -39,7 +39,7 @@ already uses the app's language:
 | `/my-work` | `my_work/` | The signed-in user's day and remaining tasks |
 | `/companies`, `/company/[company_id_param]` | `company/` | Companies and their projects |
 | `/templates`, `/template/project/[...]`, `/template/task/[...]` | `template/` | Project and task templates |
-| `/admin` | `admin/` | Language, app roles, and (admin-only) working hours |
+| `/settings` | `settings/` | Language, app roles, and (admin-only) working hours |
 
 Each module holds `[name]_component.py` (UI), `[name]_state.py` (state and event handlers) and
 `[name]_translations.py` (its texts).
@@ -105,7 +105,7 @@ Rules:
 - The component module imports its translations for the side effect:
   `from . import x_translations  # noqa: F401  (side effect: registers translations)`.
 - `{{placeholder}}` markers are filled from the `data` dict.
-- The language toggle lives on the Admin page (`language_toggle_component`).
+- The language toggle lives on the Settings page (`language_toggle_component`).
 
 ### Dates
 
@@ -132,7 +132,7 @@ display; `"%Y-%m-%d"` for an `<input type="date">` value is fine.
 
 Formatting happens server-side and reaches the frontend as a plain string (client-side parsing
 of the serialized datetimes proved unreliable). A state therefore formats with the language of
-the session at load time, which is enough: the language toggle lives on the Admin page, so any
+the session at load time, which is enough: the language toggle lives on the Settings page, so any
 other page is reloaded after a change.
 
 ### Components
