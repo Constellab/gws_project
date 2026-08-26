@@ -1,12 +1,24 @@
 import io
 import os
-from unittest.mock import patch
 
-from gws_core import BaseTestCase, CurrentUserService, NotFoundException, RichTextFileService
-from gws_project.company.company import COMPANY_LOGO_OBJECT_TYPE, Company
+from gws_core import (
+    BadRequestException,
+    BaseTestCase,
+    CurrentUserService,
+    NotFoundException,
+    RichTextFileService,
+)
+from gws_project.company.company import Company
 from gws_project.company.company_dto import CompanyStatus, SaveCompanyDTO
 from gws_project.company.company_search_builder import CompanySearchBuilder
 from gws_project.company.company_service import CompanyService
+from gws_project.core.migration_8 import (
+    _OLD_LOGO_COLUMN,
+    _OLD_LOGO_OBJECT_TYPE,
+    Migration020Beta12,
+)
+from gws_project.core.project_db_manager import ProjectDbManager
+from gws_project.document.project_file import ProjectFile
 from gws_project.user.project_user_sync_service import ProjectUserSyncService
 from PIL import Image
 
@@ -56,15 +68,14 @@ class TestCompanyService(BaseTestCase):
         self.assertEqual(company.siren, "123456789")
         self.assertEqual(company.phone, "+33123456789")
         self.assertEqual(company.status, CompanyStatus.CLIENT)
-        self.assertIsNone(company.logo_filename)
+        self.assertIsNone(company.logo_file)
         self.assertEqual(company.created_by.id, current_user.id)
         self.assertEqual(company.last_modified_by.id, current_user.id)
 
-        # Companies have no logo yet, so to_dto() must not need GWS_LAB_API_URL
         dto = company.to_dto()
         self.assertEqual(dto.name, "Full Company")
         self.assertEqual(dto.status, CompanyStatus.CLIENT)
-        self.assertIsNone(dto.logo_url)
+        self.assertFalse(dto.has_logo)
 
     def test_create_company_name_only(self):
         """Test that every field except name is optional and defaults sensibly."""
@@ -76,19 +87,32 @@ class TestCompanyService(BaseTestCase):
         self.assertIsNone(company.address)
         self.assertIsNone(company.siren)
         self.assertIsNone(company.phone)
-        self.assertIsNone(company.logo_filename)
+        self.assertIsNone(company.logo_file)
         self.assertEqual(company.status, CompanyStatus.PROSPECT)
 
-    def test_create_company_with_forced_id(self):
-        """Test that create_company honors an explicit company_id (used to match a
-        logo already staged under a client-generated pending id)."""
+    def test_create_company_with_staged_logo(self):
+        """Test that create_company attaches a logo staged before it existed."""
         service = self._get_company_service()
-        forced_id = "11111111-2222-3333-4444-555555555555"
+        logo_file = service.stage_logo(_make_png_bytes(), "png")
 
-        company = service.create_company(SaveCompanyDTO(name="Pending Id Company"), company_id=forced_id)
+        company = service.create_company(
+            SaveCompanyDTO(name="Staged Logo Company", logo_file_id=logo_file.id)
+        )
 
-        self.assertEqual(company.id, forced_id)
-        self.assertEqual(Company.get_by_id_and_check(forced_id).name, "Pending Id Company")
+        self.assertEqual(company.logo_file.id, logo_file.id)
+        self.assertTrue(Company.get_by_id_and_check(company.id).to_dto().has_logo)
+
+    def test_create_company_with_unknown_logo_file_id(self):
+        """Test that create_company refuses a logo id that references nothing."""
+        service = self._get_company_service()
+
+        with self.assertRaises(BadRequestException):
+            service.create_company(
+                SaveCompanyDTO(
+                    name="Lost Logo Company",
+                    logo_file_id="11111111-2222-3333-4444-555555555555",
+                )
+            )
 
     def test_update_company(self):
         """Test updating a company's fields."""
@@ -187,53 +211,71 @@ class TestCompanyService(BaseTestCase):
         self.assertIn("Company One", {c.name for c in results})
         self.assertIn("Company Two", {c.name for c in results})
 
-    def test_stage_logo_writes_file_without_touching_a_company_row(self):
-        """Test that stage_logo writes the image to disk under the given id,
-        without requiring (or creating) a Company row - used to stage a logo
-        before a new company exists yet."""
+    def test_stage_logo_stores_the_image_without_touching_a_company_row(self):
+        """Test that stage_logo writes the image to the brick's file store and
+        registers it as a ProjectFile, without requiring (or creating) a Company
+        row - used to store a logo before a new company exists yet."""
         service = self._get_company_service()
-        pending_id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 
-        filename = service.stage_logo(pending_id, _make_png_bytes(), "png")
+        logo_file = service.stage_logo(_make_png_bytes(), "png")
 
-        path = RichTextFileService.get_object_file_path(COMPANY_LOGO_OBJECT_TYPE, pending_id, filename)
+        self.assertIsNotNone(ProjectFile.get_by_id(logo_file.id))
+        path = logo_file.get_absolute_path()
         self.assertTrue(os.path.exists(path))
         with Image.open(path) as image:
             self.assertEqual(image.size, (2, 2))
 
-    def test_upload_logo_persists_filename_on_existing_company(self):
-        """Test that upload_logo stores the image and updates the company's
-        logo_filename immediately."""
+    def test_stage_logo_refuses_a_file_that_is_not_an_image(self):
+        """Test that stage_logo never stores bytes it cannot read as an image."""
+        service = self._get_company_service()
+
+        with self.assertRaises(BadRequestException):
+            service.stage_logo(b"not-an-image", "png")
+
+    def test_upload_logo_persists_the_file_on_existing_company(self):
+        """Test that upload_logo stores the image in the file store and points the
+        company at it immediately."""
         service = self._get_company_service()
         company = service.create_company(SaveCompanyDTO(name="Company With Logo"))
 
         updated = service.upload_logo(company.id, _make_png_bytes(color="blue"), "png")
 
-        self.assertIsNotNone(updated.logo_filename)
-        path = RichTextFileService.get_object_file_path(
-            COMPANY_LOGO_OBJECT_TYPE, company.id, updated.logo_filename
-        )
-        self.assertTrue(os.path.exists(path))
+        self.assertIsNotNone(updated.logo_file)
+        self.assertTrue(os.path.exists(updated.logo_file.get_absolute_path()))
 
         # Persisted, not just returned in memory
         refetched = service.get_company(company.id)
-        self.assertEqual(refetched.logo_filename, updated.logo_filename)
+        self.assertEqual(refetched.logo_file.id, updated.logo_file.id)
 
-    def test_get_logo_url_with_logo(self):
-        """Test that Company.get_logo_url builds the expected rich-text image URL
-        once a logo has been uploaded."""
+    def test_upload_logo_replaces_the_previous_one(self):
+        """Test that replacing a logo deletes the file (and the row) it replaces:
+        a company never keeps more than one logo in the store."""
+        service = self._get_company_service()
+        company = service.create_company(SaveCompanyDTO(name="Company Replacing Its Logo"))
+
+        first = service.upload_logo(company.id, _make_png_bytes(), "png").logo_file
+        first_id = first.id
+        first_path = first.get_absolute_path()
+
+        second = service.upload_logo(company.id, _make_png_bytes(color="blue"), "png").logo_file
+
+        self.assertNotEqual(second.id, first_id)
+        self.assertIsNone(ProjectFile.get_by_id(first_id))
+        self.assertFalse(os.path.exists(first_path))
+        self.assertTrue(os.path.exists(second.get_absolute_path()))
+
+    def test_get_logo_data_url(self):
+        """Test that the logo is served as an embeddable base64 data URL, the
+        file store not being reachable over HTTP."""
         service = self._get_company_service()
         company = service.create_company(SaveCompanyDTO(name="Company With Logo Url"))
-        updated = service.upload_logo(company.id, _make_png_bytes(), "png")
 
-        with patch.dict(os.environ, {"GWS_LAB_API_URL": "https://test-lab.example.com"}):
-            url = updated.get_logo_url()
+        self.assertIsNone(service.get_logo_data_url(company.id))
 
-        self.assertEqual(
-            url,
-            f"https://test-lab.example.com/core-api/rich-text/{COMPANY_LOGO_OBJECT_TYPE}"
-            f"/{updated.id}/image/{updated.logo_filename}",
-        )
+        service.upload_logo(company.id, _make_png_bytes(), "png")
+
+        data_url = service.get_logo_data_url(company.id)
+        self.assertTrue(data_url.startswith("data:image/png;base64,"))
 
 
 # test_company_search_builder
@@ -309,3 +351,80 @@ class TestCompanySearchBuilder(BaseTestCase):
 
         names = [c.name for c in results]
         self.assertEqual(names, sorted(names))
+
+
+# test_company_logo_migration
+class TestCompanyLogoMigration(BaseTestCase):
+    """Test the data migration that moved the logos into the brick's file store."""
+
+    @classmethod
+    def init_before_test(cls):
+        super().init_before_test()
+        sync_service = ProjectUserSyncService()
+        sync_service.sync_all_users()
+
+    def test_migrate_logos(self):
+        """A logo stored the old way (an image in gws_core's rich text directory,
+        its file name in a `logo_filename` column) is moved into the file store,
+        attached to its company, and the directory it came from is removed."""
+        service = CompanyService()
+        company = service.create_company(SaveCompanyDTO(name="Legacy Logo Company"))
+
+        db = ProjectDbManager.get_instance().db
+        # Recreate the column the migration reads: it is gone from the model
+        db.execute_sql(
+            f"ALTER TABLE {Company.get_table_name()} ADD COLUMN {_OLD_LOGO_COLUMN} VARCHAR(255) NULL"
+        )
+
+        try:
+            with Image.open(io.BytesIO(_make_png_bytes())) as image:
+                saved = RichTextFileService.save_image(
+                    _OLD_LOGO_OBJECT_TYPE, company.id, image, "png"
+                )
+            db.execute_sql(
+                f"UPDATE {Company.get_table_name()} SET {_OLD_LOGO_COLUMN} = %s WHERE id = %s",
+                (saved.filename, company.id),
+            )
+
+            Migration020Beta12._migrate_logos()
+
+            migrated = Company.get_by_id_and_check(company.id)
+            self.assertIsNotNone(migrated.logo_file)
+            self.assertTrue(os.path.exists(migrated.logo_file.get_absolute_path()))
+            self.assertEqual(migrated.logo_file.read_bytes(), _make_png_bytes())
+
+            # the old storage is left empty behind it
+            self.assertFalse(
+                os.path.exists(
+                    RichTextFileService.get_object_dir_path(_OLD_LOGO_OBJECT_TYPE, company.id)
+                )
+            )
+        finally:
+            db.execute_sql(
+                f"ALTER TABLE {Company.get_table_name()} DROP COLUMN {_OLD_LOGO_COLUMN}"
+            )
+
+    def test_migrate_logos_with_a_missing_image(self):
+        """A company whose image is no longer on disk is left without a logo,
+        the migration must not fail on it."""
+        service = CompanyService()
+        company = service.create_company(SaveCompanyDTO(name="Lost Legacy Logo Company"))
+
+        db = ProjectDbManager.get_instance().db
+        db.execute_sql(
+            f"ALTER TABLE {Company.get_table_name()} ADD COLUMN {_OLD_LOGO_COLUMN} VARCHAR(255) NULL"
+        )
+
+        try:
+            db.execute_sql(
+                f"UPDATE {Company.get_table_name()} SET {_OLD_LOGO_COLUMN} = %s WHERE id = %s",
+                ("gone.png", company.id),
+            )
+
+            Migration020Beta12._migrate_logos()
+
+            self.assertIsNone(Company.get_by_id_and_check(company.id).logo_file)
+        finally:
+            db.execute_sql(
+                f"ALTER TABLE {Company.get_table_name()} DROP COLUMN {_OLD_LOGO_COLUMN}"
+            )

@@ -73,9 +73,9 @@ def _info_card() -> rx.Component:
     """
     return rx.vstack(
         rx.cond(
-            CompanyDetailState.company.logo_url,
+            CompanyDetailState.logo_data_url != "",
             rx.image(
-                src=CompanyDetailState.company.logo_url,
+                src=CompanyDetailState.logo_data_url,
                 max_height="100px",
                 border_radius="0.5rem",
                 margin_bottom="0.5rem",

@@ -165,4 +165,4 @@ class TestScopedSearches(BaseTestCase):
             with self.assertRaises(UnauthorizedException):
                 company_service.update_company(created.id, SaveCompanyDTO(name="Refused Update"))
             with self.assertRaises(UnauthorizedException):
-                company_service.stage_logo(created.id, b"not-an-image", "png")
+                company_service.stage_logo(b"not-an-image", "png")

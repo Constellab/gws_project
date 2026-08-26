@@ -17,9 +17,10 @@ class SaveCompanyDTO(BaseModelDTO):
     siren: str | None = None
     phone: str | None = None
     status: CompanyStatus = CompanyStatus.PROSPECT
-    # Filename of a logo staged via CompanyService.stage_logo before the company
-    # existed (create flow only - ignored by update_company).
-    logo_filename: str | None = None
+    # Id of the ProjectFile of a logo staged via CompanyService.stage_logo before
+    # the company existed (create flow only - ignored by update_company, which
+    # keeps the logo already attached to the company).
+    logo_file_id: str | None = None
 
 
 class CompanyDTO(ModelDTO):
@@ -30,6 +31,8 @@ class CompanyDTO(ModelDTO):
     siren: str | None
     phone: str | None
     status: CompanyStatus
-    logo_url: str | None
+    # Whether a logo is attached. The image itself is fetched on demand with
+    # CompanyService.get_logo_data_url, never carried by this DTO.
+    has_logo: bool
     created_by: UserDTO
     last_modified_by: UserDTO

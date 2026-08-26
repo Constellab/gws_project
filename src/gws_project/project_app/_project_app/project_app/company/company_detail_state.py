@@ -1,5 +1,6 @@
 import reflex as rx
 from gws_project.company.company_dto import CompanyDTO
+from gws_project.company.company_service import CompanyService
 from gws_project.project.project_dto import ProjectDTO
 from gws_project.project.project_service import ProjectService
 from gws_reflex_main import I18nState, ReflexMainState
@@ -28,6 +29,25 @@ class CompanyDetailState(rx.State):
         if current_company:
             return current_company.to_dto()
         return None
+
+    @rx.var
+    async def logo_data_url(self) -> str:
+        """Return the logo of the current company as a base64 data URL.
+
+        The file store is not served over HTTP, so the image is embedded in the
+        page rather than linked. Loaded here, and not carried by CompanyDTO, so
+        the lists of companies never pay for it.
+
+        :return: The data URL, or an empty string if the company has no logo
+        :rtype: str
+        """
+        company = await self.company
+        if not company or not company.has_logo:
+            return ""
+
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            return CompanyService().get_logo_data_url(company.id) or ""
 
     @rx.var
     async def company_projects(self) -> list[ProjectDTO]:

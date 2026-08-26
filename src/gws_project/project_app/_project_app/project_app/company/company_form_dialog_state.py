@@ -1,7 +1,4 @@
-import uuid
-
 import reflex as rx
-from gws_project.company.company import build_company_logo_url
 from gws_project.company.company_dto import CompanyDTO, CompanyStatus, SaveCompanyDTO
 from gws_project.company.company_service import CompanyService
 from gws_reflex_main import FormDialogState, I18nState, ReflexMainState, toast_tr
@@ -25,11 +22,6 @@ class CompanyFormDialogState(FormDialogState, rx.State):
     # name field is shown, and the dialog never navigates away on success.
     is_quick_create: bool = False
 
-    # Client-generated id used to stage a logo before the company is created (a
-    # new company has no id yet to store the logo under). create_company is later
-    # called with this same id so the staged file lands under the final id.
-    _pending_id: str = ""
-
     # Form field default values
     form_name: str = ""
     form_address: str = ""
@@ -37,9 +29,10 @@ class CompanyFormDialogState(FormDialogState, rx.State):
     form_phone: str = ""
     form_status: str = CompanyStatus.PROSPECT.value
 
-    # Logo preview shown in the dialog, and the filename to persist on create
+    # Logo preview shown in the dialog (a base64 data URL: the file store is not
+    # served over HTTP), and the id of the stored file to attach on create
     form_logo_url: str = ""
-    form_logo_filename: str = ""
+    form_logo_file_id: str = ""
     is_uploading_logo: bool = False
 
     @rx.event
@@ -47,7 +40,6 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         """Open the dialog in create mode."""
         self.is_update_mode = False
         self.is_quick_create = False
-        self._pending_id = str(uuid.uuid4())
         self.dialog_opened = True
 
     @rx.event
@@ -59,7 +51,6 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         """
         self.is_update_mode = False
         self.is_quick_create = True
-        self._pending_id = str(uuid.uuid4())
         self.dialog_opened = True
 
     @rx.event
@@ -86,7 +77,10 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         self.form_siren = company.siren or ""
         self.form_phone = company.phone or ""
         self.form_status = company.status.value
-        self.form_logo_url = company.logo_url or ""
+
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            self.form_logo_url = CompanyService().get_logo_data_url(company.id) or ""
 
         self.is_update_mode = True
         await self.open_dialog()
@@ -122,7 +116,7 @@ class CompanyFormDialogState(FormDialogState, rx.State):
             # rx.select is not a native <select>, so its value isn't reliably part of the
             # submitted HTML form data.
             status=CompanyStatus(self.form_status),
-            logo_filename=self.form_logo_filename or None,
+            logo_file_id=self.form_logo_file_id or None,
         )
 
     async def _create(self, form_data: dict):
@@ -139,7 +133,7 @@ class CompanyFormDialogState(FormDialogState, rx.State):
 
         with await main_state.authenticate_user():
             company_service = CompanyService()
-            created_company = company_service.create_company(company_dto, company_id=self._pending_id)
+            created_company = company_service.create_company(company_dto)
 
         if self.is_quick_create:
             # Push the newly created company into the project form dialog instead
@@ -194,8 +188,8 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         """Handle the logo image upload.
 
         In update mode, the logo is persisted to the existing company right away.
-        In create mode, the company doesn't exist yet: the image is only staged
-        under `_pending_id` and attached to the company when the form is submitted.
+        In create mode, the company doesn't exist yet: the image is only stored in
+        the brick's file store and attached to the company when the form is submitted.
 
         Args:
             files: The uploaded files (only the first one is used)
@@ -217,18 +211,17 @@ class CompanyFormDialogState(FormDialogState, rx.State):
                         updated_company = company_service.upload_logo(
                             self._editing_company.id, data, extension
                         )
-
-                    self.form_logo_filename = updated_company.logo_filename or ""
-                    self.form_logo_url = updated_company.get_logo_url() or ""
+                    logo_file = updated_company.logo_file
 
                     company_page_state = await self.get_state(CompanyPageState)
                     await company_page_state.refresh_object()
                 else:
                     with await main_state.authenticate_user():
-                        filename = company_service.stage_logo(self._pending_id, data, extension)
+                        logo_file = company_service.stage_logo(data, extension)
 
-                    self.form_logo_filename = filename
-                    self.form_logo_url = build_company_logo_url(self._pending_id, filename)
+                self.form_logo_file_id = logo_file.id
+                # The store is not served over HTTP: the preview embeds the image
+                self.form_logo_url = logo_file.to_data_url() or ""
 
                 break
         finally:
@@ -238,11 +231,10 @@ class CompanyFormDialogState(FormDialogState, rx.State):
         """Clear all form state after successful operation."""
         self._editing_company = None
         self.is_quick_create = False
-        self._pending_id = ""
         self.form_name = ""
         self.form_address = ""
         self.form_siren = ""
         self.form_phone = ""
         self.form_status = CompanyStatus.PROSPECT.value
         self.form_logo_url = ""
-        self.form_logo_filename = ""
+        self.form_logo_file_id = ""

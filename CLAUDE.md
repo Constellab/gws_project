@@ -26,7 +26,9 @@ group's users when adding it to a project).
   - `template/` - Project and task templates
   - `company/` - Companies, the (optional) shared reference data a project can be linked to
   - `document/` - Files and notes attached to a project or task, plus the one-shot tasks that
-    migrated them (and their images) out of Space
+    migrated them (and their images) out of Space. `project_file_service.py` is the brick's
+    single entry point for storing bytes (the dedicated `LocalFileStore`, one `ProjectFile`
+    row per file); whatever owns a file - a document, a company logo - only references it
   - `planning/` - Planning slots: the person x day scheduling behind the Planning screen
   - `my_work/`, `home/` - Read-only, derived screens (one person's day, the team's activity)
   - `user/` - Users, their app-level role (`app_role_service.py`, ADMIN/MEMBER) and the

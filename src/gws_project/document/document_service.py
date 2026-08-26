@@ -17,12 +17,12 @@ from gws_project.document.document_dto import (
     ProjectDocumentType,
     ProjectNoteDTO,
 )
-from gws_project.document.project_config import ProjectConfig
 from gws_project.document.project_document import (
     PROJECT_DOCUMENT_RICH_TEXT_OBJECT_TYPE,
     ProjectDocument,
 )
 from gws_project.document.project_file import ProjectFile
+from gws_project.document.project_file_service import ProjectFileService
 from gws_project.project.project import Project
 from gws_project.project.project_security_service import ProjectSecurityService, ProjectUserRole
 from gws_project.task.task import Task
@@ -42,7 +42,7 @@ class DocumentService:
         :return: The dedicated LocalFileStore
         :rtype: LocalFileStore
         """
-        return ProjectConfig.get_instance().get_or_create_file_store()
+        return ProjectFileService.get_store()
 
     ################################ LISTING ################################
 
@@ -252,14 +252,13 @@ class DocumentService:
         if document.type != ProjectDocumentType.FILE or not document.file:
             raise BadRequestException("The document is not a file.")
 
-        absolute_path = document.file.get_absolute_path()
-        if not absolute_path or not os.path.exists(absolute_path):
+        content = document.file.read_bytes()
+        if content is None:
             raise NotFoundException(
                 f"The file of document '{document.name}' was not found in the file store."
             )
 
-        with open(absolute_path, "rb") as file_handle:
-            return file_handle.read()
+        return content
 
     @ProjectDbManager.transaction()
     def rename_document(self, document_id: str, name: str) -> ProjectDocumentDTO:
@@ -492,19 +491,10 @@ class DocumentService:
         """
         name = filename or os.path.basename(file_path)
 
-        store = self.get_store()
         # the store moves the file and de-duplicates the destination name
-        node = store.add_node_from_path(file_path, name)
+        project_file = ProjectFileService.create_from_path(file_path, name)
 
         try:
-            project_file = ProjectFile(
-                file_store=store.id,
-                path=os.path.relpath(node.path, store.path),
-                name=name,
-                size=os.path.getsize(node.path),
-            )
-            project_file.save()
-
             document = ProjectDocument(
                 project=project,
                 task=task,
@@ -517,7 +507,8 @@ class DocumentService:
             return document
         except Exception:
             # remove the moved node so a DB failure doesn't leave an orphan file
-            store.delete_node_path(node.path)
+            # (its ProjectFile row is rolled back with the transaction)
+            project_file.delete_file_from_store()
             raise
 
     def _create_note(self, project: Project, task: Task | None, name: str) -> ProjectDocument:

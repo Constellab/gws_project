@@ -27,9 +27,9 @@ def _logo_section() -> rx.Component:
     """Logo upload/preview section.
 
     Available both when creating and updating a company: in create mode the
-    image is staged under a pending id and attached to the company on submit
-    (see CompanyFormDialogState._pending_id); in update mode it's persisted
-    immediately."""
+    image is stored in the brick's file store and attached to the company on
+    submit (see CompanyFormDialogState.form_logo_file_id); in update mode it's
+    persisted immediately."""
     return rx.vstack(
         rx.text(translate("company_form_dialog.logo_label"), size="2", weight="bold"),
         rx.cond(

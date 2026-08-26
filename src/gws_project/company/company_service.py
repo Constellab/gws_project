@@ -1,15 +1,21 @@
 import io
 from typing import ClassVar
 
-from gws_core import CurrentUserService, RichTextFileService
+from gws_core import BadRequestException, CurrentUserService
 from PIL import Image
 
-from gws_project.company.company import COMPANY_LOGO_OBJECT_TYPE, Company
+from gws_project.company.company import Company
 from gws_project.company.company_dto import CompanyStatus, SaveCompanyDTO
 from gws_project.company.company_search_builder import CompanySearchBuilder
 from gws_project.core.project_db_manager import ProjectDbManager
+from gws_project.document.project_file import ProjectFile
+from gws_project.document.project_file_service import ProjectFileService
 from gws_project.user.app_role_service import AppRoleService
 from gws_project.user.user_app_role import AppRole
+
+# Name the logo is stored under in the file store. The store de-duplicates it, so
+# every company keeps its own node.
+LOGO_FILE_BASE_NAME = "company_logo"
 
 
 class CompanyService:
@@ -74,32 +80,27 @@ class CompanyService:
         return search_builder.search_all()
 
     @ProjectDbManager.transaction()
-    def create_company(self, company_dto: SaveCompanyDTO, company_id: str | None = None) -> Company:
+    def create_company(self, company_dto: SaveCompanyDTO) -> Company:
         """Create a company.
 
-        :param company_dto: The company data to create. Its `logo_filename`, if
-            set, must have been staged beforehand via `stage_logo` under `company_id`
-            (the "New Company" dialog lets the user pick a logo before the company
-            exists yet, using a client-generated pending id).
+        :param company_dto: The company data to create. Its `logo_file_id`, if set,
+            must reference a ProjectFile staged beforehand via `stage_logo` (the
+            "New Company" dialog lets the user pick a logo before the company exists).
         :type company_dto: SaveCompanyDTO
-        :param company_id: Id to force on the created row, matching the pending id
-            a logo may already have been staged under (optional)
-        :type company_id: str | None
         :return: The created company
         :rtype: Company
         :raises UnauthorizedException: If the current user's app role does not allow it
+        :raises BadRequestException: If `logo_file_id` references no stored file
         """
         self._check_can_write()
 
         company = Company()
-        if company_id:
-            company.id = company_id
         company.name = company_dto.name
         company.address = company_dto.address
         company.siren = company_dto.siren
         company.phone = company_dto.phone
         company.status = company_dto.status
-        company.logo_filename = company_dto.logo_filename
+        company.logo_file = self._get_staged_logo_file(company_dto.logo_file_id)
         company.save()
 
         return company
@@ -129,38 +130,62 @@ class CompanyService:
 
         return company
 
-    def stage_logo(self, object_id: str, image_bytes: bytes, extension: str) -> str:
-        """Save a logo image to disk without touching any Company row.
+    def get_logo_data_url(self, company_id: str) -> str | None:
+        """Return the logo of a company as a base64 ``data:`` URL, ready for an <img>.
 
-        Used by the "New Company" dialog: the user can pick a logo before the
-        company is created, using a client-generated pending id as `object_id`.
-        `create_company` is later called with that same id, so the staged file
-        ends up under the company's final id without ever being moved.
+        The file store is not served over HTTP, so the image is embedded in the page
+        instead of being linked. Reading a logo is open to any authenticated user,
+        like reading the company itself.
 
-        :param object_id: The id to store the image under (the company's id, or a
-            not-yet-created company's pending id)
-        :type object_id: str
+        :param company_id: The ID of the company
+        :type company_id: str
+        :return: The data URL, or None if the company has no logo (or its file is gone)
+        :rtype: str | None
+        :raises NotFoundException: If the company is not found
+        """
+        company = Company.get_by_id_and_check(company_id)
+
+        if company.logo_file is None:
+            return None
+
+        return company.logo_file.to_data_url()
+
+    def stage_logo(self, image_bytes: bytes, extension: str) -> ProjectFile:
+        """Store a logo image without attaching it to any company.
+
+        Used by the "New Company" dialog: the user can pick a logo before the company
+        exists, and `create_company` is then called with the returned file's id. A
+        dialog the user abandons leaves the file unreferenced in the store.
+
         :param image_bytes: The raw bytes of the uploaded image
         :type image_bytes: bytes
         :param extension: The image file extension (e.g. "png", "jpg")
         :type extension: str
-        :return: The stored filename
-        :rtype: str
+        :return: The ProjectFile registering the stored image
+        :rtype: ProjectFile
         :raises UnauthorizedException: If the current user's app role does not allow it
+        :raises BadRequestException: If the bytes are not a readable image
         """
         self._check_can_write()
 
-        image = Image.open(io.BytesIO(image_bytes))
-        result = RichTextFileService.save_image(COMPANY_LOGO_OBJECT_TYPE, object_id, image, extension)
-        return result.filename
+        # Refuse anything that is not an image before it reaches the store: the
+        # accepted types of the upload field are only a client-side hint.
+        try:
+            with Image.open(io.BytesIO(image_bytes)):
+                pass
+        except Exception as exception:
+            raise BadRequestException("The uploaded file is not an image") from exception
 
-    @ProjectDbManager.transaction()
+        return ProjectFileService.create_from_bytes(
+            image_bytes, f"{LOGO_FILE_BASE_NAME}.{extension}"
+        )
+
     def upload_logo(self, company_id: str, image_bytes: bytes, extension: str) -> Company:
         """Upload/replace the logo of an existing company.
 
-        Reuses gws_core's generic RichTextFileService image storage (the same
-        mechanism used for note images) instead of a dedicated file store, so no
-        new HTTP endpoint is needed to serve it back.
+        The bytes are stored in the brick's dedicated LocalFileStore, exactly like a
+        project document, and the company references the resulting ProjectFile. The
+        logo it replaces is deleted, so a company never keeps more than one file.
 
         :param company_id: The ID of the company
         :type company_id: str
@@ -177,8 +202,53 @@ class CompanyService:
         self._check_can_write()
 
         company = Company.get_by_id_and_check(company_id)
+        logo_file = self.stage_logo(image_bytes, extension)
 
-        company.logo_filename = self.stage_logo(company_id, image_bytes, extension)
-        company.save()
+        previous_logo_file = self._attach_logo(company, logo_file)
+
+        # Deleting the bytes is not transactional: it happens once the row pointing at
+        # them is committed, never before.
+        if previous_logo_file is not None:
+            previous_logo_file.delete_file_from_store()
 
         return company
+
+    @ProjectDbManager.transaction()
+    def _attach_logo(self, company: Company, logo_file: ProjectFile) -> ProjectFile | None:
+        """Point a company at a new logo file and drop the row of the previous one.
+
+        :param company: The company to update
+        :type company: Company
+        :param logo_file: The ProjectFile of the new logo
+        :type logo_file: ProjectFile
+        :return: The ProjectFile of the replaced logo, whose bytes the caller must
+            delete after the transaction, or None if the company had no logo
+        :rtype: ProjectFile | None
+        """
+        previous_logo_file: ProjectFile | None = company.logo_file
+
+        company.logo_file = logo_file
+        company.save()
+
+        if previous_logo_file is not None:
+            previous_logo_file.delete_instance()
+
+        return previous_logo_file
+
+    def _get_staged_logo_file(self, logo_file_id: str | None) -> ProjectFile | None:
+        """Resolve the ProjectFile a logo was staged under, if any.
+
+        :param logo_file_id: The id returned by `stage_logo`, or None
+        :type logo_file_id: str | None
+        :return: The ProjectFile, or None if no logo was staged
+        :rtype: ProjectFile | None
+        :raises BadRequestException: If the id references no stored file
+        """
+        if not logo_file_id:
+            return None
+
+        logo_file: ProjectFile | None = ProjectFile.get_by_id(logo_file_id)
+        if logo_file is None:
+            raise BadRequestException("The logo of this company was not stored, upload it again.")
+
+        return logo_file

@@ -223,3 +223,12 @@ bin/
 .idea
 
 test_doc.md
+# -----------------------------------------------------------
+# Reflex
+# -----------------------------------------------------------
+
+# `rx.asset(..., shared=True)` runs at import time (gws_reflex_base.reflex_main_utils),
+# so any command that loads the app's modules from this folder - `gws server test`,
+# `gws reflex run` - drops a symlink tree here, next to the one the app already
+# ignores in its own .gitignore. It is generated, never committed.
+/assets/external/
