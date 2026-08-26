@@ -1,7 +1,5 @@
 import reflex as rx
 from gws_core import RichText, RichTextDTO
-from gws_project.project.project_dto import ProjectUserRole
-from gws_project.project.project_user import ProjectUser
 from gws_project.task_comment.task_comment_dto import TaskCommentDTO
 from gws_project.task_comment.task_comment_service import TaskCommentService
 from gws_project.task_history.task_history_event_dto import TaskHistoryEventDTO
@@ -27,13 +25,13 @@ class TaskActivityState(rx.State):
     from a computed var on every render — the latter doesn't reliably push an
     update to the frontend when a handler doesn't otherwise mutate a plain var.
 
-    Comments cannot be deleted, only edited (by their author or a project OWNER).
+    Comments cannot be deleted, and only their own author can edit them - a project
+    OWNER has no say over somebody else's words.
     """
 
     _events: list[TaskHistoryEventDTO] = []
     _comments: list[TaskCommentDTO] = []
     _current_user_id: str = ""
-    _is_project_owner: bool = False
 
     new_comment_content: RichTextDTO = RichText().to_dto()
     is_posting_comment: bool = False
@@ -65,9 +63,6 @@ class TaskActivityState(rx.State):
             ]
             current_user = await main_state.get_and_check_current_user()
             self._current_user_id = current_user.id
-            self._is_project_owner = ProjectUser.user_has_role(
-                task.project.id, current_user.id, ProjectUserRole.OWNER
-            )
 
     @rx.event(background=True)  # type: ignore
     async def fetch_activity_on_mount(self):
@@ -90,15 +85,11 @@ class TaskActivityState(rx.State):
                     for comment in TaskCommentService().get_comments_of_task(task.id)
                 ]
                 current_user = await main_state.get_and_check_current_user()
-                is_owner = ProjectUser.user_has_role(
-                    task.project.id, current_user.id, ProjectUserRole.OWNER
-                )
 
             async with self:
                 self._events = events
                 self._comments = comments
                 self._current_user_id = current_user.id
-                self._is_project_owner = is_owner
         except Exception as e:
             async with self:
                 self._events = []
@@ -147,8 +138,9 @@ class TaskActivityState(rx.State):
                 created_at_text=format_datetime(comment.created_at, lang),
                 comment_id=comment.id,
                 content=comment.content,
+                content_markdown=RichText(comment.content).to_markdown(),
                 is_edited=comment.is_edited,
-                can_edit=self._is_project_owner or comment.created_by.id == self._current_user_id,
+                can_edit=comment.created_by.id == self._current_user_id,
             )
             for comment in self._comments
         ]

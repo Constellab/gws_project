@@ -100,38 +100,66 @@ def _comment_edit_form() -> rx.Component:
 
 
 def _comment_card(item: rx.Var) -> rx.Component:
-    """Create a comment card: author, timestamp, edited marker, body, and manage menu.
+    """Create a comment row: the same icon bubble as a history event, then author,
+    timestamp, edited marker and body.
+
+    Borderless like the event rows: a comment is one more entry of the timeline, and the
+    icon is what tells the two apart.
 
     :param item: The activity item (kind == "comment")
     :type item: rx.Var
-    :return: The card component
+    :return: The row component
     :rtype: rx.Component
     """
-    return rx.vstack(
-        rx.hstack(
-            user_inline_component(item.actor, size="small"),
-            rx.cond(
-                item.is_edited,
-                rx.text(translate("task_activity.edited"), size="1", color="gray", font_style="italic"),
-            ),
-            rx.spacer(),
-            rx.text(item.created_at_text, size="1", color="gray", white_space="nowrap"),
-            _comment_edit_button(item),
-            width="100%",
-            align="center",
-            spacing="2",
+    return rx.hstack(
+        rx.box(
+            rx.icon("message-square", size=13),
+            background="var(--accent-3)",
+            color="var(--accent-9)",
+            border_radius="50%",
+            padding="6px",
+            display="flex",
+            align_items="center",
+            justify_content="center",
+            flex_shrink="0",
         ),
-        rx.cond(
-            TaskActivityState.editing_comment_id == item.comment_id,
-            _comment_edit_form(),
-            rich_text_component(value=item.content, disabled=True),
+        rx.vstack(
+            rx.hstack(
+                user_inline_component(item.actor, size="small"),
+                rx.cond(
+                    item.is_edited,
+                    rx.text(
+                        translate("task_activity.edited"),
+                        size="1",
+                        color="gray",
+                        font_style="italic",
+                    ),
+                ),
+                rx.spacer(),
+                rx.text(item.created_at_text, size="1", color="gray", white_space="nowrap"),
+                _comment_edit_button(item),
+                width="100%",
+                align="center",
+                spacing="2",
+            ),
+            rx.cond(
+                TaskActivityState.editing_comment_id == item.comment_id,
+                _comment_edit_form(),
+                # Read mode renders the comment as markdown rather than mounting the
+                # editor: `disabled` still leaves the editor's inline toolbars reacting to
+                # the pointer, so hovering a comment looked like an invitation to type in
+                # it. Editing now only ever starts from the pencil button.
+                rx.markdown(item.content_markdown, width="100%"),
+            ),
+            width="100%",
+            spacing="1",
+            align_items="start",
+            min_width="0",
         ),
         width="100%",
-        spacing="2",
-        align_items="start",
-        padding="0.75rem",
-        border="1px solid var(--gray-4)",
-        border_radius="8px",
+        align="start",
+        spacing="3",
+        padding_y="0.4rem",
         key=item.id,
     )
 

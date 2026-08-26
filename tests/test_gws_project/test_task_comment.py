@@ -177,8 +177,8 @@ class TestTaskComment(BaseTestCase):
         with self._authenticate_as(second_gws_core_user), self.assertRaises(UnauthorizedException):
             comment_service.update_comment(comment.id, self._plain_text_content("x"))
 
-    def test_project_owner_can_update_others_comment(self):
-        """A project OWNER can moderate (edit) another user's comment"""
+    def test_project_owner_cannot_update_others_comment(self):
+        """Not even a project OWNER can rewrite another user's comment"""
         second_gws_core_user, second_user = self._create_user("third@example.com")
         task_service = self._get_task_service()
         comment_service = self._get_comment_service()
@@ -191,11 +191,10 @@ class TestTaskComment(BaseTestCase):
         with self._authenticate_as(second_gws_core_user):
             comment = comment_service.create_comment(task_id, RichText().to_dto())
 
-        # The current test user (project OWNER) moderates the second user's comment
-        updated_comment = comment_service.update_comment(
-            comment.id, self._plain_text_content("moderated")
-        )
-        self.assertEqual(updated_comment.id, comment.id)
+        # The current test user owns the project, which is no licence to edit the words
+        # of the member who wrote the comment.
+        with self.assertRaises(UnauthorizedException):
+            comment_service.update_comment(comment.id, self._plain_text_content("moderated"))
 
     def test_deleting_task_deletes_its_comments(self):
         """Deleting a task cascades to delete its comments"""

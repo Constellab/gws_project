@@ -24,6 +24,11 @@ class ActivityItemDTO(BaseModelDTO):
 
     # Comment-only fields
     comment_id: str | None = None
+    # The rich text itself, only ever handed to the editor when the comment is edited.
     content: RichTextDTO | None = None
+    # The same content rendered as markdown, which is what the timeline shows: reading a
+    # comment must never mount an editor, otherwise its inline toolbars make the text
+    # look - and behave - as if it were being edited.
+    content_markdown: str = ""
     is_edited: bool = False
     can_edit: bool = False

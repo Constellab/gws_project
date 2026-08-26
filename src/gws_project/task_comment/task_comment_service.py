@@ -3,7 +3,6 @@ from gws_core import CurrentUserService, RichTextDTO, UnauthorizedException
 from gws_project.core.project_db_manager import ProjectDbManager
 from gws_project.project.project_dto import ProjectUserRole
 from gws_project.project.project_security_service import ProjectSecurityService
-from gws_project.project.project_user import ProjectUser
 from gws_project.task_comment.task_comment import TaskComment
 
 
@@ -56,7 +55,8 @@ class TaskCommentService:
     def update_comment(self, comment_id: str, content: RichTextDTO) -> TaskComment:
         """Update the content of a comment.
 
-        Only the comment's author or a project OWNER can edit it.
+        Only the comment's author can edit it: a comment is that person's own words,
+        so nobody else - a project OWNER included - may rewrite them.
 
         :param comment_id: The ID of the comment to update
         :type comment_id: str
@@ -75,24 +75,23 @@ class TaskCommentService:
         return comment
 
     def _get_comment_and_check_edit_permission(self, comment_id: str) -> TaskComment:
-        """Get a comment and check that the current user is allowed to edit it.
+        """Get a comment and check that the current user is its author.
+
+        The project role is deliberately not consulted here: unlike the task data a
+        project OWNER administers, a comment is a person's own words, so being an OWNER
+        grants no right to rewrite somebody else's.
 
         :param comment_id: The ID of the comment
         :type comment_id: str
         :return: The comment
         :rtype: TaskComment
         :raises NotFoundException: If the comment is not found
-        :raises UnauthorizedException: If the current user is neither the comment's
-            author nor a project OWNER
+        :raises UnauthorizedException: If the current user is not the comment's author
         """
         comment = TaskComment.get_by_id_and_check(comment_id)
         current_user = CurrentUserService.get_and_check_current_user()
 
-        is_author = comment.created_by.id == current_user.id
-        is_project_owner = ProjectUser.user_has_role(
-            comment.task.project.id, current_user.id, ProjectUserRole.OWNER
-        )
-        if not is_author and not is_project_owner:
+        if comment.created_by.id != current_user.id:
             raise UnauthorizedException("You can only edit your own comments.")
 
         return comment
