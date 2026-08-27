@@ -250,6 +250,25 @@ class Task(ModelWithUser):
         )
 
     @classmethod
+    def get_all_tasks_of_project(cls, project_id: str) -> list["Task"]:
+        """Get every task of a project, at every nesting level, in one query.
+
+        Same ordering as :meth:`get_root_tasks_of_project`, so grouping the result by
+        parent keeps each level in the order that level is displayed in. Use this rather
+        than walking the tree with one query per parent when the whole tree is needed.
+
+        :param project_id: The id of the project
+        :type project_id: str
+        :return: List of tasks
+        :rtype: List[Task]
+        """
+        return list(
+            cls.select()
+            .where(cls.project == project_id)
+            .order_by(cls.start_date.is_null(), cls.start_date, cls.order_index)
+        )
+
+    @classmethod
     def get_subtasks_of_task(cls, parent_task_id: str) -> list["Task"]:
         """Get all subtasks of a parent task
 

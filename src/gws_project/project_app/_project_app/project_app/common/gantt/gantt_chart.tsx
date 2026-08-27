@@ -6,6 +6,7 @@ type Status = 'encours' | 'retard' | 'termine';
 type Zoom = 'Day' | 'Week' | 'Month' | 'Year';
 
 interface GanttTask {
+  id: string;
   name: string;
   /** null on a task with no period: it gets a row but no bar. */
   start: string | null;
@@ -13,14 +14,14 @@ interface GanttTask {
   end: string | null;
   progress: number;
   status: Status;
+  /** Subtasks, collapsing under this row. Nests without a depth limit. */
+  tasks: GanttTask[];
 }
 
 interface GanttProject extends GanttTask {
-  id: string;
   owner: string;
   owner_name: string;
   late_days: number;
-  tasks: GanttTask[];
 }
 
 interface GanttData {
@@ -46,6 +47,10 @@ const LEFT_WIDTH = 356;
 const META_WIDTH = 92;
 const HEADER_HEIGHT = 56;
 const GROUP_HEIGHT = 30;
+
+/** Left padding of a depth-0 task row, and how much each nesting level adds to it. */
+const TASK_INDENT_BASE = 28;
+const TASK_INDENT_STEP = 18;
 
 const ROW_HEIGHT = { project: 46, task: 32 };
 const ROW_HEIGHT_COMPACT = { project: 36, task: 26 };
@@ -327,8 +332,10 @@ export function GanttChart({
         status,
         projects: projects
           .filter(project => project.status === status)
-          // Soonest deadline first: what falls due next is what needs attention.
-          .sort((a, b) => a.end.localeCompare(b.end)),
+          // Soonest deadline first: what falls due next is what needs attention. The
+          // fallback is for the type only: a project without both dates never reaches
+          // the payload, unlike a task.
+          .sort((a, b) => (a.end || '').localeCompare(b.end || '')),
       }))
       .filter(group => group.projects.length > 0);
   }, [data, showCompleted]);
@@ -440,8 +447,15 @@ export function GanttChart({
 
   // `data` arrives as a fresh object on every Reflex state delta, so only drop ids that no
   // longer exist rather than clearing the set and collapsing the chart behind the user.
+  // Task ids count too: they share this set with the projects, and collecting only the
+  // project ids would collapse every open task on the next unrelated update.
   useEffect(() => {
-    const ids = new Set(((data && data.projects) || []).map(project => project.id));
+    const ids = new Set<string>();
+    const collect = (rows: GanttTask[]) => rows.forEach(row => {
+      ids.add(row.id);
+      collect(row.tasks || []);
+    });
+    collect((data && data.projects) || []);
     setExpanded(previous => {
       const kept = new Set([...previous].filter(id => ids.has(id)));
       return kept.size === previous.size ? previous : kept;
@@ -467,6 +481,74 @@ export function GanttChart({
     position: 'sticky', left: 0, zIndex: 2, width: LEFT_WIDTH, minWidth: LEFT_WIDTH,
     boxSizing: 'border-box', borderRight: '1px solid ' + GREY.border,
   };
+
+  // Task rows, and under each open one its own subtasks. Recursive rather than a flat map
+  // over the project's root tasks: a subtask can carry subtasks of its own, so any row with
+  // children gets the same toggle a project row has, and `depth` is what indents it.
+  const renderTaskRows = (tasks: GanttTask[], depth: number): React.ReactNode[] =>
+    (tasks || []).flatMap(task => {
+      const subtasks = task.tasks || [];
+      const isTaskOpen = expanded.has(task.id);
+      const hasPeriod = Boolean(task.start && task.end);
+
+      const row = (
+        <div key={task.id} style={{
+          display: 'flex', height: rowHeight.task,
+          borderBottom: '1px solid ' + GREY.grid, background: GREY.taskBg,
+        }}>
+          <div style={{
+            ...leftCell, background: GREY.taskBg, display: 'flex', alignItems: 'center',
+            gap: 8, padding: '0 12px 0 ' + (TASK_INDENT_BASE + depth * TASK_INDENT_STEP) + 'px',
+          }}>
+            {subtasks.length > 0 ? (
+              <button
+                onClick={() => toggle(task.id)}
+                aria-expanded={isTaskOpen}
+                style={{
+                  width: 14, height: 14, flexShrink: 0, border: 'none', padding: 0,
+                  background: 'none', cursor: 'pointer', color: 'var(--gray-11)',
+                  fontSize: '10px', lineHeight: 1,
+                }}
+              >{isTaskOpen ? '▾' : '▸'}</button>
+            ) : (
+              // A leaf keeps the toggle's width so every row of a level lines up.
+              <span style={{ width: 14, flexShrink: 0 }} />
+            )}
+
+            <StatusDot status={task.status} size={5} />
+            <span
+              title={task.name}
+              style={{
+                flex: 1, minWidth: 0, fontSize: '12px', fontWeight: 500,
+                color: 'var(--gray-11)',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}
+            >{task.name}</span>
+            <div style={{
+              width: META_WIDTH, flexShrink: 0, textAlign: 'right', fontSize: '11px',
+              color: hasPeriod ? 'var(--gray-11)' : GREY.muted,
+              fontVariantNumeric: 'tabular-nums',
+              whiteSpace: 'nowrap',
+            }}>
+              {hasPeriod
+                ? formatDay(parseDay(task.start), locale) + ' → ' + formatDay(parseDay(task.end), locale)
+                : labels.noPeriod}
+            </div>
+          </div>
+          <div style={{
+            position: 'relative', width: trackWidth, flexShrink: 0,
+            ...trackStyle,
+          }}>
+            <Bar
+              item={task} kind="task" origin={origin} ppd={ppd}
+              locale={locale} labels={labels}
+            />
+          </div>
+        </div>
+      );
+
+      return isTaskOpen ? [row, ...renderTaskRows(subtasks, depth + 1)] : [row];
+    });
 
   return (
     <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -654,46 +736,7 @@ export function GanttChart({
                     </div>
                   </div>
 
-                  {isOpen && project.tasks.map((task, index) => (
-                    <div key={project.id + '-' + index} style={{
-                      display: 'flex', height: rowHeight.task,
-                      borderBottom: '1px solid ' + GREY.grid, background: GREY.taskBg,
-                    }}>
-                      <div style={{
-                        ...leftCell, background: GREY.taskBg, display: 'flex',
-                        alignItems: 'center', gap: 8, padding: '0 12px 0 40px',
-                      }}>
-                        <StatusDot status={task.status} size={5} />
-                        <span
-                          title={task.name}
-                          style={{
-                            flex: 1, minWidth: 0, fontSize: '12px', fontWeight: 500,
-                            color: 'var(--gray-11)',
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          }}
-                        >{task.name}</span>
-                        <div style={{
-                          width: META_WIDTH, flexShrink: 0, textAlign: 'right', fontSize: '11px',
-                          color: task.start && task.end ? 'var(--gray-11)' : GREY.muted,
-                          fontVariantNumeric: 'tabular-nums',
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {task.start && task.end
-                            ? formatDay(parseDay(task.start), locale) + ' → ' + formatDay(parseDay(task.end), locale)
-                            : labels.noPeriod}
-                        </div>
-                      </div>
-                      <div style={{
-                        position: 'relative', width: trackWidth, flexShrink: 0,
-                        ...trackStyle,
-                      }}>
-                        <Bar
-                          item={task} kind="task" origin={origin} ppd={ppd}
-                          locale={locale} labels={labels}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                  {isOpen && renderTaskRows(project.tasks, 0)}
                 </React.Fragment>
               );
             })}

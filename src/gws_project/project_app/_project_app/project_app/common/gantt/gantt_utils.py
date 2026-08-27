@@ -3,8 +3,8 @@
 from datetime import date, datetime
 
 from gws_core import UserDTO
-from gws_project.project.project_dto import ProjectWithRootTasksDTO
-from gws_project.task.task_dto import TaskDTO, TaskStatus
+from gws_project.project.project_dto import ProjectWithRootTasksDTO, TaskWithSubTasksDTO
+from gws_project.task.task_dto import TaskStatus
 
 from .gantt_type import GanttDataDTO, GanttProjectDTO, GanttStatus, GanttTaskDTO
 
@@ -74,43 +74,52 @@ def get_full_name(user: UserDTO | None) -> str:
     return name or (user.email or "")
 
 
-def _build_task(task: TaskDTO, today: date) -> GanttTaskDTO:
-    """Convert a root task into a Gantt row.
+def _build_task(node: TaskWithSubTasksDTO, today: date) -> GanttTaskDTO:
+    """Convert one node of a project's task tree into a Gantt row, subtasks included.
 
     A bar needs both ends, so a task missing a start or due date is returned without dates:
     it still gets a row - it counts towards the project's percentage, and leaving it out
     made that percentage impossible to reconcile with the rows - but nothing is plotted for
     it on the timeline.
 
-    :param task: The task to convert
-    :type task: TaskDTO
+    Recurses into the node's subtasks so a task carrying its own collapses like a project
+    does; the depth is whatever the tree holds.
+
+    :param node: The task and its subtasks
+    :type node: TaskWithSubTasksDTO
     :param today: The reference date
     :type today: date
     :return: The Gantt task
     :rtype: GanttTaskDTO
     """
+    task = node.task
     start = _as_date(task.start_date)
     end = _as_date(task.due_date)
 
     # A DONE task is finished whatever its stored progress says.
     progress = COMPLETE_PROGRESS if task.status == TaskStatus.DONE else task.progress
+    subtasks = [_build_task(subtask, today) for subtask in node.subtasks]
 
     if start is None or end is None:
         # No end date means nothing can be late, so such a row is only ever ongoing or done.
         return GanttTaskDTO(
+            id=task.id,
             name=task.title,
             start=None,
             end=None,
             progress=progress,
             status=resolve_status(None, progress, today),
+            tasks=subtasks,
         )
 
     return GanttTaskDTO(
+        id=task.id,
         name=task.title,
         start=start.isoformat(),
         end=end.isoformat(),
         progress=progress,
         status=resolve_status(end, progress, today),
+        tasks=subtasks,
     )
 
 
@@ -144,8 +153,9 @@ def build_gantt_data_from_projects(
         late_days = (reference_day - end).days if status == GanttStatus.LATE else 0
 
         # Every root task gets a row, undated ones included, in the order the service
-        # returned them - the same order the project's own task list uses.
-        tasks = [_build_task(task, reference_day) for task in project_data.root_tasks]
+        # returned them - the same order the project's own task list uses. Each carries its
+        # own subtasks, so the chart can collapse them the way it collapses a project.
+        tasks = [_build_task(node, reference_day) for node in project_data.root_tasks]
 
         gantt_projects.append(
             GanttProjectDTO(

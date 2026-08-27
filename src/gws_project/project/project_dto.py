@@ -95,8 +95,24 @@ class ProjectDTO(ModelDTO):
     last_modified_by: UserDTO
 
 
+class TaskWithSubTasksDTO(BaseModelDTO):
+    """One node of a project's task tree: the task, then its own subtasks.
+
+    Recursive because subtasks nest without a depth limit. Each level keeps the order the
+    task list displays it in.
+    """
+
+    task: TaskDTO
+    subtasks: list["TaskWithSubTasksDTO"] = []
+
+
+# The self-reference above is a forward declaration, so the model has to be rebuilt once the
+# class exists for pydantic to resolve it.
+TaskWithSubTasksDTO.model_rebuild()
+
+
 class ProjectWithRootTasksDTO(BaseModelDTO):
-    """DTO for displaying project information with its root tasks for GANTT chart view."""
+    """DTO for displaying project information with its task tree for GANTT chart view."""
 
     project: ProjectDTO
-    root_tasks: list[TaskDTO]
+    root_tasks: list[TaskWithSubTasksDTO]

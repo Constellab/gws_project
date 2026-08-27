@@ -227,21 +227,40 @@ class TestProjectServiceGaps(BaseTestCase):
 
     def test_search_current_user_projects_with_root_tasks(self):
         """Test search_current_user_projects_with_root_tasks returns the projects
-        with their root tasks, and applies the title and manager filters"""
+        with their task tree, and applies the title and manager filters"""
         project_service = self._get_project_service()
         current_user = CurrentUserService.get_and_check_current_user()
 
         project = self._create_project("Searchable Alpha Project")
         self._create_task(project, "Root Task 1")
         root_2 = self._create_task(project, "Root Task 2", allow_subtasks=True)
-        # A subtask must not be returned: only root tasks are
-        self._create_task(project, "Subtask", parent_task_id=root_2.id)
+        # A subtask is not a root task: it nests under its parent instead
+        subtask = self._create_task(
+            project, "Subtask", parent_task_id=root_2.id, allow_subtasks=True
+        )
 
         results = project_service.search_current_user_projects_with_root_tasks()
         found = next(result for result in results if result.project.id == project.id)
         self.assertEqual(len(found.root_tasks), 2)
         self.assertEqual(
-            {task.title for task in found.root_tasks}, {"Root Task 1", "Root Task 2"}
+            {node.task.title for node in found.root_tasks}, {"Root Task 1", "Root Task 2"}
+        )
+
+        # The tree hangs the subtask off its own parent, and nowhere else
+        by_title = {node.task.title: node for node in found.root_tasks}
+        self.assertEqual(by_title["Root Task 1"].subtasks, [])
+        self.assertEqual(
+            [node.task.id for node in by_title["Root Task 2"].subtasks], [subtask.id]
+        )
+
+        # Nesting has no depth limit: a subtask of a subtask nests one level further
+        deeper = self._create_task(project, "Sub-subtask", parent_task_id=subtask.id)
+        results = project_service.search_current_user_projects_with_root_tasks()
+        found = next(result for result in results if result.project.id == project.id)
+        by_title = {node.task.title: node for node in found.root_tasks}
+        self.assertEqual(
+            [node.task.id for node in by_title["Root Task 2"].subtasks[0].subtasks],
+            [deeper.id],
         )
 
         # Title filter

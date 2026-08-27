@@ -30,6 +30,7 @@ class GanttTaskDTO(BaseModelDTO):
     altogether.
 
     Attributes:
+        id: The task's own id, which keys its expanded state in the chart
         name: Label drawn on (or next to) the bar
         start: Inclusive start date, ISO ``YYYY-MM-DD``, or None when undated
         end: Inclusive end date, ISO ``YYYY-MM-DD``, or None when undated
@@ -37,29 +38,34 @@ class GanttTaskDTO(BaseModelDTO):
         status: One of :class:`GanttStatus`
     """
 
+    id: str
     name: str
     start: str | None = None
     end: str | None = None
     progress: int
     status: str
+    # Subtasks, in the project's own order. Recursive: subtasks nest without a depth limit,
+    # and each level collapses under its own row.
+    tasks: list["GanttTaskDTO"] = []
+
+
+# The self-reference above is a forward declaration, so the model has to be rebuilt once the
+# class exists for pydantic to resolve it.
+GanttTaskDTO.model_rebuild()
 
 
 class GanttProjectDTO(GanttTaskDTO):
-    """A project row, with the tasks that collapse underneath it.
+    """A project row, with the root tasks that collapse underneath it.
 
     Attributes:
-        id: Project id, used to route on click and to key the expanded state
         owner: Project manager initials, e.g. ``MB``
         owner_name: Full manager name, used in the bar tooltip
         late_days: Days past the due date when late, else 0
-        tasks: Root tasks, in the project's own order; the undated ones draw no bar
     """
 
-    id: str
     owner: str
     owner_name: str
     late_days: int = 0
-    tasks: list[GanttTaskDTO] = []
 
 
 class GanttDataDTO(BaseModelDTO):

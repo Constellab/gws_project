@@ -123,6 +123,24 @@ therefore sits on the background it contrasts with. Picking one ink by progress 
 `LABEL_INVERT_AT = 55`) left the project name unreadable on the fill of any bar below that
 threshold.
 
+## Nesting
+
+A project row expands into its root tasks, and **any task carrying subtasks gets the same
+toggle**, at any depth — `renderTaskRows(tasks, depth)` recurses, indenting each level by
+`TASK_INDENT_STEP` from `TASK_INDENT_BASE`. A leaf still reserves the toggle's 14px so the rows
+of one level line up.
+
+The whole tree comes down in the payload: `GanttTaskDTO` is self-referential (`tasks`), built
+recursively by `_build_task` from the `TaskWithSubTasksDTO` tree that
+`ProjectService.search_current_user_projects_with_root_tasks` assembles. That service reads a
+project's tasks with **one** query (`Task.get_all_tasks_of_project`) and groups them by parent
+in memory — walking the tree with a query per parent would be a query per task on a screen
+that shows every project at once.
+
+Projects and tasks share one `expanded` set of ids, which is why the cleanup effect collects
+**task** ids as well: gathering only the project ids would collapse every open task on the next
+unrelated state delta.
+
 ## Rows without a period
 
 A root task missing a start or due date still gets a row, in the order the service returned it

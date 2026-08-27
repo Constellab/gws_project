@@ -21,6 +21,7 @@ from gws_project.project.project_dto import (
     ProjectUserRole,
     ProjectWithRootTasksDTO,
     SaveProjectDTO,
+    TaskWithSubTasksDTO,
 )
 from gws_project.project.project_search_builder import ProjectSearchBuilder
 from gws_project.project.project_security_service import ProjectSecurityService
@@ -201,10 +202,11 @@ class ProjectService:
     ) -> list[ProjectWithRootTasksDTO]:
         """Get all projects that the current user is a member of, along with their root tasks.
 
-        This method is optimized for GANTT chart display, returning projects with their
-        root-level tasks only (no subtasks). Tasks are ordered by start date.
+        This method is optimized for GANTT chart display, returning each project with its
+        whole task tree: the root tasks, and under each of them its own subtasks, at every
+        nesting level. Every level is ordered by start date, undated tasks last.
 
-        :return: List of ProjectWithRootTasksDTO containing projects and their root tasks
+        :return: List of ProjectWithRootTasksDTO containing projects and their task trees
         :rtype: List[ProjectWithRootTasksDTO]
         """
         projects = self.search_current_user_projects(
@@ -213,19 +215,43 @@ class ProjectService:
 
         result = []
         for project in projects:
-            # Get root tasks for this project (tasks without parent_task)
-            root_tasks = Task.get_root_tasks_of_project(project.id)
+            # One query for the whole project, assembled into a tree below: walking it with
+            # a query per parent would be a query per task on a portfolio-wide screen.
+            tasks = Task.get_all_tasks_of_project(project.id)
 
-            # Convert tasks to DTOs
-            root_tasks_dtos = [task.to_dto() for task in root_tasks]
-
-            # Create the combined DTO
             project_with_tasks = ProjectWithRootTasksDTO(
-                project=project.to_dto(), root_tasks=root_tasks_dtos
+                project=project.to_dto(), root_tasks=self._build_task_tree(tasks)
             )
             result.append(project_with_tasks)
 
         return result
+
+    @staticmethod
+    def _build_task_tree(tasks: list[Task]) -> list[TaskWithSubTasksDTO]:
+        """Assemble a flat list of a project's tasks into the tree of root tasks.
+
+        The list is expected to be ordered the way each level should be displayed; grouping
+        by parent preserves that order within every level.
+
+        :param tasks: Every task of one project, at every nesting level
+        :type tasks: list[Task]
+        :return: The root tasks, each carrying its own subtasks
+        :rtype: list[TaskWithSubTasksDTO]
+        """
+        nodes = {task.id: TaskWithSubTasksDTO(task=task.to_dto(), subtasks=[]) for task in tasks}
+
+        roots: list[TaskWithSubTasksDTO] = []
+        for task in tasks:
+            parent_id = task.parent_task_id
+            parent = nodes.get(parent_id) if parent_id else None
+            # A task whose parent is missing from the list is treated as a root rather than
+            # dropped: a tree the query cannot fully explain must not lose rows.
+            if parent is None:
+                roots.append(nodes[task.id])
+            else:
+                parent.subtasks.append(nodes[task.id])
+
+        return roots
 
     def _validate_project_dates(self, start_date, due_date) -> None:
         """Validate that project start date is before due date.
