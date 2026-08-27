@@ -58,8 +58,10 @@ export const Column = React.memo(function Column({
     <div
       ref={setNodeRef}
       style={{
-        flex: 1,
-        minWidth: '280px',
+        // Grow to fill a wide board, but never shrink below a readable width: the
+        // board container scrolls horizontally instead of squeezing the cards
+        flex: '1 0 350px',
+        minWidth: '350px',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -100,6 +102,7 @@ export const Column = React.memo(function Column({
           </span>
         </div>
         <button
+          data-kanban-quick-add
           onClick={handleAddClick}
           title="Add task"
           style={{

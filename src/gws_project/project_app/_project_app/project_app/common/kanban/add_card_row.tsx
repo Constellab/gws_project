@@ -37,11 +37,31 @@ export function AddCardRow({
   // Drives the focus ring on the title input (no stylesheet available here, so the
   // ":focus" state has to be tracked in React)
   const [titleFocused, setTitleFocused] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const isActive = quickAddColumnId === columnId;
+
+  // Clicking anywhere outside the open form discards it, like a popover
+  React.useEffect(() => {
+    if (!isActive) return;
+
+    const handleOutsideMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (containerRef.current?.contains(target)) return;
+      // An "add task" affordance of another column opens that column's form; let its
+      // own handler do the switch rather than closing here first
+      if (target.closest?.('[data-kanban-quick-add]')) return;
+      onQuickAddCancel?.();
+    };
+
+    document.addEventListener('mousedown', handleOutsideMouseDown);
+    return () => document.removeEventListener('mousedown', handleOutsideMouseDown);
+  }, [isActive, onQuickAddCancel]);
 
   if (!isActive) {
     return (
       <div
+        data-kanban-quick-add
         onClick={() => onQuickAddOpen?.(columnId)}
         style={{
           padding: '8px 10px',
@@ -64,6 +84,7 @@ export function AddCardRow({
 
   return (
     <div
+      ref={containerRef}
       style={{
         background: 'var(--card-background)',
         borderRadius: '10px',
