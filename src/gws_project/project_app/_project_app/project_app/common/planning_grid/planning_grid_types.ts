@@ -74,6 +74,12 @@ export interface SlotResizeEvent {
   new_time: string;
 }
 
+export interface CellClickEvent {
+  person_id: string;
+  day: string;
+  start_time: string;
+}
+
 export interface PlanningGridProps {
   gridData: PlanningGridData;
   tasks: GridTask[];
@@ -81,6 +87,7 @@ export interface PlanningGridProps {
   onSlotMove?: (event: SlotMoveEvent) => void;
   onSlotResize?: (event: SlotResizeEvent) => void;
   onSlotDelete?: (slotId: string) => void;
+  onCellClick?: (event: CellClickEvent) => void;
 }
 
 // Prefix used to tell a draggable task-panel item apart from a draggable existing

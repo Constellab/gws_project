@@ -12,6 +12,9 @@ register_translations(
             "planning.title": "Planning",
             "planning.week.current": "Today",
             "planning.duplicate_previous_week": "Duplicate previous week",
+            "planning.add_task.title": "Add a task",
+            "planning.add_task.description": "Pick the task to schedule for {{target}}.",
+            "planning.add_task.cancel": "Cancel",
             "planning.tasks.search_placeholder": "Search a task, project, person...",
             "planning.tasks.no_result": "No task matches your search.",
             "planning.tasks.help": (
@@ -52,6 +55,9 @@ register_translations(
             "planning.title": "Planning",
             "planning.week.current": "Aujourd'hui",
             "planning.duplicate_previous_week": "Dupliquer la semaine précédente",
+            "planning.add_task.title": "Ajouter une tâche",
+            "planning.add_task.description": "Choisissez la tâche à planifier pour {{target}}.",
+            "planning.add_task.cancel": "Annuler",
             "planning.tasks.search_placeholder": "Rechercher une tâche, un projet, une personne...",
             "planning.tasks.no_result": "Aucune tâche ne correspond à votre recherche.",
             "planning.tasks.help": (

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import {
   DndContext,
@@ -14,7 +14,23 @@ import { DayCell } from './day_cell';
 import { TaskPanel } from './task_panel';
 import type { GridSlot, PlanningGridProps } from './planning_grid_types';
 import { SLOT_DRAG_PREFIX, TASK_DRAG_PREFIX, parseCellDropId } from './planning_grid_types';
-import { dayBoundsFromSettings, isoDateOf, minutesToTime, pixelYToClockMinutes } from './planning_grid_utils';
+import {
+  DayBounds,
+  clockMinutesToPixels,
+  dayBoundsFromSettings,
+  dayColumnHeightPx,
+  hourMarkMinutes,
+  isoDateOf,
+  minutesToTime,
+  pixelYToClockMinutes,
+} from './planning_grid_utils';
+
+// Width of the hour axis rendered on the left of every person row.
+const HOUR_AXIS_WIDTH = '38px';
+
+// A click fired right after a drag (the browser sends one to the common ancestor
+// of pointerdown and pointerup) must not be read as "clicked an empty cell".
+const CLICK_AFTER_DRAG_MS = 300;
 
 function PersonAvatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
   if (photoUrl) {
@@ -47,8 +63,49 @@ function PersonAvatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
   );
 }
 
-export function PlanningGrid({ gridData, tasks, onSlotCreate, onSlotMove, onSlotResize, onSlotDelete }: PlanningGridProps) {
+/** Hour marks ("9h", "10h", ...) on the left of a person row, aligned with the
+ * solid gridlines of that row's day columns. Half hours are left unlabelled. */
+function HourAxis({ bounds }: { bounds: DayBounds }) {
+  return (
+    <div
+      style={{
+        width: HOUR_AXIS_WIDTH,
+        flexShrink: 0,
+        position: 'relative',
+        height: `${dayColumnHeightPx(bounds)}px`,
+      }}
+    >
+      {hourMarkMinutes(bounds).map((minutes) => (
+        <div
+          key={minutes}
+          style={{
+            position: 'absolute',
+            top: `${clockMinutesToPixels(minutes, bounds)}px`,
+            right: '6px',
+            paddingTop: '1px',
+            fontSize: '10px',
+            lineHeight: 1,
+            color: 'var(--gray-9)',
+          }}
+        >
+          {minutes / 60}h
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function PlanningGrid({
+  gridData,
+  tasks,
+  onSlotCreate,
+  onSlotMove,
+  onSlotResize,
+  onSlotDelete,
+  onCellClick,
+}: PlanningGridProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const lastDragEndRef = useRef(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -93,6 +150,7 @@ export function PlanningGrid({ gridData, tasks, onSlotCreate, onSlotMove, onSlot
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
+    lastDragEndRef.current = Date.now();
     if (!over) return;
 
     const target = parseCellDropId(over.id as string);
@@ -120,6 +178,11 @@ export function PlanningGrid({ gridData, tasks, onSlotCreate, onSlotMove, onSlot
     }
   };
 
+  const handleCellClick = (personId: string, day: string, startTime: string) => {
+    if (Date.now() - lastDragEndRef.current < CLICK_AFTER_DRAG_MS) return;
+    onCellClick?.({ person_id: personId, day, start_time: startTime });
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -142,6 +205,7 @@ export function PlanningGrid({ gridData, tasks, onSlotCreate, onSlotMove, onSlot
               excluded server-side, so every column here is a working day. */}
           <div style={{ display: 'flex', position: 'sticky', top: 0, zIndex: 2, background: 'var(--color-background)' }}>
             <div style={{ width: '180px', flexShrink: 0 }} />
+            <div style={{ width: HOUR_AXIS_WIDTH, flexShrink: 0 }} />
             {gridData.days.map((day, i) => (
               <div
                 key={day}
@@ -202,6 +266,7 @@ export function PlanningGrid({ gridData, tasks, onSlotCreate, onSlotMove, onSlot
                   />
                 </div>
               </div>
+              <HourAxis bounds={bounds} />
               {gridData.days.map((day) => (
                 <DayCell
                   key={day}
@@ -213,6 +278,7 @@ export function PlanningGrid({ gridData, tasks, onSlotCreate, onSlotMove, onSlot
                   lunchLabel={gridData.lunch_label}
                   onResize={(slotId, edge, newTime) => onSlotResize?.({ slot_id: slotId, edge, new_time: newTime })}
                   onDelete={onSlotDelete}
+                  onEmptyClick={handleCellClick}
                 />
               ))}
             </div>

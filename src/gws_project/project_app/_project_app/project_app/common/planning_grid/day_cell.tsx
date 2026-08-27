@@ -1,9 +1,16 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { PlanningSlotBlock } from './planning_slot_block';
 import { cellDropId } from './planning_grid_types';
 import type { GridSlot, ResizeEdge } from './planning_grid_types';
-import { DayBounds, PX_PER_MINUTE, clockMinutesToPixels, dayColumnHeightPx } from './planning_grid_utils';
+import {
+  DayBounds,
+  clockMinutesToPixels,
+  dayColumnHeightPx,
+  gridLineMinutes,
+  minutesToTime,
+  pixelYToClockMinutes,
+} from './planning_grid_utils';
 
 export interface DayCellProps {
   personId: string;
@@ -14,13 +21,32 @@ export interface DayCellProps {
   lunchLabel: string;
   onResize?: (slotId: string, edge: ResizeEdge, newTime: string) => void;
   onDelete?: (slotId: string) => void;
+  onEmptyClick?: (personId: string, day: string, startTime: string) => void;
 }
 
-export function DayCell({ personId, day, slots, bounds, stepMinutes, lunchLabel, onResize, onDelete }: DayCellProps) {
+export function DayCell({
+  personId,
+  day,
+  slots,
+  bounds,
+  stepMinutes,
+  lunchLabel,
+  onResize,
+  onDelete,
+  onEmptyClick,
+}: DayCellProps) {
   const { setNodeRef, isOver } = useDroppable({ id: cellDropId(personId, day) });
 
   const height = dayColumnHeightPx(bounds);
-  const hourPx = PX_PER_MINUTE * 60;
+  const gridLines = useMemo(() => gridLineMinutes(bounds), [bounds]);
+
+  // Only a click on the column's own background counts: a click on a slot (or at
+  // the end of a drag, see PlanningGrid's guard) must not open the add dialog.
+  const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!onEmptyClick || event.target !== event.currentTarget) return;
+    const offsetY = event.clientY - event.currentTarget.getBoundingClientRect().top;
+    onEmptyClick(personId, day, minutesToTime(pixelYToClockMinutes(offsetY, bounds, stepMinutes)));
+  };
 
   const hasLunch = bounds.lunchEndMinutes > bounds.lunchStartMinutes;
   const lunchTop = clockMinutesToPixels(bounds.lunchStartMinutes, bounds);
@@ -30,21 +56,34 @@ export function DayCell({ personId, day, slots, bounds, stepMinutes, lunchLabel,
     <div
       ref={setNodeRef}
       data-day-column="true"
+      onClick={handleClick}
       style={{
         position: 'relative',
         flex: '1 0 140px',
         minWidth: '140px',
         height: `${height}px`,
         borderLeft: '1px solid var(--gray-4)',
-        // backgroundColor (not the `background` shorthand): a shorthand resets
-        // background-image as an implicit side effect of the CSSOM setter, so
-        // toggling `isOver` on drag-hover would silently wipe the hour gridlines
-        // the very first time a cell was dragged over (which is exactly what
-        // happened to the columns that had ever received a dropped slot).
         backgroundColor: isOver ? 'var(--accent-2)' : 'var(--gray-1)',
-        backgroundImage: `repeating-linear-gradient(to bottom, transparent, transparent ${hourPx - 1}px, var(--gray-4) ${hourPx - 1}px, var(--gray-4) ${hourPx}px)`,
+        cursor: onEmptyClick ? 'copy' : 'default',
       }}
     >
+      {/* Gridlines: solid on the hour (labelled by the row's hour axis), dashed on
+          the half hour (deliberately unlabelled). Drawn as elements rather than a
+          repeating gradient, which cannot dash a horizontal rule; pointerEvents
+          none keeps them out of the drop, resize and click handling. */}
+      {gridLines.map((line) => (
+        <div
+          key={line.minutes}
+          style={{
+            position: 'absolute',
+            top: `${clockMinutesToPixels(line.minutes, bounds)}px`,
+            left: 0,
+            right: 0,
+            borderTop: line.isHour ? '1px solid var(--gray-4)' : '1px dashed var(--gray-4)',
+            pointerEvents: 'none',
+          }}
+        />
+      ))}
       {/* Lunch break: real, colored, non-schedulable space (a drop/resize landing
           here is redirected to its nearest edge by clampOutsideLunch). */}
       {hasLunch && (

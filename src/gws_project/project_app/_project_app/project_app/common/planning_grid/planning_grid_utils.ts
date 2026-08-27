@@ -47,6 +47,30 @@ export function dayColumnHeightPx(bounds: DayBounds): number {
   return Math.max(bounds.dayEndMinutes - bounds.dayStartMinutes, 0) * PX_PER_MINUTE;
 }
 
+/**
+ * The horizontal rules of a day column, every half hour between the day bounds.
+ * `isHour` tells a full hour (solid, and labelled by the row's hour axis) from a
+ * half hour (dashed and unlabelled).
+ */
+export function gridLineMinutes(bounds: DayBounds): { minutes: number; isHour: boolean }[] {
+  const lines: { minutes: number; isHour: boolean }[] = [];
+  const first = Math.ceil(bounds.dayStartMinutes / 30) * 30;
+  for (let minutes = first; minutes < bounds.dayEndMinutes; minutes += 30) {
+    lines.push({ minutes, isHour: minutes % 60 === 0 });
+  }
+  return lines;
+}
+
+/** The full hours between the day bounds, for the hour axis on the left of a row. */
+export function hourMarkMinutes(bounds: DayBounds): number[] {
+  const hours: number[] = [];
+  const first = Math.ceil(bounds.dayStartMinutes / 60) * 60;
+  for (let minutes = first; minutes < bounds.dayEndMinutes; minutes += 60) {
+    hours.push(minutes);
+  }
+  return hours;
+}
+
 export function clockMinutesToPixels(clockMinutes: number, bounds: DayBounds): number {
   return (clockMinutes - bounds.dayStartMinutes) * PX_PER_MINUTE;
 }

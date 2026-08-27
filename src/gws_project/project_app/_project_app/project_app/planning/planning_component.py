@@ -2,7 +2,7 @@ import reflex as rx
 from gws_reflex_main import main_component, translate
 
 from ..common.page_layout import page_layout
-from ..common.planning_grid.planning_grid import planning_grid
+from ..common.planning_grid.planning_grid import GridTaskDTO, planning_grid
 from . import planning_translations  # noqa: F401  (side effect: registers translations)
 from .planning_state import PlanningState, PlanningWarningGroupDTO
 
@@ -96,6 +96,97 @@ def _duplicate_week_dialog() -> rx.Component:
     )
 
 
+def _add_task_option(task: GridTaskDTO) -> rx.Component:
+    """One pickable task of the "add a task" dialog; clicking it schedules it."""
+    return rx.box(
+        rx.hstack(
+            rx.vstack(
+                rx.text(task.title, size="2", weight="medium"),
+                rx.text(
+                    rx.cond(
+                        task.company_name,
+                        f"{task.project_title} · {task.company_name}",
+                        task.project_title,
+                    ),
+                    size="1",
+                    color="var(--gray-10)",
+                ),
+                rx.text(task.assignee_name, size="1", color="var(--gray-10)"),
+                spacing="1",
+                align_items="start",
+                flex="1",
+                min_width="0",
+            ),
+            rx.cond(
+                task.due_date_text,
+                rx.text(task.due_date_text, size="1", color="var(--gray-10)", flex_shrink="0"),
+            ),
+            width="100%",
+            align="center",
+            justify="between",
+            spacing="3",
+        ),
+        padding="8px 12px",
+        border="1px solid var(--gray-4)",
+        border_radius="10px",
+        background="var(--card-background)",
+        width="100%",
+        cursor="pointer",
+        transition="all 0.2s ease",
+        _hover={"border_color": "var(--gray-6)", "background": "var(--gray-2)"},
+        on_click=lambda: PlanningState.confirm_add_task(task.id),
+    )
+
+
+def _add_task_dialog() -> rx.Component:
+    """Task picker opened by clicking an empty area of the grid: the alternative to
+    dragging a task from the panel."""
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.dialog.title(translate("planning.add_task.title")),
+            rx.dialog.description(
+                translate(
+                    "planning.add_task.description",
+                    {"target": PlanningState.add_task_target_label},
+                ),
+                size="2",
+                margin_bottom="12px",
+            ),
+            rx.input(
+                value=PlanningState.add_task_query,
+                on_change=PlanningState.set_add_task_query,
+                placeholder=translate("planning.tasks.search_placeholder"),
+                width="100%",
+                margin_bottom="12px",
+            ),
+            rx.cond(
+                PlanningState.add_task_options.length() > 0,
+                rx.vstack(
+                    rx.foreach(PlanningState.add_task_options, _add_task_option),
+                    spacing="2",
+                    width="100%",
+                    max_height="50vh",
+                    overflow_y="auto",
+                ),
+                rx.text(translate("planning.tasks.no_result"), size="2", color="var(--gray-10)"),
+            ),
+            rx.hstack(
+                rx.button(
+                    translate("planning.add_task.cancel"),
+                    on_click=PlanningState.set_add_task_dialog_open(False),
+                    variant="soft",
+                    color_scheme="gray",
+                ),
+                justify="end",
+                margin_top="16px",
+                width="100%",
+            ),
+        ),
+        open=PlanningState.add_task_dialog_open,
+        on_open_change=PlanningState.set_add_task_dialog_open,
+    )
+
+
 def _warnings_button() -> rx.Component:
     """Opens the warnings dialog, shown only when the displayed week has warnings.
 
@@ -178,6 +269,7 @@ def planning_page() -> rx.Component:
             rx.vstack(
                 _duplicate_week_dialog(),
                 _warnings_dialog(),
+                _add_task_dialog(),
                 planning_grid(
                     grid_data=PlanningState.grid_data,
                     tasks=PlanningState.tasks,
@@ -185,6 +277,7 @@ def planning_page() -> rx.Component:
                     on_slot_move=PlanningState.handle_slot_move,
                     on_slot_resize=PlanningState.handle_slot_resize,
                     on_slot_delete=PlanningState.handle_slot_delete,
+                    on_cell_click=PlanningState.handle_cell_click,
                     width="100%",
                     flex="1",
                 ),

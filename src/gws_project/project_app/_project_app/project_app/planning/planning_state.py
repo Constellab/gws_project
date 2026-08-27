@@ -63,6 +63,15 @@ class PlanningState(rx.State):
     working_hours: WorkingHoursSettingsDTO | None = None
     warnings_dialog_open: bool = False
 
+    # "Add a task" dialog: opened by clicking an empty area of a day column, it
+    # schedules a task on that person/day/time without a drag and drop.
+    add_task_dialog_open: bool = False
+    add_task_target_label: str = ""  # "Alice Dupont - Mon 06 - 09:00", for the dialog
+    add_task_query: str = ""
+    _pending_person_id: str = ""
+    _pending_day: str = ""
+    _pending_start_time: str = ""
+
     # "Duplicate previous week" confirmation dialog: lets the user pick which
     # people's slots to duplicate before anything is written (none pre-selected).
     duplicate_dialog_open: bool = False
@@ -346,6 +355,54 @@ class PlanningState(rx.State):
     def set_warnings_dialog_open(self, value: bool):
         self.warnings_dialog_open = value
 
+    async def _create_slot(
+        self,
+        main_state: ReflexMainState,
+        task_id: str,
+        person_id: str,
+        day_str: str,
+        start_time_str: str | None,
+    ):
+        """Schedule a task for one person, one day, one time, and reload the week.
+
+        Shared by the two ways of adding a slot: dropping a task on a cell, and
+        picking one in the "add a task" dialog. Called from a background event,
+        outside the state lock (it takes it again only to reload).
+
+        :param main_state: the shared main state, for authentication
+        :type main_state: ReflexMainState
+        :param task_id: the task to schedule
+        :type task_id: str
+        :param person_id: the user the slot is assigned to
+        :type person_id: str
+        :param day_str: the day of the slot, ISO formatted
+        :type day_str: str
+        :param start_time_str: "HH:MM" start time; the start of the working day when
+            missing or malformed
+        :type start_time_str: str | None
+        """
+        day = date.fromisoformat(day_str)
+
+        with await main_state.authenticate_user():
+            settings = WorkingHoursService.get_settings()
+            day_start_str = self._safe_time_str(settings.day_start_time, "09:00")
+            start_str = self._safe_time_str(start_time_str, day_start_str)
+            start_time = datetime.strptime(start_str, "%H:%M").time()
+            start_dt = datetime.combine(day, start_time)
+            end_dt = start_dt + timedelta(minutes=DEFAULT_SLOT_DURATION_MINUTES)
+
+            PlanningSlotService().create_slot(
+                CreatePlanningSlotDTO(
+                    task_id=task_id,
+                    assigned_user_id=person_id,
+                    start_datetime=start_dt,
+                    end_datetime=end_dt,
+                )
+            )
+
+            async with self:
+                await self._load_week()
+
     @rx.event(background=True)
     async def handle_slot_create(self, event_dict: dict):
         main_state: ReflexMainState
@@ -356,34 +413,92 @@ class PlanningState(rx.State):
             task_id = event_dict.get("task_id")
             person_id = event_dict.get("person_id")
             day_str = event_dict.get("day")
+            # start_time reflects where the task was actually dropped in the column.
             start_time_str = event_dict.get("start_time")
             if not task_id or not person_id or not day_str:
                 yield await toast_tr.error(self, "planning.toast.invalid_drop")
                 return
 
-            day = date.fromisoformat(day_str)
+            await self._create_slot(main_state, task_id, person_id, day_str, start_time_str)
+        except Exception as e:
+            yield await toast_tr.error(
+                self, "planning.toast.create_failed", {"error": str(e)}
+            )
 
-            with await main_state.authenticate_user():
-                settings = WorkingHoursService.get_settings()
-                # start_time reflects where the task was actually dropped in the
-                # column; fall back to the start of the working day if missing/invalid.
-                day_start_str = self._safe_time_str(settings.day_start_time, "09:00")
-                start_str = self._safe_time_str(start_time_str, day_start_str)
-                start_time = datetime.strptime(start_str, "%H:%M").time()
-                start_dt = datetime.combine(day, start_time)
-                end_dt = start_dt + timedelta(minutes=DEFAULT_SLOT_DURATION_MINUTES)
+    async def handle_cell_click(self, event_dict: dict):
+        """Open the "add a task" dialog on the clicked person/day/time.
 
-                PlanningSlotService().create_slot(
-                    CreatePlanningSlotDTO(
-                        task_id=task_id,
-                        assigned_user_id=person_id,
-                        start_datetime=start_dt,
-                        end_datetime=end_dt,
-                    )
+        The alternative to drag and drop: the slot is only written once a task is
+        picked in the dialog.
+        """
+        person_id = event_dict.get("person_id")
+        day_str = event_dict.get("day")
+        start_time_str = event_dict.get("start_time")
+        if not person_id or not day_str:
+            return
+
+        i18n = await self.get_state(I18nState)
+        person_name = next((p.name for p in self.people if p.id == person_id), "")
+        day_label = format_short_weekday_day_month(date.fromisoformat(day_str), i18n.lang)
+
+        self._pending_person_id = person_id
+        self._pending_day = day_str
+        self._pending_start_time = start_time_str or ""
+        self.add_task_target_label = " - ".join(
+            part for part in (person_name, day_label, start_time_str) if part
+        )
+        self.add_task_query = ""
+        self.add_task_dialog_open = True
+
+    def set_add_task_dialog_open(self, value: bool):
+        self.add_task_dialog_open = value
+
+    def set_add_task_query(self, value: str):
+        self.add_task_query = value
+
+    @rx.var
+    def add_task_options(self) -> list[GridTaskDTO]:
+        """The tasks offered by the "add a task" dialog, narrowed by its search box.
+
+        Searches the same texts as the task panel (title, project, company, person,
+        due date), so both boxes behave alike.
+        """
+        query = self.add_task_query.strip().lower()
+        if not query:
+            return self.tasks
+        return [
+            task
+            for task in self.tasks
+            if any(
+                query in field.lower()
+                for field in (
+                    task.title,
+                    task.project_title,
+                    task.company_name,
+                    task.assignee_name,
+                    task.due_date_text,
                 )
+                if field
+            )
+        ]
 
-                async with self:
-                    await self._load_week()
+    @rx.event(background=True)
+    async def confirm_add_task(self, task_id: str):
+        """Schedule the picked task on the cell the dialog was opened from."""
+        main_state: ReflexMainState
+        async with self:
+            main_state = await self.get_state(ReflexMainState)
+            person_id = self._pending_person_id
+            day_str = self._pending_day
+            start_time_str = self._pending_start_time
+            self.add_task_dialog_open = False
+
+        if not task_id or not person_id or not day_str:
+            yield await toast_tr.error(self, "planning.toast.invalid_drop")
+            return
+
+        try:
+            await self._create_slot(main_state, task_id, person_id, day_str, start_time_str)
         except Exception as e:
             yield await toast_tr.error(
                 self, "planning.toast.create_failed", {"error": str(e)}
