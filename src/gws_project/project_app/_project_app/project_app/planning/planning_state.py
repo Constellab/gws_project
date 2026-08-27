@@ -1,10 +1,8 @@
 from datetime import date, datetime, timedelta
 
 import reflex as rx
-from gws_core import UserDTO
+from gws_core import BaseModelDTO
 from gws_core.space.space_service import SpaceService
-from gws_project.company.company_dto import CompanyDTO
-from gws_project.company.company_service import CompanyService
 from gws_project.core.working_hours_service import WorkingHoursService
 from gws_project.core.working_hours_settings_dto import WorkingHoursSettingsDTO
 from gws_project.planning.planning_slot_dto import (
@@ -16,8 +14,6 @@ from gws_project.planning.planning_slot_service import (
     DEFAULT_SLOT_DURATION_MINUTES,
     PlanningSlotService,
 )
-from gws_project.project.project_dto import ProjectDTO
-from gws_project.project.project_service import ProjectService
 from gws_project.task.task_dto import TaskStatus
 from gws_project.task.task_search_builder import TaskSearchBuilder
 from gws_project.user.user import User
@@ -37,12 +33,24 @@ from ..common.planning_grid.planning_grid import (
 )
 
 
+class PlanningWarningGroupDTO(BaseModelDTO):
+    """One category of planning warning (overload, overlap, overdue), with its
+    entries already formatted for display in the warnings dialog.
+
+    The entries field is named `lines` and not `items`/`entries`: those are methods
+    of Reflex's ObjectVar, so a field of that name is shadowed in `rx.foreach`.
+    """
+
+    title: str
+    lines: list[str]
+
+
 class PlanningState(rx.State):
     """State for the Planning page: a person x day weekly scheduling grid.
 
     Planning is indicative, never blocking: overload and overlap are computed and
-    surfaced as dismissible banners, but never prevent a slot from being created,
-    moved, or resized.
+    surfaced through the warnings dialog, but never prevent a slot from being
+    created, moved, or resized.
     """
 
     # Real value is set by on_load (current week); this default only avoids a None
@@ -53,62 +61,27 @@ class PlanningState(rx.State):
     people: list[GridPersonDTO] = []
     overlaps: list[SlotOverlapDTO] = []
     working_hours: WorkingHoursSettingsDTO | None = None
-    dismissed_banner_keys: set[str] = set()
+    warnings_dialog_open: bool = False
 
     # "Duplicate previous week" confirmation dialog: lets the user pick which
-    # people's slots to duplicate before anything is written.
+    # people's slots to duplicate before anything is written (none pre-selected).
     duplicate_dialog_open: bool = False
     duplicate_candidates: list[tuple[str, str]] = []  # (user_id, name), previous week only
     duplicate_selected_user_ids: list[str] = []
 
-    # Filter state (project/company/person), mirroring KanbanState's convention.
-    # The person filter has two different meanings depending on what it's applied
-    # to: it hides all rows but that person's in the grid, while it filters the
-    # task panel by that person's task.assign_to (the task's official owner).
-    selected_project_id: str = ""
-    selected_company_id: str = ""
-    selected_user_id: str = ""
-    available_projects: list[ProjectDTO] = []
-    available_companies: list[CompanyDTO] = []
-    available_users: list[UserDTO] = []
-
-    async def load_projects(self):
-        """Load the list of projects for the current user."""
-        main_state = await self.get_state(ReflexMainState)
-        with await main_state.authenticate_user():
-            user_projects = ProjectService().get_current_user_projects()
-            self.available_projects = [project.to_dto() for project in user_projects]
-
-    async def load_companies(self):
-        """Load the list of all companies for the company filter."""
-        main_state = await self.get_state(ReflexMainState)
-        with await main_state.authenticate_user():
-            companies = CompanyService().search_companies()
-            self.available_companies = [company.to_dto() for company in companies]
-
-    async def load_users(self):
-        """Load the list of all real users (excluding SYSUSER), current user first."""
-        main_state = await self.get_state(ReflexMainState)
-        current_user = await main_state.get_and_check_current_user()
-        users = User.get_real_users()
-
-        user_dtos = [user.to_dto() for user in users]
-
-        current_user_dto = None
-        other_users = []
-        for user_dto in user_dtos:
-            if user_dto.id == current_user.id:
-                current_user_dto = user_dto
-            else:
-                other_users.append(user_dto)
-
-        if current_user_dto:
-            self.available_users = [current_user_dto] + other_users
-        else:
-            self.available_users = user_dtos
-
     def _monday_of(self, day: date) -> date:
         return day - timedelta(days=day.weekday())
+
+    def _is_past_week(self) -> bool:
+        """Whether the displayed week is over.
+
+        Done tasks are still listed for such a week (its history stays readable),
+        while the current and future weeks only list what is left to plan.
+
+        :return: True when the displayed week ended before the current one
+        :rtype: bool
+        """
+        return self.week_start < self._monday_of(date.today())
 
     def _due_status(self, due_date: date | None) -> str | None:
         """Urgency of a task's due date, relative to the real current date (not
@@ -126,12 +99,10 @@ class PlanningState(rx.State):
 
     async def _load_week(self):
         """Reload slots, people loads, overlaps, and the task panel for the current
-        week and filters.
+        week.
 
-        Does NOT touch dismissed_banner_keys: this is called after every slot
-        create/move/resize/delete to refresh data, and a banner the user just
-        dismissed must stay dismissed through that refresh. Only navigating to a
-        different week or changing filters (see below) resets dismissals.
+        Called on load, on week navigation, and after every slot
+        create/move/resize/delete.
         """
         main_state = await self.get_state(ReflexMainState)
         i18n = await self.get_state(I18nState)
@@ -140,16 +111,9 @@ class PlanningState(rx.State):
             self.working_hours = settings.to_dto()
 
             people = User.get_real_users()
-            if self.selected_user_id:
-                people = [person for person in people if person.id == self.selected_user_id]
 
             slot_service = PlanningSlotService()
-            slots = slot_service.get_slots_for_week(
-                self.week_start,
-                project_id=self.selected_project_id or None,
-                company_id=self.selected_company_id or None,
-                user_id=self.selected_user_id or None,
-            )
+            slots = slot_service.get_slots_for_week(self.week_start)
 
             loads = slot_service.compute_week_loads(slots, people, settings)
             self.overlaps = slot_service.compute_overlaps(slots)
@@ -195,14 +159,8 @@ class PlanningState(rx.State):
             # week. Done tasks are excluded too for the current/future weeks (nothing
             # left to plan), but kept for past weeks (so history stays visible there).
             task_search.add_exclude_status_filter(TaskStatus.BACKLOG)
-            if self.week_start >= self._monday_of(date.today()):
+            if not self._is_past_week():
                 task_search.add_exclude_status_filter(TaskStatus.DONE)
-            if self.selected_project_id:
-                task_search.add_project_filter(self.selected_project_id)
-            if self.selected_company_id:
-                task_search.add_company_filter(self.selected_company_id)
-            if self.selected_user_id:
-                task_search.add_user_filter(self.selected_user_id)
             tasks = task_search.search_all()
 
             self.tasks = [
@@ -227,59 +185,19 @@ class PlanningState(rx.State):
     async def on_load(self):
         """Event handler called when the page loads: default to the current week."""
         self.week_start = self._monday_of(date.today())
-        self.dismissed_banner_keys = set()
-        await self.load_projects()
-        await self.load_companies()
-        await self.load_users()
         await self._load_week()
 
     async def go_to_previous_week(self):
         self.week_start = self.week_start - timedelta(days=7)
-        self.dismissed_banner_keys = set()
         await self._load_week()
 
     async def go_to_next_week(self):
         self.week_start = self.week_start + timedelta(days=7)
-        self.dismissed_banner_keys = set()
         await self._load_week()
 
     async def go_to_current_week(self):
         self.week_start = self._monday_of(date.today())
-        self.dismissed_banner_keys = set()
         await self._load_week()
-
-    async def handle_project_change(self, value: str):
-        self.selected_project_id = value
-        self.dismissed_banner_keys = set()
-        await self._load_week()
-
-    async def handle_company_change(self, value: str):
-        self.selected_company_id = value
-        self.dismissed_banner_keys = set()
-        await self._load_week()
-
-    async def handle_user_change(self, value: str):
-        self.selected_user_id = value
-        self.dismissed_banner_keys = set()
-        await self._load_week()
-
-    async def clear_filters(self):
-        self.selected_project_id = ""
-        self.selected_company_id = ""
-        self.selected_user_id = ""
-        self.dismissed_banner_keys = set()
-        await self._load_week()
-
-    def dismiss_banner(self, key: str):
-        self.dismissed_banner_keys = self.dismissed_banner_keys | {key}
-
-    @rx.var
-    def project_options(self) -> list[tuple[str, str]]:
-        return [(p.id, p.title) for p in self.available_projects]
-
-    @rx.var
-    def company_options(self) -> list[tuple[str, str]]:
-        return [(c.id, c.name) for c in self.available_companies]
 
     @rx.var
     async def week_label(self) -> str:
@@ -349,15 +267,12 @@ class PlanningState(rx.State):
             step_minutes=30,
             lunch_label=i18n.tr("planning.grid.lunch"),
             scheduled_label=i18n.tr("planning.grid.scheduled"),
+            search_placeholder=i18n.tr("planning.tasks.search_placeholder"),
+            no_task_found_label=i18n.tr("planning.tasks.no_result"),
+            tasks_help_text=i18n.tr(
+                "planning.tasks.help_past_week" if self._is_past_week() else "planning.tasks.help"
+            ),
         )
-
-    @rx.var
-    def show_overload_banner(self) -> bool:
-        return any(p.is_overloaded for p in self.people) and "overload" not in self.dismissed_banner_keys
-
-    @rx.var
-    def show_overlap_banner(self) -> bool:
-        return bool(self.overlaps) and "overlap" not in self.dismissed_banner_keys
 
     @rx.var
     def overdue_unscheduled_tasks(self) -> list[GridTaskDTO]:
@@ -366,50 +281,70 @@ class PlanningState(rx.State):
         there shows exactly which ones)."""
         return [task for task in self.tasks if task.due_status == "overdue" and not task.is_scheduled]
 
-    @rx.var
-    def show_overdue_banner(self) -> bool:
-        return bool(self.overdue_unscheduled_tasks) and "overdue" not in self.dismissed_banner_keys
+    def _build_warning_groups(self, i18n: I18nState) -> list[PlanningWarningGroupDTO]:
+        """Build the warning list shown in the warnings dialog, one group per
+        category, empty groups omitted.
 
-    @rx.var
-    async def overload_banner_text(self) -> str:
-        """Names the overloaded people and their load, e.g. "Alice Dupont (42h / 35h)"."""
-        i18n = await self.get_state(I18nState)
-        overloaded = [p for p in self.people if p.is_overloaded]
-        details = ", ".join(f"{p.name} ({p.total_hours}h / {p.capacity_hours}h)" for p in overloaded)
-        return f"{i18n.tr('planning.banner.overload_prefix')} {details}"
+        A plain method rather than a computed var so both `warning_groups` and
+        `warning_count` can use it without one awaiting the other.
 
-    @rx.var
-    async def overlap_banner_text(self) -> str:
-        """Names each (person, day) with overlapping slots, e.g. "Alice Dupont: Mon 06"."""
-        i18n = await self.get_state(I18nState)
+        :param i18n: the shared i18n state, for the group titles and date formats
+        :type i18n: I18nState
+        :return: the non-empty warning groups
+        :rtype: list[PlanningWarningGroupDTO]
+        """
+        groups: list[PlanningWarningGroupDTO] = []
+
+        overloaded = [
+            f"{person.name} : {person.total_hours}h / {person.capacity_hours}h"
+            for person in self.people
+            if person.is_overloaded
+        ]
+        if overloaded:
+            groups.append(
+                PlanningWarningGroupDTO(title=i18n.tr("planning.warnings.overload"), lines=overloaded)
+            )
+
+        # One entry per (person, day): several overlapping pairs on the same day
+        # are the same problem to fix, so they must not be listed twice.
         seen: set[tuple[str, str]] = set()
-        parts: list[str] = []
+        overlapping: list[str] = []
         for overlap in self.overlaps:
             key = (overlap.user_id, overlap.day)
             if key in seen:
                 continue
             seen.add(key)
-            day_label = format_short_weekday_day_month(
-                date.fromisoformat(overlap.day), i18n.lang
+            day_label = format_short_weekday_day_month(date.fromisoformat(overlap.day), i18n.lang)
+            overlapping.append(f"{overlap.user_name} : {day_label}")
+        if overlapping:
+            groups.append(
+                PlanningWarningGroupDTO(title=i18n.tr("planning.warnings.overlap"), lines=overlapping)
             )
-            parts.append(f"{overlap.user_name}: {day_label}")
-        return f"{i18n.tr('planning.banner.overlap_prefix')} {', '.join(parts)}"
+
+        overdue = [
+            f"{task.title} : {task.due_date_text}" for task in self.overdue_unscheduled_tasks
+        ]
+        if overdue:
+            groups.append(
+                PlanningWarningGroupDTO(title=i18n.tr("planning.warnings.overdue"), lines=overdue)
+            )
+
+        return groups
 
     @rx.var
-    async def overdue_banner_text(self) -> str:
-        """Names each overdue, unscheduled task, e.g. "Fix bug (Due Jan 5)"."""
-        i18n = await self.get_state(I18nState)
-        details = ", ".join(
-            f"{task.title} ({task.due_date_text})" for task in self.overdue_unscheduled_tasks
-        )
-        return f"{i18n.tr('planning.banner.overdue_prefix')} {details}"
+    async def warning_groups(self) -> list[PlanningWarningGroupDTO]:
+        return self._build_warning_groups(await self.get_state(I18nState))
 
     @rx.var
-    def has_dismissed_banners(self) -> bool:
-        return bool(self.dismissed_banner_keys)
+    async def warning_count(self) -> int:
+        groups = self._build_warning_groups(await self.get_state(I18nState))
+        return sum(len(group.lines) for group in groups)
 
-    def reopen_banners(self):
-        self.dismissed_banner_keys = set()
+    def open_warnings_dialog(self):
+        self.warnings_dialog_open = True
+
+    def set_warnings_dialog_open(self, value: bool):
+        self.warnings_dialog_open = value
 
     @rx.event(background=True)
     async def handle_slot_create(self, event_dict: dict):
@@ -584,7 +519,9 @@ class PlanningState(rx.State):
 
             async with self:
                 self.duplicate_candidates = sorted(names_by_id.items(), key=lambda item: item[1])
-                self.duplicate_selected_user_ids = list(names_by_id.keys())
+                # Nothing checked by default: duplicating a week writes slots, so the
+                # user picks who is concerned rather than un-picking everyone else.
+                self.duplicate_selected_user_ids = []
                 self.duplicate_dialog_open = True
         except Exception as e:
             yield await toast_tr.error(

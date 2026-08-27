@@ -1,14 +1,15 @@
 import reflex as rx
 from gws_reflex_main import main_component, translate
-from gws_reflex_main.components.reflex_user_components import user_select
 
 from ..common.page_layout import page_layout
 from ..common.planning_grid.planning_grid import planning_grid
 from . import planning_translations  # noqa: F401  (side effect: registers translations)
-from .planning_state import PlanningState
+from .planning_state import PlanningState, PlanningWarningGroupDTO
 
 
 def _week_navigation() -> rx.Component:
+    """Week cursor (previous / label / next), "Today" and "Duplicate previous week",
+    rendered on the header line next to the page title."""
     return rx.hstack(
         rx.button(
             rx.icon("chevron-left", size=16),
@@ -37,59 +38,6 @@ def _week_navigation() -> rx.Component:
         spacing="3",
         align="center",
         wrap="wrap",
-    )
-
-
-def _filter_bar() -> rx.Component:
-    """Filter bar: project, company, and person selects, applied to both the grid
-    and the left-hand task panel, plus a clear-filters button."""
-    return rx.hstack(
-        rx.select.root(
-            rx.select.trigger(
-                placeholder=translate("planning.filters.all_projects"),
-                width="200px",
-            ),
-            rx.select.content(
-                rx.foreach(
-                    PlanningState.project_options,
-                    lambda opt: rx.select.item(opt[1], value=opt[0]),
-                )
-            ),
-            value=PlanningState.selected_project_id,
-            on_change=PlanningState.handle_project_change,
-        ),
-        rx.select.root(
-            rx.select.trigger(
-                placeholder=translate("planning.filters.all_companies"),
-                width="200px",
-            ),
-            rx.select.content(
-                rx.foreach(
-                    PlanningState.company_options,
-                    lambda opt: rx.select.item(opt[1], value=opt[0]),
-                )
-            ),
-            value=PlanningState.selected_company_id,
-            on_change=PlanningState.handle_company_change,
-        ),
-        user_select(
-            users=PlanningState.available_users,
-            placeholder=translate("planning.filters.all_users"),
-            value=PlanningState.selected_user_id,
-            on_change=PlanningState.handle_user_change,
-            width="200px",
-        ),
-        rx.button(
-            translate("planning.filters.clear"),
-            on_click=PlanningState.clear_filters,
-            variant="surface",
-            size="2",
-            color_scheme="gray",
-            radius="large",
-        ),
-        spacing="3",
-        wrap="wrap",
-        align="center",
     )
 
 
@@ -148,57 +96,78 @@ def _duplicate_week_dialog() -> rx.Component:
     )
 
 
-def _dismissible_banner(text: rx.Var[str], color_scheme: str, banner_key: str) -> rx.Component:
-    return rx.hstack(
-        rx.callout(
-            text,
-            icon="triangle_alert",
-            color_scheme=color_scheme,
-            role="alert",
-            width="100%",
-        ),
-        rx.icon_button(
-            rx.icon("x", size=14),
-            on_click=PlanningState.dismiss_banner(banner_key),
-            variant="ghost",
-            color_scheme="gray",
-            size="1",
-        ),
-        width="100%",
-        align="center",
-        spacing="2",
-    )
+def _warnings_button() -> rx.Component:
+    """Opens the warnings dialog, shown only when the displayed week has warnings.
 
-
-def _banners() -> rx.Component:
+    Planning is indicative: the button counts the problems (overload, overlapping
+    slots, overdue unscheduled tasks) without ever blocking an action.
+    """
     # "pink" is a real Radix color name, aliased in gws_theme.css onto the
     # Constellab brand's tertiary (pink) hue - all warnings share it so they read
     # as one visual "attention" language rather than several different alerts.
+    return rx.cond(
+        PlanningState.warning_count > 0,
+        rx.button(
+            rx.icon("triangle_alert", size=16),
+            # to_string(): translate() interpolates through the JS `replace`, which
+            # rejects a number var as the replacement.
+            translate(
+                "planning.warnings.button",
+                {"count": PlanningState.warning_count.to_string()},
+            ),
+            on_click=PlanningState.open_warnings_dialog,
+            variant="soft",
+            color_scheme="pink",
+            size="2",
+            radius="large",
+        ),
+    )
+
+
+def _warning_group(group: PlanningWarningGroupDTO) -> rx.Component:
+    """One titled category of warnings, as a bullet list of its entries."""
     return rx.vstack(
-        rx.cond(
-            PlanningState.show_overload_banner,
-            _dismissible_banner(PlanningState.overload_banner_text, "pink", "overload"),
+        rx.text(group.title, size="2", weight="bold"),
+        rx.list.unordered(
+            rx.foreach(
+                group.lines,
+                lambda line: rx.list.item(rx.text(line, size="2")),
+            ),
+            padding_left="1.25rem",
         ),
-        rx.cond(
-            PlanningState.show_overlap_banner,
-            _dismissible_banner(PlanningState.overlap_banner_text, "pink", "overlap"),
-        ),
-        rx.cond(
-            PlanningState.show_overdue_banner,
-            _dismissible_banner(PlanningState.overdue_banner_text, "pink", "overdue"),
-        ),
-        rx.cond(
-            PlanningState.has_dismissed_banners,
-            rx.button(
-                translate("planning.banner.reopen"),
-                on_click=PlanningState.reopen_banners,
-                variant="ghost",
-                size="1",
-                color_scheme="gray",
+        spacing="1",
+        align_items="start",
+        width="100%",
+    )
+
+
+def _warnings_dialog() -> rx.Component:
+    """Lists every warning of the displayed week, grouped by category."""
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.dialog.title(translate("planning.warnings.title")),
+            rx.vstack(
+                rx.foreach(PlanningState.warning_groups, _warning_group),
+                spacing="4",
+                align_items="start",
+                width="100%",
+                max_height="60vh",
+                overflow_y="auto",
+            ),
+            rx.hstack(
+                rx.button(
+                    translate("planning.warnings.close"),
+                    on_click=PlanningState.set_warnings_dialog_open(False),
+                    variant="soft",
+                    color_scheme="gray",
+                ),
+                justify="end",
+                margin_top="16px",
+                width="100%",
             ),
         ),
-        width="100%",
-        spacing="2",
+        open=PlanningState.warnings_dialog_open,
+        on_open_change=PlanningState.set_warnings_dialog_open,
     )
 
 
@@ -207,10 +176,8 @@ def planning_page() -> rx.Component:
     return main_component(
         page_layout(
             rx.vstack(
-                _week_navigation(),
                 _duplicate_week_dialog(),
-                _filter_bar(),
-                _banners(),
+                _warnings_dialog(),
                 planning_grid(
                     grid_data=PlanningState.grid_data,
                     tasks=PlanningState.tasks,
@@ -226,9 +193,20 @@ def planning_page() -> rx.Component:
                 align_items="start",
                 height="100%",
             ),
-            header_content=rx.heading(
-                translate("planning.title"),
-                size="6",
+            header_content=rx.hstack(
+                rx.heading(translate("planning.title"), size="6"),
+                rx.hstack(
+                    _warnings_button(),
+                    _week_navigation(),
+                    spacing="3",
+                    align="center",
+                    wrap="wrap",
+                ),
+                justify="between",
+                align="center",
+                spacing="3",
+                wrap="wrap",
+                width="100%",
             ),
             height="100vh",
         )

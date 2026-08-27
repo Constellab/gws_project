@@ -47,6 +47,9 @@ export interface PlanningGridData {
   step_minutes: number;
   lunch_label: string;
   scheduled_label: string;
+  search_placeholder: string;
+  no_task_found_label: string;
+  tasks_help_text: string;
 }
 
 export interface SlotCreateEvent {

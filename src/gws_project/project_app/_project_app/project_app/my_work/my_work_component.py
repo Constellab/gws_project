@@ -32,7 +32,7 @@ def _my_day_header() -> rx.Component:
         ),
         rx.cond(
             MyWorkState.over_capacity_note != "",
-            # Same tertiary scheme as the Planning banners: an unusual load is signalled,
+            # Same tertiary scheme as the Planning warnings: an unusual load is signalled,
             # never enforced.
             rx.callout(
                 MyWorkState.over_capacity_note,

@@ -103,7 +103,7 @@ export function PlanningSlotBlock({ slot, bounds, stepMinutes, onResize, onDelet
         right: '4px',
         borderRadius: '6px',
         // Constellab brand pink (tertiary) for overlap, consistent with the
-        // overload/overlap banners and the person capacity indicator.
+        // overload/overlap warnings and the person capacity indicator.
         background: slot.is_overlapping ? 'var(--tertiary-4)' : 'var(--accent-4)',
         border: slot.is_overlapping ? '1px solid var(--tertiary-8)' : '1px solid var(--accent-8)',
         boxShadow: isDragging ? '0 6px 14px rgba(0,0,0,0.18)' : '0 1px 2px rgba(0,0,0,0.06)',

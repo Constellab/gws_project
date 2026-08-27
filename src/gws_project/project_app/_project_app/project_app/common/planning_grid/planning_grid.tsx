@@ -129,7 +129,13 @@ export function PlanningGrid({ gridData, tasks, onSlotCreate, onSlotMove, onSlot
       onDragEnd={handleDragEnd}
     >
       <div style={{ display: 'flex', width: '100%', flex: 1, minHeight: 0, gap: '16px' }}>
-        <TaskPanel tasks={tasks} scheduledLabel={gridData.scheduled_label} />
+        <TaskPanel
+          tasks={tasks}
+          scheduledLabel={gridData.scheduled_label}
+          searchPlaceholder={gridData.search_placeholder}
+          noTaskFoundLabel={gridData.no_task_found_label}
+          helpText={gridData.tasks_help_text}
+        />
 
         <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
           {/* Header row: empty corner + day labels. Non-working days are already
@@ -179,7 +185,7 @@ export function PlanningGrid({ gridData, tasks, onSlotCreate, onSlotMove, onSlot
                   style={{
                     fontSize: '11px',
                     // Constellab brand pink (tertiary), consistent with the overlap
-                    // highlighting and the overload/overlap banners.
+                    // highlighting and the overload/overlap warnings.
                     color: person.is_overloaded ? 'var(--tertiary-11)' : 'var(--gray-9)',
                     marginBottom: '4px',
                   }}

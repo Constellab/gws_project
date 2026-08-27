@@ -12,14 +12,20 @@ register_translations(
             "planning.title": "Planning",
             "planning.week.current": "Today",
             "planning.duplicate_previous_week": "Duplicate previous week",
-            "planning.filters.all_projects": "All Projects",
-            "planning.filters.all_companies": "All Companies",
-            "planning.filters.all_users": "All Users",
-            "planning.filters.clear": "Clear",
-            "planning.banner.reopen": "Show hidden alerts",
-            "planning.banner.overload_prefix": "Overloaded this week:",
-            "planning.banner.overlap_prefix": "Overlapping slots:",
-            "planning.banner.overdue_prefix": "Overdue and not scheduled this week:",
+            "planning.tasks.search_placeholder": "Search a task, project, person...",
+            "planning.tasks.no_result": "No task matches your search.",
+            "planning.tasks.help": (
+                "Tasks to do and in progress.Backlog and done tasks are not listed."
+            ),
+            "planning.tasks.help_past_week": (
+                "Tasks to do, in progress and done. Backlog tasks are not listed."
+            ),
+            "planning.warnings.button": "{{count}} warning(s)",
+            "planning.warnings.title": "Warnings",
+            "planning.warnings.close": "Close",
+            "planning.warnings.overload": "Overloaded this week",
+            "planning.warnings.overlap": "Overlapping slots",
+            "planning.warnings.overdue": "Overdue and not scheduled this week",
             "planning.due_prefix": "Due",
             "planning.toast.invalid_drop": "Invalid drop data",
             "planning.toast.invalid_move": "Invalid move data",
@@ -33,9 +39,7 @@ register_translations(
             ),
             "planning.toast.no_person_selected": "Select at least one person to duplicate",
             "planning.toast.duplicated": "{{count}} slot(s) duplicated from last week",
-            "planning.toast.duplicate_failed": (
-                "Failed to duplicate the previous week: {{error}}"
-            ),
+            "planning.toast.duplicate_failed": ("Failed to duplicate the previous week: {{error}}"),
             "planning.grid.lunch": "Lunch",
             "planning.grid.scheduled": "Scheduled",
             "planning.duplicate.title": "Duplicate previous week",
@@ -48,14 +52,21 @@ register_translations(
             "planning.title": "Planning",
             "planning.week.current": "Aujourd'hui",
             "planning.duplicate_previous_week": "Dupliquer la semaine précédente",
-            "planning.filters.all_projects": "Tous les projets",
-            "planning.filters.all_companies": "Toutes les entreprises",
-            "planning.filters.all_users": "Tous les utilisateurs",
-            "planning.filters.clear": "Effacer",
-            "planning.banner.reopen": "Afficher les alertes masquées",
-            "planning.banner.overload_prefix": "En surcharge cette semaine :",
-            "planning.banner.overlap_prefix": "Créneaux qui se chevauchent :",
-            "planning.banner.overdue_prefix": "En retard et non planifiées cette semaine :",
+            "planning.tasks.search_placeholder": "Rechercher une tâche, un projet, une personne...",
+            "planning.tasks.no_result": "Aucune tâche ne correspond à votre recherche.",
+            "planning.tasks.help": (
+                "Tâches à faire et en cours. "
+                "Les tâches du backlog et terminées ne sont pas listées."
+            ),
+            "planning.tasks.help_past_week": (
+                "Tâches à faire, en cours et terminées. Les tâches du backlog ne sont pas listées."
+            ),
+            "planning.warnings.button": "{{count}} avertissement(s)",
+            "planning.warnings.title": "Avertissements",
+            "planning.warnings.close": "Fermer",
+            "planning.warnings.overload": "En surcharge cette semaine",
+            "planning.warnings.overlap": "Créneaux qui se chevauchent",
+            "planning.warnings.overdue": "En retard et non planifiées cette semaine",
             "planning.due_prefix": "Échéance",
             "planning.toast.invalid_drop": "Données de dépôt invalides",
             "planning.toast.invalid_move": "Données de déplacement invalides",
@@ -67,9 +78,7 @@ register_translations(
             "planning.toast.load_previous_week_failed": (
                 "Échec du chargement de la semaine précédente : {{error}}"
             ),
-            "planning.toast.no_person_selected": (
-                "Sélectionnez au moins une personne à dupliquer"
-            ),
+            "planning.toast.no_person_selected": ("Sélectionnez au moins une personne à dupliquer"),
             "planning.toast.duplicated": (
                 "{{count}} créneau(x) dupliqué(s) depuis la semaine dernière"
             ),

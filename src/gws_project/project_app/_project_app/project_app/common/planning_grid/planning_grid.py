@@ -75,6 +75,10 @@ class PlanningGridDataDTO(BaseModelDTO):
     # access to the Python translation system - still reacts to a language switch.
     lunch_label: str = "Lunch"
     scheduled_label: str = "Scheduled"
+    search_placeholder: str = "Search"
+    no_task_found_label: str = "No task found"
+    # Caption under the task list, telling which tasks it lists.
+    tasks_help_text: str = ""
 
 
 class PlanningGrid(rx.Component):

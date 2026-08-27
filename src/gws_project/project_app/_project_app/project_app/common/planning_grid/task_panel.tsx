@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { DueStatus, GridTask } from './planning_grid_types';
 import { taskDragId } from './planning_grid_types';
@@ -6,6 +6,17 @@ import { taskDragId } from './planning_grid_types';
 export interface TaskPanelProps {
   tasks: GridTask[];
   scheduledLabel: string;
+  searchPlaceholder: string;
+  noTaskFoundLabel: string;
+  helpText: string;
+}
+
+// Every text of a task card is searchable, so one query box covers what the
+// project / company / person filters used to do, plus the due date.
+function taskMatches(task: GridTask, query: string): boolean {
+  return [task.title, task.project_title, task.company_name, task.assignee_name, task.due_date_text]
+    .filter(Boolean)
+    .some((field) => (field as string).toLowerCase().includes(query));
 }
 
 // Constellab brand colors (see gws_theme.css): tertiary = pink, secondary = violet.
@@ -90,12 +101,61 @@ function TaskPanelItem({ task, scheduledLabel }: { task: GridTask; scheduledLabe
   );
 }
 
-export function TaskPanel({ tasks, scheduledLabel }: TaskPanelProps) {
+export function TaskPanel({ tasks, scheduledLabel, searchPlaceholder, noTaskFoundLabel, helpText }: TaskPanelProps) {
+  const [query, setQuery] = useState('');
+
+  // Filtering client-side keeps the list responsive on every keystroke: the panel
+  // already holds every task of the week, so no round trip is needed.
+  const visibleTasks = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return tasks;
+    return tasks.filter((task) => taskMatches(task, normalized));
+  }, [tasks, query]);
+
   return (
-    <div style={{ width: '260px', flexShrink: 0, overflowY: 'auto', paddingRight: '8px' }}>
-      {tasks.map((task) => (
-        <TaskPanelItem key={task.id} task={task} scheduledLabel={scheduledLabel} />
-      ))}
+    <div style={{ width: '260px', flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, paddingRight: '8px' }}>
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder={searchPlaceholder}
+        style={{
+          width: '100%',
+          boxSizing: 'border-box',
+          marginBottom: '8px',
+          padding: '6px 10px',
+          fontSize: '13px',
+          fontFamily: 'inherit',
+          borderRadius: '8px',
+          border: '1px solid var(--gray-6)',
+          background: 'var(--gray-1)',
+          color: 'var(--gray-12)',
+          outline: 'none',
+        }}
+      />
+
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+        {visibleTasks.map((task) => (
+          <TaskPanelItem key={task.id} task={task} scheduledLabel={scheduledLabel} />
+        ))}
+        {visibleTasks.length === 0 && (
+          <div style={{ fontSize: '12px', color: 'var(--gray-9)', padding: '8px 2px' }}>{noTaskFoundLabel}</div>
+        )}
+      </div>
+
+      <div
+        style={{
+          flexShrink: 0,
+          paddingTop: '8px',
+          marginTop: '4px',
+          borderTop: '1px solid var(--gray-4)',
+          fontSize: '11px',
+          lineHeight: 1.4,
+          color: 'var(--gray-9)',
+        }}
+      >
+        {helpText}
+      </div>
     </div>
   );
 }
