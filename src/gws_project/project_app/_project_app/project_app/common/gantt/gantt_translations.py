@@ -21,6 +21,7 @@ register_translations(
             "gantt_chart.task_many": "tasks",
             "gantt_chart.late_by": "{n} days late",
             "gantt_chart.done": "complete",
+            "gantt_chart.no_period": "No date",
             "gantt_chart.empty": "No project matches the filters.",
         },
         "fr": {
@@ -36,6 +37,7 @@ register_translations(
             "gantt_chart.task_many": "tâches",
             "gantt_chart.late_by": "En retard de {n} j",
             "gantt_chart.done": "réalisé",
+            "gantt_chart.no_period": "Sans date",
             "gantt_chart.empty": "Aucun projet ne correspond aux filtres.",
         },
     }

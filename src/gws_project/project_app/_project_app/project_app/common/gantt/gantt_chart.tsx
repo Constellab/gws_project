@@ -7,8 +7,10 @@ type Zoom = 'Day' | 'Week' | 'Month' | 'Year';
 
 interface GanttTask {
   name: string;
-  start: string;
-  end: string;
+  /** null on a task with no period: it gets a row but no bar. */
+  start: string | null;
+  /** null on a task with no period: it gets a row but no bar. */
+  end: string | null;
   progress: number;
   status: Status;
 }
@@ -52,10 +54,12 @@ const BAR_HEIGHT = { project: 20, task: 12 };
 const BAR_RADIUS = { project: 6, task: 4 };
 
 /** Pixels per day, window origin and span for each zoom level. */
-const ZOOM: Record<Zoom, { ppd: number; days: number; weeksBefore: number; fromJanuary: boolean }> = {
+const ZOOM: Record<Zoom, {
+  ppd: number; days: number; weeksBefore: number; fromJanuary: boolean; alignMonths?: boolean;
+}> = {
   Day: { ppd: 24, days: 132, weeksBefore: 8, fromJanuary: false },
   Week: { ppd: 12, days: 132, weeksBefore: 8, fromJanuary: false },
-  Month: { ppd: 5.4, days: 132, weeksBefore: 8, fromJanuary: false },
+  Month: { ppd: 5.4, days: 132, weeksBefore: 8, fromJanuary: false, alignMonths: true },
   Year: { ppd: 1.9, days: 372, weeksBefore: 0, fromJanuary: true },
 };
 
@@ -87,8 +91,15 @@ const GROUP_ORDER: Status[] = ['retard', 'encours', 'termine'];
 const DAY_MS = 86400000;
 const LABEL_CHAR_PX = 6.4;
 const LABEL_PADDING_PX = 26;
-/** Progress past which an in-bar label is drawn white rather than dark. */
-const LABEL_INVERT_AT = 55;
+const LABEL_INSET_LEFT = 10;
+/** The two inks an in-bar label uses, one per background it can sit on. */
+const LABEL_INK = { onFill: '#fff', onTrack: 'var(--color-foreground, #021f21)' };
+/** Shared by both layers of an in-bar label so their glyphs line up exactly. */
+const LABEL_STYLE: React.CSSProperties = {
+  position: 'absolute', left: LABEL_INSET_LEFT, top: 0, bottom: 0, right: 8,
+  display: 'flex', alignItems: 'center',
+  fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden',
+};
 const RECENTRE_RATIO = 0.42;
 
 const DEFAULT_LABELS: Record<string, string> = {
@@ -103,6 +114,7 @@ const DEFAULT_LABELS: Record<string, string> = {
   taskMany: 'tâches',
   lateBy: 'En retard de {n} j',
   done: 'réalisé',
+  noPeriod: 'Sans date',
   empty: 'Aucun projet ne correspond aux filtres.',
 };
 
@@ -169,6 +181,9 @@ function Bar({
   item: GanttTask; kind: 'project' | 'task'; origin: Date; ppd: number;
   locale: string; labels: Record<string, string>; ownerName?: string;
 }) {
+  // No period, nothing to plot: the row is drawn by the caller, the track stays empty.
+  if (!item.start || !item.end) return null;
+
   const start = parseDay(item.start);
   const end = parseDay(item.end);
   const left = dayIndex(start, origin) * ppd;
@@ -182,6 +197,11 @@ function Bar({
   const text = kind === 'project' ? item.name + ' · ' + item.progress + ' %' : item.name;
   // Only put the label inside when the bar is genuinely wide enough for it.
   const fitsInside = width > text.length * LABEL_CHAR_PX + LABEL_PADDING_PX;
+
+  const fillPct = Math.min(100, Math.max(0, item.progress));
+  // Where the fill ends, measured from the label's own left edge rather than the bar's,
+  // because that is the box the clip-path percentages resolve against.
+  const fillEdge = (width * fillPct) / 100 - LABEL_INSET_LEFT;
   const tooltip = [
     item.name,
     ownerName || null,
@@ -201,18 +221,27 @@ function Bar({
         {item.status !== 'termine' && (
           <div style={{
             position: 'absolute', left: 0, top: 0, bottom: 0,
-            width: Math.min(100, Math.max(0, item.progress)) + '%',
+            width: fillPct + '%',
             background: palette.fill, borderRadius: 'inherit',
           }} />
         )}
         {fitsInside && (
-          <span style={{
-            position: 'absolute', left: 10, top: 0, bottom: 0, right: 8,
-            display: 'flex', alignItems: 'center',
-            fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden',
-            color: item.progress > LABEL_INVERT_AT || item.status === 'termine'
-              ? '#fff' : 'var(--color-foreground, #021f21)',
-          }}>{text}</span>
+          // The label spans the whole bar, so it crosses the boundary between the dark
+          // progress fill and the light track behind it - a single colour was bound to be
+          // unreadable on one side or the other. It is drawn twice instead, at the very
+          // same position: dark underneath, then white clipped to exactly the filled part,
+          // so each half sits on the background it contrasts with.
+          item.status === 'termine' ? (
+            <span style={{ ...LABEL_STYLE, color: LABEL_INK.onFill }}>{text}</span>
+          ) : (
+            <>
+              <span style={{ ...LABEL_STYLE, color: LABEL_INK.onTrack }}>{text}</span>
+              <span aria-hidden style={{
+                ...LABEL_STYLE, color: LABEL_INK.onFill,
+                clipPath: 'inset(0 calc(100% - ' + Math.max(0, fillEdge) + 'px) 0 0)',
+              }}>{text}</span>
+            </>
+          )
         )}
       </div>
       {!fitsInside && (
@@ -248,23 +277,44 @@ export function GanttChart({
   const zoom = ZOOM[viewMode] || ZOOM.Week;
   const today = useMemo(() => (data && data.today ? parseDay(data.today) : new Date()), [data]);
 
-  // Timeline window. Day/Week/Month start 8 weeks back so recent history stays reachable;
-  // Year snaps to the first Monday of January so columns line up with the months.
-  const origin = useMemo(() => {
+  // Timeline window: where it opens and how many days it spans. Day/Week/Month start 8
+  // weeks back so recent history stays reachable; Year snaps to the first Monday of
+  // January so columns line up with the months.
+  const timeWindow = useMemo(() => {
     if (zoom.fromJanuary) {
       // The first Monday *of January*. Taking the Monday of the week containing Jan 4th
       // would fall back into December and draw a stray sliver of the previous year on the
       // axis (a 3-day "2025" cell before "2026").
       const january = new Date(today.getFullYear(), 0, 1);
       const toMonday = (8 - january.getDay()) % 7;
-      return new Date(today.getFullYear(), 0, 1 + toMonday);
+      return { origin: new Date(today.getFullYear(), 0, 1 + toMonday), days: zoom.days };
     }
-    return addDays(startOfWeek(today), -7 * zoom.weeksBefore);
-  }, [today, zoom.fromJanuary, zoom.weeksBefore]);
+
+    const start = addDays(startOfWeek(today), -7 * zoom.weeksBefore);
+    if (!zoom.alignMonths) return { origin: start, days: zoom.days };
+
+    // Month view labels whole months, so it snaps to month boundaries at both ends. A
+    // window opening or closing mid-month left a band a few days wide carrying a label it
+    // could never fit, which showed up as cropped text ("Nove…") at the edges of the axis.
+    const origin = new Date(start.getFullYear(), start.getMonth(), 1);
+    const last = addDays(start, zoom.days - 1);
+    // The 1st of the month *after* the one the unaligned window ended in, so the span
+    // still reaches every month it used to reach - each of them now whole.
+    const end = new Date(last.getFullYear(), last.getMonth() + 1, 1);
+    return { origin, days: Math.round((end.getTime() - origin.getTime()) / DAY_MS) };
+  }, [today, zoom.fromJanuary, zoom.weeksBefore, zoom.alignMonths, zoom.days]);
+
+  const origin = timeWindow.origin;
+  const days = timeWindow.days;
 
   const ppd = zoom.ppd;
-  const trackWidth = zoom.days * ppd;
+  const trackWidth = days * ppd;
   const todayOffset = dayIndex(today, origin) * ppd;
+
+  // Days from the origin to the first Monday inside the window. Month view opens on the
+  // 1st of a month, which is rarely a Monday, so the week cells and the week gridlines
+  // start there instead of at x = 0.
+  const weekOffset = useMemo(() => (8 - origin.getDay()) % 7, [origin]);
 
   /* ----------------------------------------------------------- grouping */
 
@@ -295,10 +345,10 @@ export function GanttChart({
     if (viewMode === 'Year') {
       // Row 2 steps by month, row 1 carries the year.
       let cursor = 0;
-      while (cursor < zoom.days) {
+      while (cursor < days) {
         const day = addDays(origin, cursor);
         const monthEnd = new Date(day.getFullYear(), day.getMonth() + 1, 1);
-        const span = Math.min(Math.round((monthEnd.getTime() - day.getTime()) / DAY_MS), zoom.days - cursor);
+        const span = Math.min(Math.round((monthEnd.getTime() - day.getTime()) / DAY_MS), days - cursor);
         bottom.push({
           label: day.toLocaleDateString(locale, { month: 'short' }),
           left: cursor * ppd, width: span * ppd,
@@ -309,10 +359,10 @@ export function GanttChart({
         cursor += span;
       }
       let yearCursor = 0;
-      while (yearCursor < zoom.days) {
+      while (yearCursor < days) {
         const day = addDays(origin, yearCursor);
         const yearEnd = new Date(day.getFullYear() + 1, 0, 1);
-        const span = Math.min(Math.round((yearEnd.getTime() - day.getTime()) / DAY_MS), zoom.days - yearCursor);
+        const span = Math.min(Math.round((yearEnd.getTime() - day.getTime()) / DAY_MS), days - yearCursor);
         top.push({ label: String(day.getFullYear()), left: yearCursor * ppd, width: span * ppd });
         yearCursor += span;
       }
@@ -321,10 +371,10 @@ export function GanttChart({
 
     // Row 1: months.
     let cursor = 0;
-    while (cursor < zoom.days) {
+    while (cursor < days) {
       const day = addDays(origin, cursor);
       const monthEnd = new Date(day.getFullYear(), day.getMonth() + 1, 1);
-      const span = Math.min(Math.round((monthEnd.getTime() - day.getTime()) / DAY_MS), zoom.days - cursor);
+      const span = Math.min(Math.round((monthEnd.getTime() - day.getTime()) / DAY_MS), days - cursor);
       top.push({
         label: day.toLocaleDateString(locale, { month: 'long', year: 'numeric' }),
         left: cursor * ppd, width: span * ppd,
@@ -334,7 +384,7 @@ export function GanttChart({
     }
 
     if (viewMode === 'Day') {
-      for (let i = 0; i < zoom.days; i++) {
+      for (let i = 0; i < days; i++) {
         const day = addDays(origin, i);
         const weekday = day.getDay();
         bottom.push({
@@ -344,21 +394,27 @@ export function GanttChart({
         });
       }
     } else {
-      // Week and Month both step by week; only the label differs.
+      // Week and Month both step by week; only the label differs. Stepping from the first
+      // Monday keeps every cell on a real week even when the window opens mid-week; the
+      // part-weeks at both ends are clamped to what the window actually shows.
       const currentWeek = isoWeek(today);
-      for (let i = 0; i < zoom.days; i += 7) {
+      for (let i = weekOffset - 7; i < days; i += 7) {
+        const left = Math.max(0, i);
+        const width = Math.min(i + 7, days) - left;
+        if (width <= 0) continue;
+        // The week's own Monday, which may sit before the window: that is what names it.
         const day = addDays(origin, i);
         const week = isoWeek(day);
         bottom.push({
           label: viewMode === 'Week' ? 'S' + week : String(week),
-          left: i * ppd, width: 7 * ppd,
+          left: left * ppd, width: width * ppd,
           highlight: week === currentWeek && day.getFullYear() === today.getFullYear(),
           dim: false,
         });
       }
     }
     return { top, bottom, separators };
-  }, [viewMode, origin, ppd, zoom.days, locale, today]);
+  }, [viewMode, origin, ppd, days, weekOffset, locale, today]);
 
   /* --------------------------------------------------------- re-centring */
 
@@ -398,9 +454,14 @@ export function GanttChart({
     retard: labels.groupLate, encours: labels.groupOngoing, termine: labels.groupDone,
   };
 
-  const trackBackground = viewMode === 'Year'
-    ? undefined
-    : 'repeating-linear-gradient(to right, ' + GREY.grid + ' 0 1px, transparent 1px ' + (7 * ppd) + 'px)';
+  // Week gridlines behind the bars. Offset to the first Monday so they land on the same
+  // boundaries as the week cells of the axis, which Month view's 1st-of-month origin would
+  // otherwise shift by up to six days.
+  const trackStyle: React.CSSProperties = viewMode === 'Year' ? {} : {
+    backgroundImage:
+      'repeating-linear-gradient(to right, ' + GREY.grid + ' 0 1px, transparent 1px ' + (7 * ppd) + 'px)',
+    backgroundPositionX: (weekOffset * ppd) + 'px',
+  };
 
   const leftCell: React.CSSProperties = {
     position: 'sticky', left: 0, zIndex: 2, width: LEFT_WIDTH, minWidth: LEFT_WIDTH,
@@ -584,7 +645,7 @@ export function GanttChart({
 
                     <div style={{
                       position: 'relative', width: trackWidth, flexShrink: 0,
-                      background: trackBackground,
+                      ...trackStyle,
                     }}>
                       <Bar
                         item={project} kind="project" origin={origin} ppd={ppd}
@@ -613,15 +674,18 @@ export function GanttChart({
                         >{task.name}</span>
                         <div style={{
                           width: META_WIDTH, flexShrink: 0, textAlign: 'right', fontSize: '11px',
-                          color: 'var(--gray-11)', fontVariantNumeric: 'tabular-nums',
+                          color: task.start && task.end ? 'var(--gray-11)' : GREY.muted,
+                          fontVariantNumeric: 'tabular-nums',
                           whiteSpace: 'nowrap',
                         }}>
-                          {formatDay(parseDay(task.start), locale)} → {formatDay(parseDay(task.end), locale)}
+                          {task.start && task.end
+                            ? formatDay(parseDay(task.start), locale) + ' → ' + formatDay(parseDay(task.end), locale)
+                            : labels.noPeriod}
                         </div>
                       </div>
                       <div style={{
                         position: 'relative', width: trackWidth, flexShrink: 0,
-                        background: trackBackground,
+                        ...trackStyle,
                       }}>
                         <Bar
                           item={task} kind="task" origin={origin} ppd={ppd}

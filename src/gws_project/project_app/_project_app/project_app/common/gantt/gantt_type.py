@@ -22,19 +22,24 @@ class GanttStatus:
 
 
 class GanttTaskDTO(BaseModelDTO):
-    """A single bar on the chart.
+    """A single row of the chart, with a bar when it has a period.
+
+    A task missing either date carries ``start``/``end`` as None: it is still listed, so
+    the rows account for the whole of the project's percentage, but it draws no period and
+    no bar. Projects always have both dates - one that doesn't is left out of the payload
+    altogether.
 
     Attributes:
         name: Label drawn on (or next to) the bar
-        start: Inclusive start date, ISO ``YYYY-MM-DD``
-        end: Inclusive end date, ISO ``YYYY-MM-DD``
+        start: Inclusive start date, ISO ``YYYY-MM-DD``, or None when undated
+        end: Inclusive end date, ISO ``YYYY-MM-DD``, or None when undated
         progress: Completion percentage, 0-100
         status: One of :class:`GanttStatus`
     """
 
     name: str
-    start: str
-    end: str
+    start: str | None = None
+    end: str | None = None
     progress: int
     status: str
 
@@ -47,7 +52,7 @@ class GanttProjectDTO(GanttTaskDTO):
         owner: Project manager initials, e.g. ``MB``
         owner_name: Full manager name, used in the bar tooltip
         late_days: Days past the due date when late, else 0
-        tasks: Root tasks that have both dates set
+        tasks: Root tasks, in the project's own order; the undated ones draw no bar
     """
 
     id: str

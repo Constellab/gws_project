@@ -74,26 +74,37 @@ def get_full_name(user: UserDTO | None) -> str:
     return name or (user.email or "")
 
 
-def _build_task(task: TaskDTO, today: date) -> GanttTaskDTO | None:
-    """Convert a root task into a Gantt bar, or None when it cannot be plotted.
+def _build_task(task: TaskDTO, today: date) -> GanttTaskDTO:
+    """Convert a root task into a Gantt row.
 
-    A bar needs both ends, so tasks missing a start or due date are dropped here; they remain
-    visible in the task list and kanban views.
+    A bar needs both ends, so a task missing a start or due date is returned without dates:
+    it still gets a row - it counts towards the project's percentage, and leaving it out
+    made that percentage impossible to reconcile with the rows - but nothing is plotted for
+    it on the timeline.
 
     :param task: The task to convert
     :type task: TaskDTO
     :param today: The reference date
     :type today: date
-    :return: The Gantt task, or None
-    :rtype: GanttTaskDTO | None
+    :return: The Gantt task
+    :rtype: GanttTaskDTO
     """
     start = _as_date(task.start_date)
     end = _as_date(task.due_date)
-    if start is None or end is None:
-        return None
 
     # A DONE task is finished whatever its stored progress says.
     progress = COMPLETE_PROGRESS if task.status == TaskStatus.DONE else task.progress
+
+    if start is None or end is None:
+        # No end date means nothing can be late, so such a row is only ever ongoing or done.
+        return GanttTaskDTO(
+            name=task.title,
+            start=None,
+            end=None,
+            progress=progress,
+            status=resolve_status(None, progress, today),
+        )
+
     return GanttTaskDTO(
         name=task.title,
         start=start.isoformat(),
@@ -132,11 +143,9 @@ def build_gantt_data_from_projects(
         status = resolve_status(end, project.progress, reference_day)
         late_days = (reference_day - end).days if status == GanttStatus.LATE else 0
 
-        tasks = [
-            gantt_task
-            for gantt_task in (_build_task(task, reference_day) for task in project_data.root_tasks)
-            if gantt_task is not None
-        ]
+        # Every root task gets a row, undated ones included, in the order the service
+        # returned them - the same order the project's own task list uses.
+        tasks = [_build_task(task, reference_day) for task in project_data.root_tasks]
 
         gantt_projects.append(
             GanttProjectDTO(

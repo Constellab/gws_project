@@ -25,6 +25,7 @@ _LABEL_KEYS = [
     "task_many",
     "late_by",
     "done",
+    "no_period",
     "empty",
 ]
 
