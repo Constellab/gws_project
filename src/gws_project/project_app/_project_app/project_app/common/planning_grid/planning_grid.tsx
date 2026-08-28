@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import {
   DndContext,
@@ -31,6 +31,20 @@ const HOUR_AXIS_WIDTH = '38px';
 // A click fired right after a drag (the browser sends one to the common ancestor
 // of pointerdown and pointerup) must not be read as "clicked an empty cell".
 const CLICK_AFTER_DRAG_MS = 300;
+
+// Keys that delete the selected slot ("Suppr" on a French keyboard is Delete).
+const DELETE_KEYS = ['Delete', 'Backspace'];
+
+/** Whether a key press is meant for something else than the grid: a text field
+ * being typed in (the task search box), or an open dialog. */
+function keyPressIsCaptured(): boolean {
+  const active = document.activeElement as HTMLElement | null;
+  const tag = active?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || active?.isContentEditable) {
+    return true;
+  }
+  return document.querySelector('[role="dialog"][data-state="open"]') !== null;
+}
 
 function PersonAvatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
   if (photoUrl) {
@@ -103,8 +117,10 @@ export function PlanningGrid({
   onSlotResize,
   onSlotDelete,
   onCellClick,
+  onSlotOpen,
 }: PlanningGridProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const lastDragEndRef = useRef(0);
 
   const sensors = useSensors(
@@ -179,9 +195,35 @@ export function PlanningGrid({
   };
 
   const handleCellClick = (personId: string, day: string, startTime: string) => {
+    setSelectedSlotId(null);
     if (Date.now() - lastDragEndRef.current < CLICK_AFTER_DRAG_MS) return;
     onCellClick?.({ person_id: personId, day, start_time: startTime });
   };
+
+  // Delete the selected slot from the keyboard. Listening on the window (rather than
+  // on the block, which dnd-kit's pointer handling can leave unfocused) means the
+  // guard above is what keeps the key out of the search box and the dialogs.
+  useEffect(() => {
+    if (!selectedSlotId) return undefined;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!DELETE_KEYS.includes(event.key) || keyPressIsCaptured()) return;
+      event.preventDefault();
+      setSelectedSlotId(null);
+      onSlotDelete?.(selectedSlotId);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedSlotId, onSlotDelete]);
+
+  // A slot that is gone (deleted, moved out of the week, filtered out) must not stay
+  // selected, or the next Delete would act on a slot that no longer exists.
+  useEffect(() => {
+    if (selectedSlotId && !gridData.slots.some((slot) => slot.id === selectedSlotId)) {
+      setSelectedSlotId(null);
+    }
+  }, [gridData.slots, selectedSlotId]);
 
   return (
     <DndContext
@@ -276,8 +318,10 @@ export function PlanningGrid({
                   bounds={bounds}
                   stepMinutes={gridData.step_minutes}
                   lunchLabel={gridData.lunch_label}
+                  selectedSlotId={selectedSlotId}
                   onResize={(slotId, edge, newTime) => onSlotResize?.({ slot_id: slotId, edge, new_time: newTime })}
-                  onDelete={onSlotDelete}
+                  onSelectSlot={setSelectedSlotId}
+                  onOpenSlot={onSlotOpen}
                   onEmptyClick={handleCellClick}
                 />
               ))}

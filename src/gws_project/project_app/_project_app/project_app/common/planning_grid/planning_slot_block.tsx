@@ -15,13 +15,23 @@ export interface PlanningSlotBlockProps {
   slot: GridSlot;
   bounds: DayBounds;
   stepMinutes: number;
+  isSelected: boolean;
   onResize?: (slotId: string, edge: ResizeEdge, newTime: string) => void;
-  onDelete?: (slotId: string) => void;
+  onSelect?: (slotId: string) => void;
+  onOpen?: (slotId: string) => void;
 }
 
 const MIN_DURATION_MINUTES = 30;
 
-export function PlanningSlotBlock({ slot, bounds, stepMinutes, onResize, onDelete }: PlanningSlotBlockProps) {
+export function PlanningSlotBlock({
+  slot,
+  bounds,
+  stepMinutes,
+  isSelected,
+  onResize,
+  onSelect,
+  onOpen,
+}: PlanningSlotBlockProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: slotDragId(slot.id),
   });
@@ -95,6 +105,17 @@ export function PlanningSlotBlock({ slot, bounds, stepMinutes, onResize, onDelet
   return (
     <div
       ref={blockRef}
+      // Click selects (the keyboard Delete of PlanningGrid acts on the selection),
+      // double click opens the slot dialog. stopPropagation keeps both away from the
+      // day column, whose own click is what adds a task on empty space.
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect?.(slot.id);
+      }}
+      onDoubleClick={(event) => {
+        event.stopPropagation();
+        onOpen?.(slot.id);
+      }}
       style={{
         position: 'absolute',
         top: `${top}px`,
@@ -107,6 +128,8 @@ export function PlanningSlotBlock({ slot, bounds, stepMinutes, onResize, onDelet
         background: slot.is_overlapping ? 'var(--tertiary-4)' : 'var(--accent-4)',
         border: slot.is_overlapping ? '1px solid var(--tertiary-8)' : '1px solid var(--accent-8)',
         boxShadow: isDragging ? '0 6px 14px rgba(0,0,0,0.18)' : '0 1px 2px rgba(0,0,0,0.06)',
+        outline: isSelected ? '2px solid var(--accent-9)' : 'none',
+        outlineOffset: '1px',
         opacity: isDragging ? 0.4 : 1,
         display: 'flex',
         flexDirection: 'column',
@@ -120,6 +143,7 @@ export function PlanningSlotBlock({ slot, bounds, stepMinutes, onResize, onDelet
         {...attributes}
         {...listeners}
         style={{ flex: 1, minHeight: 0, padding: '4px 6px', cursor: 'grab', overflow: 'hidden' }}
+        title={slot.task_title}
       >
         <div
           style={{
@@ -150,32 +174,6 @@ export function PlanningSlotBlock({ slot, bounds, stepMinutes, onResize, onDelet
           </div>
         )}
       </div>
-
-      {onDelete && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(slot.id);
-          }}
-          title="Delete"
-          style={{
-            position: 'absolute',
-            top: '2px',
-            right: '2px',
-            width: '16px',
-            height: '16px',
-            border: 'none',
-            borderRadius: '4px',
-            background: 'rgba(0,0,0,0.08)',
-            color: 'var(--gray-12)',
-            fontSize: '10px',
-            lineHeight: 1,
-            cursor: 'pointer',
-          }}
-        >
-          ×
-        </button>
-      )}
 
       {/* Resize handles */}
       <div

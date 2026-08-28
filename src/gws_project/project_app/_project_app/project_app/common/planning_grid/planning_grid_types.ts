@@ -88,6 +88,7 @@ export interface PlanningGridProps {
   onSlotResize?: (event: SlotResizeEvent) => void;
   onSlotDelete?: (slotId: string) => void;
   onCellClick?: (event: CellClickEvent) => void;
+  onSlotOpen?: (slotId: string) => void;
 }
 
 // Prefix used to tell a draggable task-panel item apart from a draggable existing

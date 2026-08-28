@@ -63,6 +63,19 @@ class PlanningState(rx.State):
     working_hours: WorkingHoursSettingsDTO | None = None
     warnings_dialog_open: bool = False
 
+    # Slot dialog: opened by double-clicking a slot, it shows what the slot holds,
+    # lets its hours be typed in, and is the only place a slot is deleted from
+    # (with the Delete key on a selected slot as the shortcut).
+    slot_dialog_open: bool = False
+    edited_slot_id: str = ""
+    edited_slot_start_time: str = ""  # "HH:MM", bound to the dialog's time input
+    edited_slot_end_time: str = ""
+    edited_slot_task_title: str = ""
+    edited_slot_project_title: str = ""
+    edited_slot_company_name: str = ""
+    edited_slot_person_name: str = ""
+    edited_slot_day_label: str = ""
+
     # "Add a task" dialog: opened by clicking an empty area of a day column, it
     # schedules a task on that person/day/time without a drag and drop.
     add_task_dialog_open: bool = False
@@ -597,6 +610,23 @@ class PlanningState(rx.State):
                 self, "planning.toast.resize_failed", {"error": str(e)}
             )
 
+    async def _delete_slot(self, main_state: ReflexMainState, slot_id: str):
+        """Delete one slot and reload the week.
+
+        Shared by the two ways of deleting: the Delete key on a selected slot, and
+        the slot dialog's delete button.
+
+        :param main_state: the shared main state, for authentication
+        :type main_state: ReflexMainState
+        :param slot_id: the slot to delete
+        :type slot_id: str
+        """
+        with await main_state.authenticate_user():
+            PlanningSlotService().delete_slot(slot_id)
+
+            async with self:
+                await self._load_week()
+
     @rx.event(background=True)
     async def handle_slot_delete(self, slot_id: str):
         main_state: ReflexMainState
@@ -604,11 +634,110 @@ class PlanningState(rx.State):
             main_state = await self.get_state(ReflexMainState)
 
         try:
+            await self._delete_slot(main_state, slot_id)
+        except Exception as e:
+            yield await toast_tr.error(
+                self, "planning.toast.delete_failed", {"error": str(e)}
+            )
+
+    async def handle_slot_open(self, slot_id: str):
+        """Open the slot dialog on a double-clicked slot.
+
+        Everything shown is read from the week already loaded in the state, so
+        opening the dialog costs no service call.
+        """
+        slot = next((candidate for candidate in self.slots if candidate.id == slot_id), None)
+        if slot is None:
+            return
+
+        i18n = await self.get_state(I18nState)
+        start = datetime.fromisoformat(slot.start_datetime)
+        end = datetime.fromisoformat(slot.end_datetime)
+
+        self.edited_slot_id = slot.id
+        self.edited_slot_start_time = start.strftime("%H:%M")
+        self.edited_slot_end_time = end.strftime("%H:%M")
+        self.edited_slot_task_title = slot.task_title
+        self.edited_slot_project_title = slot.project_title
+        self.edited_slot_company_name = slot.company_name or ""
+        self.edited_slot_person_name = next(
+            (person.name for person in self.people if person.id == slot.assigned_user_id), ""
+        )
+        self.edited_slot_day_label = format_short_weekday_day_month(start.date(), i18n.lang)
+        self.slot_dialog_open = True
+
+    def set_slot_dialog_open(self, value: bool):
+        self.slot_dialog_open = value
+
+    def set_edited_slot_start_time(self, value: str):
+        self.edited_slot_start_time = value
+
+    def set_edited_slot_end_time(self, value: str):
+        self.edited_slot_end_time = value
+
+    @rx.event(background=True)
+    async def confirm_edit_slot(self):
+        """Apply the hours typed in the slot dialog, keeping its day and person."""
+        main_state: ReflexMainState
+        async with self:
+            main_state = await self.get_state(ReflexMainState)
+            slot_id = self.edited_slot_id
+            start_time_str = self.edited_slot_start_time
+            end_time_str = self.edited_slot_end_time
+            slot = next((candidate for candidate in self.slots if candidate.id == slot_id), None)
+
+        if slot is None:
+            return
+
+        try:
+            # A time input can be submitted empty or half typed; parse before writing
+            # so a malformed value is a plain message, not a stack trace.
+            start_time = datetime.strptime(start_time_str, "%H:%M").time()
+            end_time = datetime.strptime(end_time_str, "%H:%M").time()
+        except ValueError:
+            yield await toast_tr.error(self, "planning.toast.invalid_hours")
+            return
+
+        day = datetime.fromisoformat(slot.start_datetime).date()
+        start_dt = datetime.combine(day, start_time)
+        end_dt = datetime.combine(day, end_time)
+        if end_dt <= start_dt:
+            yield await toast_tr.error(self, "planning.toast.invalid_time_range")
+            return
+
+        try:
             with await main_state.authenticate_user():
-                PlanningSlotService().delete_slot(slot_id)
+                PlanningSlotService().update_slot(
+                    slot_id,
+                    UpdatePlanningSlotDTO(
+                        assigned_user_id=slot.assigned_user_id,
+                        start_datetime=start_dt,
+                        end_datetime=end_dt,
+                    ),
+                )
 
                 async with self:
+                    self.slot_dialog_open = False
                     await self._load_week()
+        except Exception as e:
+            yield await toast_tr.error(
+                self, "planning.toast.update_failed", {"error": str(e)}
+            )
+
+    @rx.event(background=True)
+    async def delete_edited_slot(self):
+        """Delete the slot shown in the slot dialog."""
+        main_state: ReflexMainState
+        async with self:
+            main_state = await self.get_state(ReflexMainState)
+            slot_id = self.edited_slot_id
+            self.slot_dialog_open = False
+
+        if not slot_id:
+            return
+
+        try:
+            await self._delete_slot(main_state, slot_id)
         except Exception as e:
             yield await toast_tr.error(
                 self, "planning.toast.delete_failed", {"error": str(e)}

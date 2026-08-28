@@ -19,8 +19,10 @@ export interface DayCellProps {
   bounds: DayBounds;
   stepMinutes: number;
   lunchLabel: string;
+  selectedSlotId: string | null;
   onResize?: (slotId: string, edge: ResizeEdge, newTime: string) => void;
-  onDelete?: (slotId: string) => void;
+  onSelectSlot?: (slotId: string) => void;
+  onOpenSlot?: (slotId: string) => void;
   onEmptyClick?: (personId: string, day: string, startTime: string) => void;
 }
 
@@ -31,8 +33,10 @@ export function DayCell({
   bounds,
   stepMinutes,
   lunchLabel,
+  selectedSlotId,
   onResize,
-  onDelete,
+  onSelectSlot,
+  onOpenSlot,
   onEmptyClick,
 }: DayCellProps) {
   const { setNodeRef, isOver } = useDroppable({ id: cellDropId(personId, day) });
@@ -115,8 +119,10 @@ export function DayCell({
           slot={slot}
           bounds={bounds}
           stepMinutes={stepMinutes}
+          isSelected={slot.id === selectedSlotId}
           onResize={onResize}
-          onDelete={onDelete}
+          onSelect={onSelectSlot}
+          onOpen={onOpenSlot}
         />
       ))}
     </div>

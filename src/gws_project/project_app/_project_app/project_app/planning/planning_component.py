@@ -96,6 +96,95 @@ def _duplicate_week_dialog() -> rx.Component:
     )
 
 
+def _slot_info_row(label: rx.Var, value: rx.Var) -> rx.Component:
+    """One read-only "label: value" line of the slot dialog."""
+    return rx.hstack(
+        rx.text(label, size="2", color="var(--gray-10)", width="110px", flex_shrink="0"),
+        rx.text(value, size="2", weight="medium"),
+        width="100%",
+        align="start",
+        spacing="2",
+    )
+
+
+def _slot_dialog() -> rx.Component:
+    """Opened by double-clicking a slot: what it holds, its hours, and its deletion."""
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.dialog.title(translate("planning.slot.title")),
+            rx.vstack(
+                _slot_info_row(translate("planning.slot.task"), PlanningState.edited_slot_task_title),
+                _slot_info_row(
+                    translate("planning.slot.project"), PlanningState.edited_slot_project_title
+                ),
+                rx.cond(
+                    PlanningState.edited_slot_company_name != "",
+                    _slot_info_row(
+                        translate("planning.slot.company"), PlanningState.edited_slot_company_name
+                    ),
+                ),
+                _slot_info_row(
+                    translate("planning.slot.person"), PlanningState.edited_slot_person_name
+                ),
+                _slot_info_row(translate("planning.slot.day"), PlanningState.edited_slot_day_label),
+                spacing="2",
+                width="100%",
+                margin_bottom="16px",
+            ),
+            rx.hstack(
+                rx.vstack(
+                    rx.text(translate("planning.slot.start"), size="2", color="var(--gray-10)"),
+                    rx.input(
+                        type="time",
+                        value=PlanningState.edited_slot_start_time,
+                        on_change=PlanningState.set_edited_slot_start_time,
+                    ),
+                    spacing="1",
+                    align_items="start",
+                ),
+                rx.vstack(
+                    rx.text(translate("planning.slot.end"), size="2", color="var(--gray-10)"),
+                    rx.input(
+                        type="time",
+                        value=PlanningState.edited_slot_end_time,
+                        on_change=PlanningState.set_edited_slot_end_time,
+                    ),
+                    spacing="1",
+                    align_items="start",
+                ),
+                spacing="4",
+                width="100%",
+            ),
+            rx.hstack(
+                rx.button(
+                    rx.icon("trash-2", size=16),
+                    translate("planning.slot.delete"),
+                    on_click=PlanningState.delete_edited_slot,
+                    variant="soft",
+                    color_scheme="red",
+                ),
+                rx.spacer(),
+                rx.button(
+                    translate("planning.slot.cancel"),
+                    on_click=PlanningState.set_slot_dialog_open(False),
+                    variant="soft",
+                    color_scheme="gray",
+                ),
+                rx.button(
+                    translate("planning.slot.save"),
+                    on_click=PlanningState.confirm_edit_slot,
+                ),
+                spacing="3",
+                margin_top="20px",
+                width="100%",
+                align="center",
+            ),
+        ),
+        open=PlanningState.slot_dialog_open,
+        on_open_change=PlanningState.set_slot_dialog_open,
+    )
+
+
 def _add_task_option(task: GridTaskDTO) -> rx.Component:
     """One pickable task of the "add a task" dialog; clicking it schedules it."""
     return rx.box(
@@ -270,6 +359,7 @@ def planning_page() -> rx.Component:
                 _duplicate_week_dialog(),
                 _warnings_dialog(),
                 _add_task_dialog(),
+                _slot_dialog(),
                 planning_grid(
                     grid_data=PlanningState.grid_data,
                     tasks=PlanningState.tasks,
@@ -278,6 +368,7 @@ def planning_page() -> rx.Component:
                     on_slot_resize=PlanningState.handle_slot_resize,
                     on_slot_delete=PlanningState.handle_slot_delete,
                     on_cell_click=PlanningState.handle_cell_click,
+                    on_slot_open=PlanningState.handle_slot_open,
                     width="100%",
                     flex="1",
                 ),
