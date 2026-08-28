@@ -72,6 +72,9 @@ class GanttChart(rx.Component):
     labels: Var[dict[str, str]]
 
     # Fired with the project id when a project name is clicked
+    on_project_click: rx.EventHandler[rx.event.passthrough_event_spec(str)]
+
+    # Fired with the task id when a task row's name is clicked
     on_task_click: rx.EventHandler[rx.event.passthrough_event_spec(str)]
 
 
@@ -83,6 +86,7 @@ def gantt_component(
     view_mode: str,
     show_completed: bool,
     recenter_token: int,
+    on_project_click: rx.EventHandler,
     on_task_click: rx.EventHandler,
 ) -> rx.Component:
     """Create the portfolio Gantt chart.
@@ -95,7 +99,9 @@ def gantt_component(
     :type show_completed: bool
     :param recenter_token: Bump to re-centre the timeline on today
     :type recenter_token: int
-    :param on_task_click: Handler receiving the clicked project id
+    :param on_project_click: Handler receiving the clicked project id
+    :type on_project_click: rx.EventHandler
+    :param on_task_click: Handler receiving the clicked task id
     :type on_task_click: rx.EventHandler
     :return: The Gantt chart component
     :rtype: rx.Component
@@ -107,5 +113,6 @@ def gantt_component(
         recenter_token=recenter_token,
         locale=translate("gantt_chart.locale"),
         labels={_to_camel(key): translate(f"gantt_chart.{key}") for key in _LABEL_KEYS},
+        on_project_click=on_project_click,
         on_task_click=on_task_click,
     )

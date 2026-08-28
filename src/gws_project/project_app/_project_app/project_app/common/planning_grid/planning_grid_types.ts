@@ -89,6 +89,8 @@ export interface PlanningGridProps {
   onSlotDelete?: (slotId: string) => void;
   onCellClick?: (event: CellClickEvent) => void;
   onSlotOpen?: (slotId: string) => void;
+  /** Fired with a task id when a task of the panel, or a slot, is clicked. */
+  onTaskClick?: (taskId: string) => void;
 }
 
 // Prefix used to tell a draggable task-panel item apart from a draggable existing

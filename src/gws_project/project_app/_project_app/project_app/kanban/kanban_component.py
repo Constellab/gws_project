@@ -2,6 +2,7 @@ import reflex as rx
 from gws_reflex_main import main_component, translate
 from gws_reflex_main.components.reflex_user_components import user_select
 
+from ..common.details_sidebar.details_panel_component import details_panel
 from ..common.kanban.kanban import (
     PRIORITY_COLOR_MAP,
     STATUS_COLOR_MAP,
@@ -169,5 +170,7 @@ def kanban_page() -> rx.Component:
                 size="6",
             ),
             height="100vh",
-        )
+        ),
+        # Clicking a card opens its details beside the board rather than leaving it
+        details_panel(),
     )

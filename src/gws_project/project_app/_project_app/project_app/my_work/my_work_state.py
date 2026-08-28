@@ -12,8 +12,8 @@ from ..common.date_format import (
     format_short_weekday_time,
     format_time,
 )
+from ..common.details_sidebar.details_panel_state import DetailsPanelState
 from ..common.my_day_list.my_day_list import MyDayItemDTO
-from ..common.project_app_router import ProjectAppRouter
 
 
 class MyRestItemDTO(BaseModelDTO):
@@ -114,10 +114,18 @@ class MyWorkState(rx.State):
         await self._reload()
         yield await toast_tr.success(self, "my_work.toast.added")
 
-    @rx.event
-    def handle_open_task(self, task_id: str):
-        """Open the task detail page, as every other list of the app does."""
-        return rx.redirect(ProjectAppRouter.get_task_detail_url(task_id))
+    async def handle_open_task(self, task_id: str):
+        """Show the clicked task in the details panel.
+
+        The page is a short, ordered reading of the day: leaving it for the task detail
+        page on every click lost that order. Both lists are reloaded after an edit, since
+        a task marked done drops out of them.
+
+        :param task_id: The id of the clicked task
+        :type task_id: str
+        """
+        details_panel = await self.get_state(DetailsPanelState)
+        await details_panel.open_task(task_id, callback_after_change=self._reload)
 
     async def _reload(self) -> None:
         """Reload both lists. Not an rx.event: only ever called from other handlers."""

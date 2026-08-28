@@ -3,6 +3,7 @@
 import reflex as rx
 from gws_reflex_main import main_component, translate
 
+from ..common.details_sidebar.details_panel_component import details_panel
 from ..common.gantt.gantt_component import gantt_component
 from ..common.page_layout import page_layout
 from ..project_list.project_list_component import user_select
@@ -190,6 +191,7 @@ def gantt_page_component() -> rx.Component:
                     view_mode=GanttPageState.view_mode,
                     show_completed=GanttPageState.show_completed,
                     recenter_token=GanttPageState.recenter_token,
+                    on_project_click=GanttPageState.handle_project_click,
                     on_task_click=GanttPageState.handle_task_click,
                 ),
                 width="100%",
@@ -204,5 +206,7 @@ def gantt_page_component() -> rx.Component:
             ),
             header_content=_header_content(),
             height="100vh",
-        )
+        ),
+        # Clicking a project or a task opens its details beside the timeline
+        details_panel(),
     )

@@ -68,6 +68,16 @@ Shared states:
   user input, so a deleted project or one the user is not a member of is a normal state, and
   the detail pages render `project_access_error_component()` instead of their content.
 - `CompanyPageState`, `TemplatePageState` - the same caching for companies and templates.
+- `DetailsPanelState` (`common/details_sidebar/`) - the task/project details panel the
+  cross-project screens (Kanban, Gantt, Planning, My work) open on a click, instead of
+  leaving for the detail page (its "Open this task"/"Open this project" button is what
+  navigates - a real `rx.link` on `detail_url`, with `prefetch`, not a redirect: the
+  detail routes carry the rich-text editor and take seconds to load on first visit, so
+  the router fetches that code while the panel is being read). A task's status and priority are editable there, as on the detail page, so
+  the screen behind the panel has to be told: `open_task`/`open_project` take the
+  `callback_after_change` to run after an edit, and are therefore called from the page's
+  own state (`KanbanState.handle_card_click`, `PlanningState.handle_task_click`, ...)
+  rather than bound straight to a click in the frontend.
 - `ViewModeState`, `BreadcrumbState`, `LanguageInitState`, `DocumentsListState` - cross-page
   concerns.
 
@@ -143,6 +153,16 @@ other page is reloaded after a change.
   `common/projects/`, `common/kanban/`, `common/gantt/`, `common/planning_grid/`,
   `common/documents_list/`, `progress_ring`, `updatable_chip`. From `gws_reflex_main`:
   `user_inline_component`, `user_profile_picture`, `user_select`, `group_select`.
+- `common/details_sidebar/` - the one description of a task or a project, in two places:
+  `task_details_sections()` / `project_details_sections()` build the sections, the detail
+  pages stack them under their own heading row (with `right_sidebar_close_button`), and
+  `details_panel()` stacks them in a right-hand overlay over any other screen. A screen
+  whose rows open the panel renders `details_panel()` beside its dialogs, inside
+  `main_component`, and wires its click to a handler of its own state, which opens the
+  panel with the reload to run after an edit. Their texts live in
+  `details_sidebar_translations.py`, not in either detail page's translations. The panel
+  is a plain fixed overlay, not `rx.drawer`: the drawer swallows the pointer events of
+  anything nested in it, which stops the status and priority popovers from opening.
 - Navigation URLs come from `ProjectAppRouter` / `CompanyAppRouter`, never a literal path.
 - Dialogs: a state inheriting `FormDialogState` with `open_create_dialog()`/
   `open_update_dialog()` and `_create()`/`_update()`; the component exposes

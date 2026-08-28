@@ -3,17 +3,16 @@ from gws_reflex_main import (
     main_component,
     right_sidebar_close_button,
     translate,
-    user_inline_component,
 )
 
 from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
-from ..common.company_app_router import CompanyAppRouter
 from ..common.detail_page_layout import detail_page_layout
+from ..common.details_sidebar.details_sidebar_parts import sidebar_section_label
+from ..common.details_sidebar.project_details_sections import project_details_sections
 from ..common.documents_list.documents_list_component import documents_list_content
 from ..common.documents_list.documents_list_state import DocumentsListState
 from ..common.page_layout import page_layout
-from ..common.progress_ring import progress_ring
 from ..common.projects.project_access_component import project_access_error_component
 from ..common.projects.project_page_state import ProjectPageState
 from ..common.projects.project_status_chip_component import project_status_chip
@@ -261,55 +260,11 @@ def main_content_area() -> rx.Component:
     )
 
 
-def _sidebar_section_label(label: str) -> rx.Component:
-    """Create a small uppercase gray label for a sidebar section.
-
-    :param label: The label text
-    :type label: str
-    :return: The styled label component
-    :rtype: rx.Component
-    """
-    return rx.text(
-        label,
-        size="1",
-        color="gray",
-        weight="bold",
-        style={
-            "text-transform": "uppercase",
-            "letter-spacing": "0.06em",
-        },
-    )
-
-
-def _sidebar_metadata_row(label: str, value: rx.Component) -> rx.Component:
-    """Create a metadata row with a label on the left and value on the right.
-
-    :param label: The label text
-    :type label: str
-    :param value: The value component
-    :type value: rx.Component
-    :return: The metadata row component
-    :rtype: rx.Component
-    """
-    return rx.hstack(
-        rx.text(label, size="2", color="gray"),
-        rx.spacer(),
-        value,
-        width="100%",
-        align="center",
-    )
-
-
 def details_sidebar() -> rx.Component:
     """Create the details sidebar (right side) with project information.
 
-    Layout follows the visual structure from example.jsx:
-    - Heading
-    - Centered progress ring
-    - Manager section
-    - Dates section with styled date box
-    - Members list
-    - Metadata section with divider
+    The sections themselves are shared with the details panel opened from the Gantt
+    (see `common/details_sidebar/`), so both read the same; only the heading row differs.
 
     :return: The details sidebar component
     :rtype: rx.Component
@@ -317,115 +272,17 @@ def details_sidebar() -> rx.Component:
     return rx.vstack(
         # Heading with close button
         rx.hstack(
-            _sidebar_section_label(translate("project_detail.details_label")),
+            sidebar_section_label(translate("details_sidebar.project.title")),
             rx.spacer(),
             right_sidebar_close_button(),
             width="100%",
             align="center",
         ),
-        # Centered progress ring
-        rx.flex(
-            progress_ring(ProjectDetailState.project.progress, size="big"),
-            justify="center",
-            width="100%",
-            margin_bottom="0.5rem",
-        ),
-        # Manager section
-        rx.vstack(
-            _sidebar_section_label(translate("project_detail.manager")),
-            user_inline_component(ProjectDetailState.project.project_manager),
-            spacing="2",
-            align_items="start",
-            width="100%",
-        ),
-        # Company section (only shown when the project is linked to a company)
-        rx.cond(
-            ProjectDetailState.project.company,
-            rx.vstack(
-                _sidebar_section_label(translate("project_detail.company")),
-                rx.link(
-                    ProjectDetailState.project.company.name,
-                    href=CompanyAppRouter.get_company_detail_url(
-                        ProjectDetailState.project.company.id
-                    ),
-                    size="2",
-                    weight="medium",
-                ),
-                spacing="2",
-                align_items="start",
-                width="100%",
-            ),
-        ),
-        # Dates section
-        rx.vstack(
-            _sidebar_section_label(translate("project_detail.dates")),
-            rx.hstack(
-                rx.text(
-                    ProjectDetailState.project.start_date_text,
-                    size="2",
-                    weight="bold",
-                    color="var(--accent-9)",
-                ),
-                rx.text("→", size="2", color="gray"),
-                rx.text(
-                    ProjectDetailState.project.due_date_text,
-                    size="2",
-                    weight="bold",
-                    color="var(--accent-9)",
-                ),
-                background="var(--accent-2)",
-                border_radius="12px",
-                padding="12px 14px",
-                align="center",
-                spacing="3",
-                width="100%",
-            ),
-            spacing="2",
-            align_items="start",
-            width="100%",
-        ),
-        # Members section
-        rx.vstack(
-            _sidebar_section_label(translate("project_detail.members")),
-            rx.cond(
-                ProjectDetailState.project_users.length() > 0,
-                rx.vstack(
-                    rx.foreach(
-                        ProjectDetailState.project_users,
-                        lambda project_user: user_inline_component(project_user.user),
-                    ),
-                    spacing="2",
-                    align_items="start",
-                    width="100%",
-                ),
-                rx.text(translate("project_detail.no_team_members"), size="2", color="gray"),
-            ),
-            spacing="2",
-            align_items="start",
-            width="100%",
-        ),
-        # Divider + metadata section
-        rx.vstack(
-            rx.divider(margin_bottom="0.5rem"),
-            _sidebar_metadata_row(
-                translate("project_detail.created_by"),
-                user_inline_component(ProjectDetailState.project.created_by, size="small"),
-            ),
-            _sidebar_metadata_row(
-                translate("project_detail.created_at"),
-                rx.text(ProjectDetailState.created_at_text, size="1", weight="medium"),
-            ),
-            _sidebar_metadata_row(
-                translate("project_detail.last_modified_by"),
-                user_inline_component(ProjectDetailState.project.last_modified_by, size="small"),
-            ),
-            _sidebar_metadata_row(
-                translate("project_detail.last_modified_at"),
-                rx.text(ProjectDetailState.last_modified_at_text, size="1", weight="medium"),
-            ),
-            spacing="1",
-            width="100%",
-            padding_top="0.5rem",
+        project_details_sections(
+            project=ProjectDetailState.project,
+            project_users=ProjectDetailState.project_users,
+            created_at_text=ProjectDetailState.created_at_text,
+            last_modified_at_text=ProjectDetailState.last_modified_at_text,
         ),
         width="100%",
         spacing="5",

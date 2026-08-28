@@ -3,6 +3,7 @@
 import reflex as rx
 from gws_reflex_main import main_component, translate
 
+from ..common.details_sidebar.details_panel_component import details_panel
 from ..common.my_day_list.my_day_list import my_day_list
 from ..common.page_layout import page_layout
 from ..common.project_app_router import ProjectAppRouter
@@ -201,5 +202,7 @@ def my_work_page() -> rx.Component:
             header_content=rx.heading(translate("my_work.title"), size="6"),
             max_content_width="720px",
             center_content=True,
-        )
+        ),
+        # Clicking a task opens its details beside the day rather than leaving the page
+        details_panel(),
     )

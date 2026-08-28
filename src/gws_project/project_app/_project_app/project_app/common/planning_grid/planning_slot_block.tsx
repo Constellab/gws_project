@@ -19,6 +19,7 @@ export interface PlanningSlotBlockProps {
   onResize?: (slotId: string, edge: ResizeEdge, newTime: string) => void;
   onSelect?: (slotId: string) => void;
   onOpen?: (slotId: string) => void;
+  onTaskClick?: (taskId: string) => void;
 }
 
 const MIN_DURATION_MINUTES = 30;
@@ -31,6 +32,7 @@ export function PlanningSlotBlock({
   onResize,
   onSelect,
   onOpen,
+  onTaskClick,
 }: PlanningSlotBlockProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: slotDragId(slot.id),
@@ -105,15 +107,21 @@ export function PlanningSlotBlock({
   return (
     <div
       ref={blockRef}
-      // Click selects (the keyboard Delete of PlanningGrid acts on the selection),
-      // double click opens the slot dialog. stopPropagation keeps both away from the
-      // day column, whose own click is what adds a task on empty space.
+      // Click selects (the keyboard Delete of PlanningGrid acts on the selection) and
+      // shows the task in the details panel; right click opens the slot dialog, which is
+      // where the hours are edited. stopPropagation keeps both away from the day column,
+      // whose own click is what adds a task on empty space.
       onClick={(event) => {
         event.stopPropagation();
         onSelect?.(slot.id);
+        onTaskClick?.(slot.task_id);
       }}
-      onDoubleClick={(event) => {
+      onContextMenu={(event) => {
+        // The slot's own menu replaces the browser's: right clicking a créneau is how
+        // its hours are edited, so the default menu would only ever be in the way.
+        event.preventDefault();
         event.stopPropagation();
+        onSelect?.(slot.id);
         onOpen?.(slot.id);
       }}
       style={{
@@ -157,9 +165,9 @@ export function PlanningSlotBlock({
         >
           {slot.task_title}
         </div>
-        <div style={{ fontSize: '10px', color: slot.is_overlapping ? 'var(--tertiary-11)' : 'var(--accent-11)' }}>
-          {minutesToTime(effectiveStart)} - {minutesToTime(effectiveEnd)}
-        </div>
+        {/* Project before hours: a short slot is clipped from the bottom, and the
+            project is what has to survive that clipping (the hours are already
+            readable from the block's own position and height). */}
         {slot.project_title && (
           <div
             style={{
@@ -173,6 +181,9 @@ export function PlanningSlotBlock({
             {slot.project_title}
           </div>
         )}
+        <div style={{ fontSize: '10px', color: slot.is_overlapping ? 'var(--tertiary-11)' : 'var(--accent-11)' }}>
+          {minutesToTime(effectiveStart)} - {minutesToTime(effectiveEnd)}
+        </div>
       </div>
 
       {/* Resize handles */}

@@ -37,7 +37,10 @@ interface GanttChartProps {
   /** Bumped by the "Today" button; any change re-centres the timeline. */
   recenterToken?: number;
   locale?: string;
-  onTaskClick?: (projectId: string) => void;
+  /** Fired with the project id when a project name is clicked. */
+  onProjectClick?: (projectId: string) => void;
+  /** Fired with the task id when a task row's name is clicked. */
+  onTaskClick?: (taskId: string) => void;
   labels?: Record<string, string>;
 }
 
@@ -270,6 +273,7 @@ export function GanttChart({
   compact = false,
   recenterToken = 0,
   locale = 'fr-FR',
+  onProjectClick,
   onTaskClick,
   labels: labelOverrides,
 }: GanttChartProps) {
@@ -517,11 +521,13 @@ export function GanttChart({
 
             <StatusDot status={task.status} size={5} />
             <span
+              onClick={() => onTaskClick && onTaskClick(task.id)}
               title={task.name}
               style={{
                 flex: 1, minWidth: 0, fontSize: '12px', fontWeight: 500,
                 color: 'var(--gray-11)',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                cursor: onTaskClick ? 'pointer' : 'default',
               }}
             >{task.name}</span>
             <div style={{
@@ -679,13 +685,13 @@ export function GanttChart({
 
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div
-                          onClick={() => onTaskClick && onTaskClick(project.id)}
+                          onClick={() => onProjectClick && onProjectClick(project.id)}
                           title={project.name}
                           style={{
                             fontSize: '13px', fontWeight: 600,
                             color: 'var(--color-foreground, #021f21)',
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                            cursor: onTaskClick ? 'pointer' : 'default',
+                            cursor: onProjectClick ? 'pointer' : 'default',
                           }}
                         >{project.name}</div>
                         <div style={{

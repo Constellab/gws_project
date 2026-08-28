@@ -1,6 +1,7 @@
 import reflex as rx
 from gws_reflex_main import main_component, translate
 
+from ..common.details_sidebar.details_panel_component import details_panel
 from ..common.page_layout import page_layout
 from ..common.planning_grid.planning_grid import GridTaskDTO, planning_grid
 from . import planning_translations  # noqa: F401  (side effect: registers translations)
@@ -108,7 +109,7 @@ def _slot_info_row(label: rx.Var, value: rx.Var) -> rx.Component:
 
 
 def _slot_dialog() -> rx.Component:
-    """Opened by double-clicking a slot: what it holds, its hours, and its deletion."""
+    """Opened by right-clicking a slot: what it holds, its hours, and its deletion."""
     return rx.dialog.root(
         rx.dialog.content(
             rx.dialog.title(translate("planning.slot.title")),
@@ -369,6 +370,7 @@ def planning_page() -> rx.Component:
                     on_slot_delete=PlanningState.handle_slot_delete,
                     on_cell_click=PlanningState.handle_cell_click,
                     on_slot_open=PlanningState.handle_slot_open,
+                    on_task_click=PlanningState.handle_task_click,
                     width="100%",
                     flex="1",
                 ),
@@ -393,5 +395,7 @@ def planning_page() -> rx.Component:
                 width="100%",
             ),
             height="100vh",
-        )
+        ),
+        # Clicking a task of the panel, or a slot, opens its details beside the week
+        details_panel(),
     )

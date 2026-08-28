@@ -15,8 +15,8 @@ from gws_reflex_main import I18nState, ReflexMainState, toast_tr
 
 from ..common.breadcrumb.breadcrumb_state import Task
 from ..common.date_format import localize_task_dto
+from ..common.details_sidebar.details_panel_state import DetailsPanelState
 from ..common.kanban.kanban import BoardDataDTO, CardDTO, CardMoveEvent, build_kanban_board_data
-from ..common.project_app_router import ProjectAppRouter
 
 
 class KanbanState(rx.State):
@@ -167,6 +167,18 @@ class KanbanState(rx.State):
         await self.load_users()
         await self.load_companies()
         await self.load_tasks()
+
+    async def handle_card_click(self, card_id: str):
+        """Show the clicked card's task in the details panel.
+
+        The board is reloaded after an edit: a status change moves the card to another
+        column, which only a reload can draw.
+
+        :param card_id: The id of the clicked card, i.e. of its task
+        :type card_id: str
+        """
+        details_panel = await self.get_state(DetailsPanelState)
+        await details_panel.open_task(card_id, callback_after_change=self.load_tasks)
 
     async def handle_search_change(self, value: str):
         """Handle text search filter change.
@@ -376,11 +388,3 @@ class KanbanState(rx.State):
         lang = (await self.get_state(I18nState)).lang
         self.tasks = self.tasks + [localize_task_dto(task.to_dto(), lang)]
 
-    async def handle_card_click(self, card_id: str):
-        """Handle card click in the Kanban board.
-
-        :param card_id: The ID of the clicked card
-        :type card_id: str
-        """
-        # Navigate to task detail page
-        return rx.redirect(ProjectAppRouter.get_task_detail_url(card_id))

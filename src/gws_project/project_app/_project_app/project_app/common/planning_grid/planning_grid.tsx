@@ -118,6 +118,7 @@ export function PlanningGrid({
   onSlotDelete,
   onCellClick,
   onSlotOpen,
+  onTaskClick,
 }: PlanningGridProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
@@ -194,6 +195,13 @@ export function PlanningGrid({
     }
   };
 
+  // A task opened from the panel or from a slot. Guarded like the cell click: the
+  // browser fires a click at the end of a drag, and a drop must not also pop the panel.
+  const handleTaskClick = (taskId: string) => {
+    if (Date.now() - lastDragEndRef.current < CLICK_AFTER_DRAG_MS) return;
+    onTaskClick?.(taskId);
+  };
+
   const handleCellClick = (personId: string, day: string, startTime: string) => {
     setSelectedSlotId(null);
     if (Date.now() - lastDragEndRef.current < CLICK_AFTER_DRAG_MS) return;
@@ -240,6 +248,7 @@ export function PlanningGrid({
           searchPlaceholder={gridData.search_placeholder}
           noTaskFoundLabel={gridData.no_task_found_label}
           helpText={gridData.tasks_help_text}
+          onTaskClick={handleTaskClick}
         />
 
         <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
@@ -322,6 +331,7 @@ export function PlanningGrid({
                   onResize={(slotId, edge, newTime) => onSlotResize?.({ slot_id: slotId, edge, new_time: newTime })}
                   onSelectSlot={setSelectedSlotId}
                   onOpenSlot={onSlotOpen}
+                  onSlotTaskClick={handleTaskClick}
                   onEmptyClick={handleCellClick}
                 />
               ))}

@@ -104,10 +104,12 @@ class PlanningGrid(rx.Component):
     on_slot_resize: rx.EventHandler[rx.event.passthrough_event_spec(dict)]
     # Fired when the selected slot is deleted with the keyboard, with the slot id
     on_slot_delete: rx.EventHandler[rx.event.passthrough_event_spec(str)]
-    # Fired when a slot is double-clicked, with the slot id
+    # Fired when a slot is right-clicked, with the slot id
     on_slot_open: rx.EventHandler[rx.event.passthrough_event_spec(str)]
     # Fired when an empty area of a day column is clicked: {person_id, day, start_time}
     on_cell_click: rx.EventHandler[rx.event.passthrough_event_spec(dict)]
+    # Fired with a task id when a task of the left panel, or a slot, is clicked
+    on_task_click: rx.EventHandler[rx.event.passthrough_event_spec(str)]
 
 
 planning_grid = PlanningGrid.create

@@ -3,17 +3,17 @@ from gws_reflex_main import (
     main_component,
     right_sidebar_close_button,
     translate,
-    user_inline_component,
 )
 from gws_reflex_main.gws_components import rich_text_component
 
 from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
 from ..common.detail_page_layout import detail_page_layout
+from ..common.details_sidebar.details_sidebar_parts import sidebar_section_label
+from ..common.details_sidebar.task_details_sections import task_details_sections
 from ..common.documents_list.documents_list_component import documents_list_content
 from ..common.documents_list.documents_list_state import DocumentsListState
 from ..common.page_layout import page_layout
-from ..common.progress_ring import progress_ring
 from ..common.projects.project_access_component import project_access_error_component
 from ..common.projects.project_page_state import ProjectPageState
 from ..common.tasks.task_actions_menu import task_actions_menu
@@ -297,57 +297,12 @@ def main_content_area() -> rx.Component:
     )
 
 
-def _sidebar_section_label(label: str) -> rx.Component:
-    """Create a small uppercase gray label for a sidebar section.
-
-    :param label: The label text
-    :type label: str
-    :return: The styled label component
-    :rtype: rx.Component
-    """
-    return rx.text(
-        label,
-        size="1",
-        color="gray",
-        weight="bold",
-        style={
-            "text-transform": "uppercase",
-            "letter-spacing": "0.06em",
-        },
-    )
-
-
-def _sidebar_metadata_row(label: str, value: rx.Component) -> rx.Component:
-    """Create a metadata row with a label on the left and value on the right.
-
-    :param label: The label text
-    :type label: str
-    :param value: The value component
-    :type value: rx.Component
-    :return: The metadata row component
-    :rtype: rx.Component
-    """
-    return rx.hstack(
-        rx.text(label, size="2", color="gray"),
-        rx.spacer(),
-        value,
-        width="100%",
-        align="center",
-    )
-
-
 def details_sidebar() -> rx.Component:
     """Create the details sidebar (right side) with task information.
 
-    Layout follows the project detail sidebar structure:
-    - Heading with close button
-    - Centered progress ring (conditional)
-    - Assigned to section
-    - Parent task (conditional)
-    - Subtask members (conditional)
-    - Priority section
-    - Dates section with styled date box
-    - Metadata section with divider
+    The sections themselves are shared with the details panel opened from Kanban,
+    Gantt, Planning and My work (see `common/details_sidebar/`), so both read the same;
+    only the heading row differs.
 
     :return: The details sidebar component
     :rtype: rx.Component
@@ -355,164 +310,20 @@ def details_sidebar() -> rx.Component:
     return rx.vstack(
         # Heading with close button
         rx.hstack(
-            _sidebar_section_label(translate("task_detail.sidebar.title")),
+            sidebar_section_label(translate("details_sidebar.task.title")),
             rx.spacer(),
             right_sidebar_close_button(),
             width="100%",
             align="center",
         ),
-        # Centered progress ring (only show if progress > 0)
-        rx.cond(
-            TaskDetailState.task.progress > 0,
-            rx.flex(
-                progress_ring(TaskDetailState.task.progress, size="big"),
-                justify="center",
-                width="100%",
-                margin_bottom="0.5rem",
-            ),
-        ),
-        # Assigned to section
-        rx.vstack(
-            _sidebar_section_label(translate("task_detail.sidebar.assigned_to")),
-            user_inline_component(TaskDetailState.task.assign_to),
-            spacing="2",
-            align_items="start",
-            width="100%",
-        ),
-        # Parent task section (conditional)
-        rx.cond(
-            TaskDetailState.parent_task,
-            rx.vstack(
-                _sidebar_section_label(translate("task_detail.sidebar.parent_task")),
-                rx.link(
-                    TaskDetailState.parent_task.title,
-                    href=f"/task/{TaskDetailState.parent_task.id}",
-                    size="2",
-                ),
-                spacing="2",
-                align_items="start",
-                width="100%",
-            ),
-        ),
-        # Subtask members section (conditional - only show if task has subtasks)
-        rx.cond(
-            TaskDetailState.task.allow_subtasks,
-            rx.vstack(
-                _sidebar_section_label(translate("task_detail.sidebar.subtask_members")),
-                rx.cond(
-                    TaskDetailState.subtask_members.length() > 0,
-                    rx.vstack(
-                        rx.foreach(
-                            TaskDetailState.subtask_members,
-                            user_inline_component,
-                        ),
-                        spacing="2",
-                        align_items="start",
-                        width="100%",
-                    ),
-                    rx.text(
-                        translate("task_detail.sidebar.no_members"),
-                        size="2",
-                        color="gray",
-                        font_style="italic",
-                    ),
-                ),
-                spacing="2",
-                align_items="start",
-                width="100%",
-            ),
-        ),
-        # Status and Priority section (side by side)
-        rx.hstack(
-            rx.vstack(
-                _sidebar_section_label(translate("task_detail.sidebar.status")),
-                task_status_chip(
-                    TaskDetailState.task.status,
-                    on_status_change=TaskDetailState.update_status,
-                    allow_subtask=TaskDetailState.task.allow_subtasks,
-                    size="2",
-                ),
-                spacing="2",
-                align_items="start",
-            ),
-            rx.spacer(),
-            rx.vstack(
-                _sidebar_section_label(translate("task_detail.sidebar.priority")),
-                task_priority_chip(
-                    TaskDetailState.task.priority,
-                    on_priority_change=TaskDetailState.update_priority,
-                    allow_subtask=TaskDetailState.task.allow_subtasks,
-                    size="2",
-                ),
-                spacing="2",
-                align_items="end",
-            ),
-            align="start",
-            width="100%",
-        ),
-        # Dates section - hidden entirely for an undated task, so the label
-        # never sits above an empty box.
-        rx.cond(
-            (TaskDetailState.task.start_date_text != "")
-            | (TaskDetailState.task.due_date_text != ""),
-            rx.vstack(
-                _sidebar_section_label(translate("task_detail.sidebar.dates")),
-                rx.hstack(
-                    rx.text(
-                        rx.cond(
-                            TaskDetailState.task.start_date_text,
-                            TaskDetailState.task.start_date_text,
-                            "—",
-                        ),
-                        size="2",
-                        weight="bold",
-                        color="var(--accent-9)",
-                    ),
-                    rx.text("→", size="2", color="gray"),
-                    rx.text(
-                        rx.cond(
-                            TaskDetailState.task.due_date_text,
-                            TaskDetailState.task.due_date_text,
-                            "—",
-                        ),
-                        size="2",
-                        weight="bold",
-                        color="var(--accent-9)",
-                    ),
-                    background="var(--accent-2)",
-                    border_radius="12px",
-                    padding="12px 14px",
-                    align="center",
-                    spacing="3",
-                    width="100%",
-                ),
-                spacing="2",
-                align_items="start",
-                width="100%",
-            ),
-        ),
-        # Divider + metadata section
-        rx.vstack(
-            rx.divider(margin_bottom="0.5rem"),
-            _sidebar_metadata_row(
-                translate("task_detail.sidebar.created_by"),
-                user_inline_component(TaskDetailState.task.created_by, size="small"),
-            ),
-            _sidebar_metadata_row(
-                translate("task_detail.sidebar.created_at"),
-                rx.text(TaskDetailState.created_at_text, size="1", weight="medium"),
-            ),
-            _sidebar_metadata_row(
-                translate("task_detail.sidebar.last_modified_by"),
-                user_inline_component(TaskDetailState.task.last_modified_by, size="small"),
-            ),
-            _sidebar_metadata_row(
-                translate("task_detail.sidebar.last_modified_at"),
-                rx.text(TaskDetailState.last_modified_at_text, size="1", weight="medium"),
-            ),
-            spacing="1",
-            width="100%",
-            padding_top="0.5rem",
+        task_details_sections(
+            task=TaskDetailState.task,
+            created_at_text=TaskDetailState.created_at_text,
+            last_modified_at_text=TaskDetailState.last_modified_at_text,
+            parent_task=TaskDetailState.parent_task,
+            subtask_members=TaskDetailState.subtask_members,
+            on_status_change=TaskDetailState.update_status,
+            on_priority_change=TaskDetailState.update_priority,
         ),
         width="100%",
         spacing="5",

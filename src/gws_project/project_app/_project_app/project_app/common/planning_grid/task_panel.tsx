@@ -9,6 +9,7 @@ export interface TaskPanelProps {
   searchPlaceholder: string;
   noTaskFoundLabel: string;
   helpText: string;
+  onTaskClick?: (taskId: string) => void;
 }
 
 // Every text of a task card is searchable, so one query box covers what the
@@ -26,7 +27,15 @@ function dueDateColor(status?: DueStatus): string {
   return 'var(--gray-9)';
 }
 
-function TaskPanelItem({ task, scheduledLabel }: { task: GridTask; scheduledLabel: string }) {
+function TaskPanelItem({
+  task,
+  scheduledLabel,
+  onTaskClick,
+}: {
+  task: GridTask;
+  scheduledLabel: string;
+  onTaskClick?: (taskId: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: taskDragId(task.id) });
 
   return (
@@ -34,6 +43,9 @@ function TaskPanelItem({ task, scheduledLabel }: { task: GridTask; scheduledLabe
       ref={setNodeRef}
       {...attributes}
       {...listeners}
+      // A card is dragged onto the grid to schedule it; a plain click shows the task in
+      // the details panel (PlanningGrid drops the click the browser fires after a drop).
+      onClick={() => onTaskClick?.(task.id)}
       style={{
         padding: '8px 10px',
         marginBottom: '8px',
@@ -101,7 +113,14 @@ function TaskPanelItem({ task, scheduledLabel }: { task: GridTask; scheduledLabe
   );
 }
 
-export function TaskPanel({ tasks, scheduledLabel, searchPlaceholder, noTaskFoundLabel, helpText }: TaskPanelProps) {
+export function TaskPanel({
+  tasks,
+  scheduledLabel,
+  searchPlaceholder,
+  noTaskFoundLabel,
+  helpText,
+  onTaskClick,
+}: TaskPanelProps) {
   const [query, setQuery] = useState('');
 
   // Filtering client-side keeps the list responsive on every keystroke: the panel
@@ -136,7 +155,12 @@ export function TaskPanel({ tasks, scheduledLabel, searchPlaceholder, noTaskFoun
 
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {visibleTasks.map((task) => (
-          <TaskPanelItem key={task.id} task={task} scheduledLabel={scheduledLabel} />
+          <TaskPanelItem
+            key={task.id}
+            task={task}
+            scheduledLabel={scheduledLabel}
+            onTaskClick={onTaskClick}
+          />
         ))}
         {visibleTasks.length === 0 && (
           <div style={{ fontSize: '12px', color: 'var(--gray-9)', padding: '8px 2px' }}>{noTaskFoundLabel}</div>

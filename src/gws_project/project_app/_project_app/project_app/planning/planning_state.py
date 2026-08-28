@@ -25,6 +25,7 @@ from ..common.date_format import (
     format_short_weekday_day,
     format_short_weekday_day_month,
 )
+from ..common.details_sidebar.details_panel_state import DetailsPanelState
 from ..common.planning_grid.planning_grid import (
     GridPersonDTO,
     GridSlotDTO,
@@ -63,7 +64,7 @@ class PlanningState(rx.State):
     working_hours: WorkingHoursSettingsDTO | None = None
     warnings_dialog_open: bool = False
 
-    # Slot dialog: opened by double-clicking a slot, it shows what the slot holds,
+    # Slot dialog: opened by right-clicking a slot, it shows what the slot holds,
     # lets its hours be typed in, and is the only place a slot is deleted from
     # (with the Delete key on a selected slot as the shortcut).
     slot_dialog_open: bool = False
@@ -640,8 +641,20 @@ class PlanningState(rx.State):
                 self, "planning.toast.delete_failed", {"error": str(e)}
             )
 
+    async def handle_task_click(self, task_id: str):
+        """Show a task clicked in the left panel, or in a slot, in the details panel.
+
+        The week is reloaded after an edit: the task panel lists only the tasks still to
+        do, so a task marked done leaves it.
+
+        :param task_id: The id of the clicked task
+        :type task_id: str
+        """
+        details_panel = await self.get_state(DetailsPanelState)
+        await details_panel.open_task(task_id, callback_after_change=self._load_week)
+
     async def handle_slot_open(self, slot_id: str):
-        """Open the slot dialog on a double-clicked slot.
+        """Open the slot dialog on a right-clicked slot.
 
         Everything shown is read from the week already loaded in the state, so
         opening the dialog costs no service call.

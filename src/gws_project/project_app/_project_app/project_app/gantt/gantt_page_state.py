@@ -7,9 +7,9 @@ from gws_project.project.project_service import ProjectService
 from gws_project.user.user import User
 from gws_reflex_main import ReflexMainState
 
+from ..common.details_sidebar.details_panel_state import DetailsPanelState
 from ..common.gantt.gantt_type import GanttDataDTO, GanttStatus
 from ..common.gantt.gantt_utils import build_gantt_data_from_projects
-from ..common.project_app_router import ProjectAppRouter
 
 
 class GanttPageState(rx.State):
@@ -66,6 +66,31 @@ class GanttPageState(rx.State):
         await self.load_managers()
         await self.load_companies()
         await self.load_projects_with_tasks()
+
+    async def handle_project_click(self, project_id: str):
+        """Show the clicked project in the details panel.
+
+        :param project_id: The clicked project id
+        :type project_id: str
+        """
+        details_panel = await self.get_state(DetailsPanelState)
+        await details_panel.open_project(
+            project_id, callback_after_change=self.load_projects_with_tasks
+        )
+
+    async def handle_task_click(self, task_id: str):
+        """Show the clicked task in the details panel.
+
+        The chart is reloaded after an edit: a task's status colours its row and feeds
+        its project's own status, progress and group.
+
+        :param task_id: The clicked task id
+        :type task_id: str
+        """
+        details_panel = await self.get_state(DetailsPanelState)
+        await details_panel.open_task(
+            task_id, callback_after_change=self.load_projects_with_tasks
+        )
 
     @rx.event
     async def handle_search_title_change(self, value: str):
@@ -179,11 +204,3 @@ class GanttPageState(rx.State):
             for item in self.visible_projects
             if item.project.project_manager is not None
         })
-
-    async def handle_task_click(self, project_id: str):
-        """Navigate to a project clicked in the chart.
-
-        :param project_id: The clicked project id
-        :type project_id: str
-        """
-        return rx.redirect(ProjectAppRouter.get_project_detail_url(project_id))
