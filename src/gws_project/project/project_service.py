@@ -5,6 +5,8 @@ from gws_core import (
     CurrentUserService,
     RichText,
     RichTextDTO,
+    SpaceGroupDTO,
+    SpaceGroupType,
     SpaceService,
 )
 
@@ -373,14 +375,19 @@ class ProjectService:
 
     @ProjectDbManager.transaction()
     def add_group_to_project(
-        self, project_id: str, group_id: str, role: ProjectUserRole = ProjectUserRole.USER
+        self, project_id: str, group: SpaceGroupDTO, role: ProjectUserRole = ProjectUserRole.USER
     ) -> list[ProjectUser]:
         """Add a Space group (single user or team) to a project.
 
-        The group's users are resolved via Space (the user/group directory),
-        imported into the lab if needed, and stored as local ProjectUser rows
-        with the requested role. Membership is enforced locally only: nothing
-        is shared in Space.
+        The group type drives how its members are resolved:
+
+        - ``TEAM``: the team's users are resolved via Space (the user/group
+          directory) with :meth:`SpaceService.get_group_users`, imported into
+          the lab if needed, and stored as local ProjectUser rows.
+        - ``SINGLE_USER``: the single user carried by the group is added
+          directly, without any extra Space call.
+
+        Membership is enforced locally only: nothing is shared in Space.
 
         Only group members who are not already members of the project are
         added with the requested role. Members already in the project keep
@@ -389,8 +396,8 @@ class ProjectService:
 
         :param project_id: The ID of the project
         :type project_id: str
-        :param group_id: The ID of the Space group to add
-        :type group_id: str
+        :param group: The Space group to add
+        :type group: SpaceGroupDTO
         :param role: The role of the group users in the project (default: USER)
         :type role: ProjectUserRole
         :return: The created/updated ProjectUser entities
@@ -400,8 +407,17 @@ class ProjectService:
         security_service = ProjectSecurityService()
         project = security_service.get_and_check_role_for_project(project_id, ProjectUserRole.OWNER)
 
-        # Resolve the users of the group from Space
-        group_users = self._space_service.get_group_users(group_id)
+        # A single-user group carries its user directly: add it without an
+        # extra Space round-trip.
+        if group.type == SpaceGroupType.SINGLE_USER:
+            if not group.user:
+                raise BadRequestException(
+                    f"Single-user group '{group.id}' has no associated user."
+                )
+            return [self._add_user_to_project(project, group.user.id, role)]
+
+        # A team must be resolved via Space to get its list of users.
+        group_users = self._space_service.get_group_users(group.id)
 
         project_users = []
         for group_user in group_users:
