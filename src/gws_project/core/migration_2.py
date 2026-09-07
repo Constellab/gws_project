@@ -9,7 +9,7 @@ from gws_project.template.task_template import TaskTemplate
 @brick_migration(
     "0.2.0-beta.6",
     short_description=(
-        "Make task start_date/end_date and task template start_date_offset/duration_days nullable"
+        "Make task start_date/end_date (now due_date) and task template start_date_offset/duration_days nullable"
     ),
     db_manager=ProjectDbManager.get_instance(),
 )
@@ -18,7 +18,7 @@ class Migration0206Beta6(BrickMigration):
     def migrate(cls, sql_migrator: SqlMigrator, from_version: Version, to_version: Version) -> None:
         # Relax the NOT NULL constraint on task dates: a task's dates are now optional
         sql_migrator.alter_column_type(Task, "start_date", DateField(null=True))
-        sql_migrator.alter_column_type(Task, "end_date", DateField(null=True))
+        sql_migrator.alter_column_type(Task, "due_date", DateField(null=True))
 
         # Same for task template offset/duration: a template with no offset now
         # produces a task with no dates at all instead of defaulting to 0/1
